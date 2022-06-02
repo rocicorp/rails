@@ -99,7 +99,7 @@ async function listImpl<T extends Entity>(
 ) {
   const {startAtID, limit} = options ?? {};
   const result = [];
-  for await (const [k, v] of tx
+  for await (const v of tx
     .scan({
       prefix: key(prefix, ''),
       start: {
@@ -107,7 +107,7 @@ async function listImpl<T extends Entity>(
       },
       limit,
     })
-    .entries()) {
+    .values()) {
     const parsed = schema.parse(v);
     result.push(parsed);
   }
