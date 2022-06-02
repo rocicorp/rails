@@ -1,6 +1,6 @@
 {
   "name": "@rocicorp/rails",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "CRUD interface generator for Replicache",
   "homepage": "https://github.com/rocicorp/rails",
   "repository": "github:rocicorp/rails",
