@@ -16,7 +16,7 @@ npm install --save-dev @rocicorp/rails
 // todo.ts
 
 import {z} from 'zod';
-import {entitySchema, generate, Update} from './rails';
+import {entitySchema, generate, Update} from 'rails';
 
 // All entities must extend `entitySchema`.
 export const todoSchema = entitySchema.extend({
