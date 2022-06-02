@@ -1,6 +1,6 @@
 # Replicache on Rails
 
-Generates a CRUD-style interface for Replicache and validation given a [Zod schema](https://github.com/colinhacks/zod).
+Generates a CRUD-style interface for Replicache and validation from a [Zod schema](https://github.com/colinhacks/zod).
 
 ## Install
 
@@ -89,3 +89,9 @@ function ListView() {
 ## Validation
 
 Rails validates reads and writes in debug mode only. In production mode, validation is skipped for performance.
+
+## Conflict Semantics
+
+* **create**: If the entity already exists, it is overwritten.
+* **update**: All keys in an update are applied together atomically. If the entity does not exist a debug message is printed to the console and the update is skipped.
+* **delete**: If the entity doesn't exist, the delete is a no-op.

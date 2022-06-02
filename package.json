@@ -1,6 +1,6 @@
 {
-  "name": "rails",
-  "version": "0.1",
+  "name": "@rocicorp/rails",
+  "version": "0.1.0",
   "description": "CRUD interface generator for Replicache",
   "homepage": "https://github.com/rocicorp/rails",
   "repository": "github:rocicorp/rails",
@@ -20,7 +20,7 @@
   "peerDependencies": {
     "react": ">=16.0 <18.0",
     "react-dom": ">=16.0 <18.0",
-    "replicache": ">=10.0.0 <11.0"
+    "replicache": ">=10.0 <12.0"
   },
   "peerDependenciesMeta": {
     "replicache": {
@@ -36,8 +36,9 @@
     "@typescript-eslint/parser": "^5.18.0",
     "@web/test-runner": "^0.13.18",
     "eslint": "^8.2.0",
+    "nanoid": "^3.3.4",
     "prettier": "^2.4.1",
-    "replicache": ">= 7.0.0",
+    "replicache": ">=10.0 <12.0",
     "snowpack": "^3.8.8",
     "typescript": "^4.4.3",
     "zod": "^3.13.4"

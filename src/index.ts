@@ -36,7 +36,7 @@ export const entitySchema = z.object({
 export type Entity = z.TypeOf<typeof entitySchema>;
 
 function key(prefix: string, id: string) {
-  return `r/${prefix}/${id}`;
+  return `${prefix}/${id}`;
 }
 
 async function createImpl<T extends Entity>(
@@ -99,13 +99,15 @@ async function listImpl<T extends Entity>(
 ) {
   const {startAtID, limit} = options ?? {};
   const result = [];
-  for await (const v of tx
+  for await (const [k, v] of tx
     .scan({
       prefix: key(prefix, ''),
-      startAt: key(prefix, startAtID ?? ''),
+      start: {
+        key: key(prefix, startAtID ?? ''),
+      },
       limit,
     })
-    .values()) {
+    .entries()) {
     const parsed = schema.parse(v);
     result.push(parsed);
   }
