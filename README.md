@@ -98,3 +98,4 @@ Rails validates reads and writes in debug mode only\*. In production mode, valid
 - Implement `process.env` and only do validation in dev mode
 - Accept a logger as a dependency instead of using `console` directly
 - Fix duplicate key allocation in edit function
+- Integrate with replidraw and repliear
