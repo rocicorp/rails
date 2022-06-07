@@ -85,8 +85,6 @@ function ListView() {
 
 Rails validates reads and writes in debug mode only\*. In production mode, validation is skipped for performance.
 
-- Not really, see TODO :).
-
 ## Conflict Semantics
 
 - **create**: If the entity already exists, it is overwritten.
@@ -95,7 +93,4 @@ Rails validates reads and writes in debug mode only\*. In production mode, valid
 
 ## TODO
 
-- Implement `process.env` and only do validation in dev mode
-- Accept a logger as a dependency instead of using `console` directly
-- Fix duplicate key allocation in edit function
 - Integrate with replidraw and repliear
