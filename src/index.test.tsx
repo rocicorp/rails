@@ -10,6 +10,7 @@ import {
 import {z, ZodError, ZodTypeAny} from 'zod';
 import {nanoid} from 'nanoid';
 import {entitySchema, generate, ListOptions, parseIfDebug} from './index';
+import type {OptionalLogger} from '@rocicorp/logger';
 
 const e1 = entitySchema.extend({
   str: z.string(),
@@ -460,5 +461,58 @@ test('parseIfDebug', async () => {
     }
   } finally {
     globalThis.process = undefined as unknown as NodeJS.Process;
+  }
+});
+
+test('optionalLogger', async () => {
+  type Case = {
+    name: string;
+    logger: OptionalLogger | undefined;
+    expected: unknown[] | undefined;
+  };
+
+  let output: unknown[] | undefined = undefined;
+
+  const cases: Case[] = [
+    {
+      name: 'undefined',
+      logger: undefined,
+      expected: undefined,
+    },
+    {
+      name: 'empty',
+      logger: {},
+      expected: undefined,
+    },
+    {
+      name: 'console',
+      logger: console,
+      expected: undefined,
+    },
+    {
+      name: 'custom',
+      logger: {
+        debug: (...args: unknown[]) => {
+          output = args;
+        },
+      },
+      expected: ['no such entity foo, skipping update'],
+    },
+  ];
+
+  for (const c of cases) {
+    const [, , updateE1] = generate('e1', e1, c.logger);
+    output = undefined;
+
+    const rep = new Replicache({
+      name: nanoid(),
+      mutators: {
+        updateE1,
+      },
+      licenseKey: TEST_LICENSE_KEY,
+    });
+
+    await rep.mutate.updateE1({id: 'foo', str: 'bar'});
+    expect(output, c.name).deep.equal(c.expected);
   }
 });

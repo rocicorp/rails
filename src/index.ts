@@ -4,6 +4,7 @@ import type {
   WriteTransaction,
 } from 'replicache';
 import {z, ZodType} from 'zod';
+import type {OptionalLogger} from '@rocicorp/logger';
 
 export type Update<T> = Entity & Partial<T>;
 
@@ -25,12 +26,13 @@ export type GenerateResult<T extends Entity> = [
 export function generate<T extends Entity>(
   prefix: string,
   schema: ZodType<T>,
+  logger: OptionalLogger = console,
 ): GenerateResult<T> {
   return [
     (tx: WriteTransaction, value: T) => createImpl(prefix, schema, tx, value),
     (tx: ReadTransaction, id: string) => getImpl(prefix, schema, tx, id),
     (tx: WriteTransaction, update: Update<T>) =>
-      updateImpl(prefix, schema, tx, update),
+      updateImpl(prefix, schema, tx, update, logger),
     (tx: WriteTransaction, id: string) => deleteImpl(prefix, tx, id),
     (tx: ReadTransaction, options?: ListOptions) =>
       listImpl(prefix, schema, tx, options),
@@ -76,11 +78,12 @@ async function updateImpl<T extends Entity>(
   schema: ZodType<T>,
   tx: WriteTransaction,
   update: Update<T>,
+  logger: OptionalLogger,
 ) {
   const {id} = update;
   const prev = await getImpl(prefix, schema, tx, id);
   if (prev === undefined) {
-    console.debug(`no such entity ${id}, skipping update`);
+    logger.debug?.(`no such entity ${id}, skipping update`);
     return;
   }
   const next = {...prev, ...update};
