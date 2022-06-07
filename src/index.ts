@@ -19,6 +19,7 @@ export type GenerateResult<T extends Entity> = {
   create: (tx: WriteTransaction, value: T) => Promise<void>;
   has: (tx: ReadTransaction, id: string) => Promise<boolean>;
   get: (tx: ReadTransaction, id: string) => Promise<T | undefined>;
+  mustGet: (tx: ReadTransaction, id: string) => Promise<T>;
   update: (tx: WriteTransaction, value: Update<T>) => Promise<void>;
   del: (tx: WriteTransaction, id: string) => Promise<void>;
   list: (tx: ReadTransaction, options?: ListOptions) => Promise<Array<T>>;
@@ -34,6 +35,8 @@ export function generate<T extends Entity>(
       createImpl(prefix, schema, tx, value),
     has: (tx: ReadTransaction, id: string) => hasImpl(prefix, tx, id),
     get: (tx: ReadTransaction, id: string) => getImpl(prefix, schema, tx, id),
+    mustGet: (tx: ReadTransaction, id: string) =>
+      mustGetImpl(prefix, schema, tx, id),
     update: (tx: WriteTransaction, update: Update<T>) =>
       updateImpl(prefix, schema, tx, update, logger),
     del: (tx: WriteTransaction, id: string) => deleteImpl(prefix, tx, id),
@@ -72,6 +75,19 @@ async function getImpl<T extends Entity>(
   id: string,
 ) {
   return await getInternal(schema, tx, key(prefix, id));
+}
+
+async function mustGetImpl<T extends Entity>(
+  prefix: string,
+  schema: ZodType<T>,
+  tx: ReadTransaction,
+  id: string,
+) {
+  const v = await getInternal(schema, tx, key(prefix, id));
+  if (v === undefined) {
+    throw new Error(`no such entity ${id}`);
+  }
+  return v;
 }
 
 async function updateImpl<T extends Entity>(

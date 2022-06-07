@@ -21,6 +21,7 @@ type E1 = z.infer<typeof e1>;
 const {
   create: createE1,
   get: getE1,
+  mustGet: mustGetE1,
   has: hasE1,
   update: updateE1,
   del: deleteE1,
@@ -189,6 +190,58 @@ test('get', async () => {
         return {actual: await getE1(tx, id)};
       } catch (e) {
         return {error: (e as ZodError).format()};
+      }
+    });
+    expect(error).deep.eq(c.expectError, c.name);
+    expect(actual).deep.eq(c.expectError ? undefined : c.stored, c.name);
+  }
+});
+
+test('mustGet', async () => {
+  type Case = {
+    name: string;
+    stored: unknown;
+    expectError?: JSONValue;
+  };
+
+  const id = 'id1';
+
+  const cases: Case[] = [
+    {
+      name: 'null',
+      stored: null,
+      expectError: {_errors: ['Expected object, received null']},
+    },
+    {
+      name: 'undefined',
+      stored: undefined,
+      expectError: 'Error: no such entity id1',
+    },
+    {
+      name: 'valid',
+      stored: {id, str: 'foo'},
+    },
+  ];
+
+  for (const c of cases) {
+    const rep = new Replicache({
+      name: nanoid(),
+      mutators,
+      licenseKey: TEST_LICENSE_KEY,
+    });
+
+    if (c.stored !== undefined) {
+      await rep.mutate.directWrite({key: `e1/${id}`, val: c.stored as E1});
+    }
+    const {actual, error} = await rep.query(async tx => {
+      try {
+        return {actual: await mustGetE1(tx, id)};
+      } catch (e) {
+        if (e instanceof ZodError) {
+          return {error: (e as ZodError).format()};
+        } else {
+          return {error: String(e)};
+        }
       }
     });
     expect(error).deep.eq(c.expectError, c.name);
