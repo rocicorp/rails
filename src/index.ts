@@ -64,13 +64,7 @@ async function getImpl<T extends Entity>(
   tx: ReadTransaction,
   id: string,
 ) {
-  const val = await tx.get(key(prefix, id));
-  if (val === undefined) {
-    return val;
-  }
-  // TODO: parse only in debug mode
-  const parsed = parseIfDebug(schema, val);
-  return parsed;
+  return await getInternal(schema, tx, key(prefix, id));
 }
 
 async function updateImpl<T extends Entity>(
@@ -81,15 +75,15 @@ async function updateImpl<T extends Entity>(
   logger: OptionalLogger,
 ) {
   const {id} = update;
-  const prev = await getImpl(prefix, schema, tx, id);
+  const k = key(prefix, id);
+  const prev = await getInternal(schema, tx, k);
   if (prev === undefined) {
     logger.debug?.(`no such entity ${id}, skipping update`);
     return;
   }
   const next = {...prev, ...update};
   const parsed = parseIfDebug(schema, next);
-  // TODO: share duplicate key() call
-  await tx.put(key(prefix, id), parsed);
+  await tx.put(k, parsed);
 }
 
 async function deleteImpl(prefix: string, tx: WriteTransaction, id: string) {
@@ -122,4 +116,18 @@ async function listImpl<T extends Entity>(
     result.push(parsed);
   }
   return result;
+}
+
+async function getInternal<T extends Entity>(
+  schema: ZodType<T>,
+  tx: ReadTransaction,
+  key: string,
+) {
+  const val = await tx.get(key);
+  if (val === undefined) {
+    return val;
+  }
+  // TODO: parse only in debug mode
+  const parsed = parseIfDebug(schema, val);
+  return parsed;
 }
