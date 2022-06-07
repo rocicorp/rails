@@ -9,7 +9,7 @@ import {
 } from 'replicache';
 import {z, ZodError, ZodTypeAny} from 'zod';
 import {nanoid} from 'nanoid';
-import {entitySchema, generate, ListOptions} from './index';
+import {entitySchema, generate, ListOptions, parseIfDebug} from './index';
 
 const e1 = entitySchema.extend({
   str: z.string(),
@@ -384,5 +384,81 @@ test('list', async () => {
     }
     expect(error).deep.eq(c.expectError, c.name);
     expect(actual).deep.eq(c.expected, c.name);
+  }
+});
+
+test('parseIfDebug', async () => {
+  const schema = z.string();
+
+  type Case = {
+    name: string;
+    nodeEnv: string | undefined;
+    input: JSONValue;
+    expectedError: string | undefined;
+  };
+
+  const cases: Case[] = [
+    {
+      name: 'undefined valid',
+      nodeEnv: undefined,
+      input: 'foo',
+      expectedError: undefined,
+    },
+    {
+      name: 'undefined invalid',
+      nodeEnv: undefined,
+      input: 42,
+      expectedError: 'Expected string, received number',
+    },
+    {
+      name: 'dev valid',
+      nodeEnv: 'development',
+      input: 'foo',
+      expectedError: undefined,
+    },
+    {
+      name: 'dev invalid',
+      nodeEnv: 'development',
+      input: 42,
+      expectedError: 'Expected string, received number',
+    },
+    {
+      name: 'prod valid',
+      nodeEnv: 'production',
+      input: 'foo',
+      expectedError: undefined,
+    },
+    {
+      name: 'prod invalid',
+      nodeEnv: 'production',
+      input: 42,
+      expectedError: undefined,
+    },
+  ];
+
+  try {
+    for (const c of cases) {
+      globalThis.process = {
+        env: {
+          NODE_ENV: c.nodeEnv,
+        },
+      } as unknown as NodeJS.Process;
+      let error;
+      let actual;
+      try {
+        actual = parseIfDebug(schema, c.input);
+      } catch (e) {
+        error = e;
+      }
+      if (c.expectedError === undefined) {
+        expect(actual, c.name).deep.eq(c.input);
+        expect(error, c.name).undefined;
+      } else {
+        expect(actual, c.name).undefined;
+        expect(String(error), c.name).contains(c.expectedError);
+      }
+    }
+  } finally {
+    globalThis.process = undefined as unknown as NodeJS.Process;
   }
 });

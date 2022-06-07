@@ -7,6 +7,13 @@ import {z, ZodType} from 'zod';
 
 export type Update<T> = Entity & Partial<T>;
 
+export function parseIfDebug<T>(schema: ZodType<T>, val: ReadonlyJSONValue): T {
+  if (globalThis.process?.env?.NODE_ENV !== 'production') {
+    return schema.parse(val);
+  }
+  return val as T;
+}
+
 export type GenerateResult<T extends Entity> = [
   create: (tx: WriteTransaction, value: T) => Promise<void>,
   get: (tx: ReadTransaction, id: string) => Promise<T | undefined>,
@@ -45,7 +52,7 @@ async function createImpl<T extends Entity>(
   tx: WriteTransaction,
   initial: ReadonlyJSONValue,
 ) {
-  const val = schema.parse(initial);
+  const val = parseIfDebug(schema, initial);
   await tx.put(key(prefix, val.id), val);
 }
 
@@ -60,7 +67,7 @@ async function getImpl<T extends Entity>(
     return val;
   }
   // TODO: parse only in debug mode
-  const parsed = schema.parse(val);
+  const parsed = parseIfDebug(schema, val);
   return parsed;
 }
 
@@ -77,7 +84,7 @@ async function updateImpl<T extends Entity>(
     return;
   }
   const next = {...prev, ...update};
-  const parsed = schema.parse(next);
+  const parsed = parseIfDebug(schema, next);
   // TODO: share duplicate key() call
   await tx.put(key(prefix, id), parsed);
 }
@@ -108,7 +115,7 @@ async function listImpl<T extends Entity>(
       limit,
     })
     .values()) {
-    const parsed = schema.parse(v);
+    const parsed = parseIfDebug(schema, v);
     result.push(parsed);
   }
   return result;
