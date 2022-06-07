@@ -16,13 +16,21 @@ export function parseIfDebug<T>(schema: ZodType<T>, val: ReadonlyJSONValue): T {
 }
 
 export type GenerateResult<T extends Entity> = {
-  init: (tx: WriteTransaction, value: T) => Promise<boolean>;
+  /** Write `value`, overwriting any previous version of same value. */
   put: (tx: WriteTransaction, value: T) => Promise<void>;
+  /** Write `value` only if no previous version of this value exists. */
+  init: (tx: WriteTransaction, value: T) => Promise<boolean>;
+  /** Update existing value with new fields. */
   update: (tx: WriteTransaction, value: Update<T>) => Promise<void>;
+  /** Delete any existing value or do nothing if none exist. */
   delete: (tx: WriteTransaction, id: string) => Promise<void>;
+  /** Return true if specified value exists, false otherwise. */
   has: (tx: ReadTransaction, id: string) => Promise<boolean>;
+  /** Get value by ID, or return undefined if none exists. */
   get: (tx: ReadTransaction, id: string) => Promise<T | undefined>;
+  /** Get value by ID, or throw if none exists. */
   mustGet: (tx: ReadTransaction, id: string) => Promise<T>;
+  /** List values matching criteria. */
   list: (tx: ReadTransaction, options?: ListOptions) => Promise<Array<T>>;
 };
 
@@ -32,16 +40,16 @@ export function generate<T extends Entity>(
   logger: OptionalLogger = console,
 ): GenerateResult<T> {
   return {
+    put: (tx: WriteTransaction, value: T) => putImpl(prefix, schema, tx, value),
     init: (tx: WriteTransaction, value: T) =>
       initImpl(prefix, schema, tx, value),
-    put: (tx: WriteTransaction, value: T) => putImpl(prefix, schema, tx, value),
+    update: (tx: WriteTransaction, update: Update<T>) =>
+      updateImpl(prefix, schema, tx, update, logger),
+    delete: (tx: WriteTransaction, id: string) => deleteImpl(prefix, tx, id),
     has: (tx: ReadTransaction, id: string) => hasImpl(prefix, tx, id),
     get: (tx: ReadTransaction, id: string) => getImpl(prefix, schema, tx, id),
     mustGet: (tx: ReadTransaction, id: string) =>
       mustGetImpl(prefix, schema, tx, id),
-    update: (tx: WriteTransaction, update: Update<T>) =>
-      updateImpl(prefix, schema, tx, update, logger),
-    delete: (tx: WriteTransaction, id: string) => deleteImpl(prefix, tx, id),
     list: (tx: ReadTransaction, options?: ListOptions) =>
       listImpl(prefix, schema, tx, options),
   };
