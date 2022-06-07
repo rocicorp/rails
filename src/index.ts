@@ -15,28 +15,31 @@ export function parseIfDebug<T>(schema: ZodType<T>, val: ReadonlyJSONValue): T {
   return val as T;
 }
 
-export type GenerateResult<T extends Entity> = [
-  create: (tx: WriteTransaction, value: T) => Promise<void>,
-  get: (tx: ReadTransaction, id: string) => Promise<T | undefined>,
-  update: (tx: WriteTransaction, value: Update<T>) => Promise<void>,
-  del: (tx: WriteTransaction, id: string) => Promise<void>,
-  list: (tx: ReadTransaction, options?: ListOptions) => Promise<Array<T>>,
-];
+export type GenerateResult<T extends Entity> = {
+  create: (tx: WriteTransaction, value: T) => Promise<void>;
+  has: (tx: ReadTransaction, id: string) => Promise<boolean>;
+  get: (tx: ReadTransaction, id: string) => Promise<T | undefined>;
+  update: (tx: WriteTransaction, value: Update<T>) => Promise<void>;
+  del: (tx: WriteTransaction, id: string) => Promise<void>;
+  list: (tx: ReadTransaction, options?: ListOptions) => Promise<Array<T>>;
+};
 
 export function generate<T extends Entity>(
   prefix: string,
   schema: ZodType<T>,
   logger: OptionalLogger = console,
 ): GenerateResult<T> {
-  return [
-    (tx: WriteTransaction, value: T) => createImpl(prefix, schema, tx, value),
-    (tx: ReadTransaction, id: string) => getImpl(prefix, schema, tx, id),
-    (tx: WriteTransaction, update: Update<T>) =>
+  return {
+    create: (tx: WriteTransaction, value: T) =>
+      createImpl(prefix, schema, tx, value),
+    has: (tx: ReadTransaction, id: string) => hasImpl(prefix, tx, id),
+    get: (tx: ReadTransaction, id: string) => getImpl(prefix, schema, tx, id),
+    update: (tx: WriteTransaction, update: Update<T>) =>
       updateImpl(prefix, schema, tx, update, logger),
-    (tx: WriteTransaction, id: string) => deleteImpl(prefix, tx, id),
-    (tx: ReadTransaction, options?: ListOptions) =>
+    del: (tx: WriteTransaction, id: string) => deleteImpl(prefix, tx, id),
+    list: (tx: ReadTransaction, options?: ListOptions) =>
       listImpl(prefix, schema, tx, options),
-  ];
+  };
 }
 
 export const entitySchema = z.object({
@@ -56,6 +59,10 @@ async function createImpl<T extends Entity>(
 ) {
   const val = parseIfDebug(schema, initial);
   await tx.put(key(prefix, val.id), val);
+}
+
+async function hasImpl(prefix: string, tx: ReadTransaction, id: string) {
+  return await tx.has(key(prefix, id));
 }
 
 async function getImpl<T extends Entity>(

@@ -18,7 +18,14 @@ const e1 = entitySchema.extend({
 });
 type E1 = z.infer<typeof e1>;
 
-const [createE1, getE1, updateE1, deleteE1, listE1] = generate('e1', e1);
+const {
+  create: createE1,
+  get: getE1,
+  has: hasE1,
+  update: updateE1,
+  del: deleteE1,
+  list: listE1,
+} = generate('e1', e1);
 
 async function directWrite(
   tx: WriteTransaction,
@@ -186,6 +193,50 @@ test('get', async () => {
     });
     expect(error).deep.eq(c.expectError, c.name);
     expect(actual).deep.eq(c.expectError ? undefined : c.stored, c.name);
+  }
+});
+
+test('has', async () => {
+  type Case = {
+    name: string;
+    stored: unknown;
+    expectHas: boolean;
+  };
+
+  const id = 'id1';
+
+  const cases: Case[] = [
+    {
+      name: 'undefined',
+      stored: undefined,
+      expectHas: false,
+    },
+    {
+      name: 'null',
+      stored: null,
+      expectHas: true,
+    },
+    {
+      name: 'string',
+      stored: 'foo',
+      expectHas: true,
+    },
+  ];
+
+  for (const c of cases) {
+    const rep = new Replicache({
+      name: nanoid(),
+      mutators,
+      licenseKey: TEST_LICENSE_KEY,
+    });
+
+    if (c.stored !== undefined) {
+      await rep.mutate.directWrite({key: `e1/${id}`, val: c.stored as E1});
+    }
+    const has = await rep.query(async tx => {
+      return await hasE1(tx, id);
+    });
+    expect(has).eq(c.expectHas, c.name);
   }
 });
 
@@ -501,7 +552,7 @@ test('optionalLogger', async () => {
   ];
 
   for (const c of cases) {
-    const [, , updateE1] = generate('e1', e1, c.logger);
+    const {update: updateE1} = generate('e1', e1, c.logger);
     output = undefined;
 
     const rep = new Replicache({
