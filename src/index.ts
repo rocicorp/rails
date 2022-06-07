@@ -16,7 +16,7 @@ export function parseIfDebug<T>(schema: ZodType<T>, val: ReadonlyJSONValue): T {
 }
 
 export type GenerateResult<T extends Entity> = {
-  create: (tx: WriteTransaction, value: T) => Promise<void>;
+  put: (tx: WriteTransaction, value: T) => Promise<void>;
   has: (tx: ReadTransaction, id: string) => Promise<boolean>;
   get: (tx: ReadTransaction, id: string) => Promise<T | undefined>;
   mustGet: (tx: ReadTransaction, id: string) => Promise<T>;
@@ -31,8 +31,7 @@ export function generate<T extends Entity>(
   logger: OptionalLogger = console,
 ): GenerateResult<T> {
   return {
-    create: (tx: WriteTransaction, value: T) =>
-      createImpl(prefix, schema, tx, value),
+    put: (tx: WriteTransaction, value: T) => putImpl(prefix, schema, tx, value),
     has: (tx: ReadTransaction, id: string) => hasImpl(prefix, tx, id),
     get: (tx: ReadTransaction, id: string) => getImpl(prefix, schema, tx, id),
     mustGet: (tx: ReadTransaction, id: string) =>
@@ -54,7 +53,7 @@ function key(prefix: string, id: string) {
   return `${prefix}/${id}`;
 }
 
-async function createImpl<T extends Entity>(
+async function putImpl<T extends Entity>(
   prefix: string,
   schema: ZodType<T>,
   tx: WriteTransaction,

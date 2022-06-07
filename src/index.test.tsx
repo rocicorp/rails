@@ -19,7 +19,7 @@ const e1 = entitySchema.extend({
 type E1 = z.infer<typeof e1>;
 
 const {
-  create: createE1,
+  put: putE1,
   get: getE1,
   mustGet: mustGetE1,
   has: hasE1,
@@ -36,7 +36,7 @@ async function directWrite(
 }
 
 const mutators = {
-  createE1,
+  putE1,
   getE1,
   updateE1,
   deleteE1,
@@ -110,12 +110,12 @@ test('create', async () => {
     });
 
     if (c.preexisting) {
-      await rep.mutate.createE1({id, str: 'preexisting'});
+      await rep.mutate.putE1({id, str: 'preexisting'});
     }
 
     let error = undefined;
     try {
-      await rep.mutate.createE1(c.input as E1);
+      await rep.mutate.putE1(c.input as E1);
     } catch (e) {
       error = (e as ZodError).format();
     }
