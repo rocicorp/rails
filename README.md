@@ -28,7 +28,9 @@ export const todoSchema = entitySchema.extend({
 // Export generated interface.
 export type Todo = z.infer<typeof todoSchema>;
 export type TodoUpdate = Update<Todo>;
-export const [createTodo, getTodo, updateTodo, deleteTodo, listTodos] =
+export const {
+  put: putTodo,
+  getTodo, updateTodo, deleteTodo, listTodos] =
   generate('todo', todoSchema);
 ```
 
