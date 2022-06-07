@@ -30,8 +30,11 @@ export type Todo = z.infer<typeof todoSchema>;
 export type TodoUpdate = Update<Todo>;
 export const {
   put: putTodo,
-  getTodo, updateTodo, deleteTodo, listTodos] =
-  generate('todo', todoSchema);
+  get: getTodo,
+  update: updateTodo,
+  delete: deleteTodo,
+  list: listTodos,
+} = generate('todo', todoSchema);
 ```
 
 ### 2. Define mutators.ts
@@ -39,10 +42,10 @@ export const {
 ```ts
 // mutators.ts - used on server, too.
 
-import {createTodo, updateTodo, deleteTodo} from './todo';
+import {putTodo, updateTodo, deleteTodo} from './todo';
 
 export const mutators = {
-  createTodo,
+  putTodo,
   updateTodo,
   deleteTodo,
 };
@@ -71,7 +74,7 @@ function ListView() {
 
   // run a mutator
   const onClick = () => {
-    rep.mutate.createTodo({
+    rep.mutate.putTodo({
       id: nanoid(),
       text: 'take out the trash',
       completed: false,
