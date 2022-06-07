@@ -21,11 +21,11 @@ type E1 = z.infer<typeof e1>;
 const {
   init: initE1,
   put: putE1,
+  update: updateE1,
+  delete: deleteE1,
   get: getE1,
   mustGet: mustGetE1,
   has: hasE1,
-  update: updateE1,
-  del: deleteE1,
   list: listE1,
 } = generate('e1', e1);
 

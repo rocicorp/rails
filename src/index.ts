@@ -18,11 +18,11 @@ export function parseIfDebug<T>(schema: ZodType<T>, val: ReadonlyJSONValue): T {
 export type GenerateResult<T extends Entity> = {
   init: (tx: WriteTransaction, value: T) => Promise<boolean>;
   put: (tx: WriteTransaction, value: T) => Promise<void>;
+  update: (tx: WriteTransaction, value: Update<T>) => Promise<void>;
+  delete: (tx: WriteTransaction, id: string) => Promise<void>;
   has: (tx: ReadTransaction, id: string) => Promise<boolean>;
   get: (tx: ReadTransaction, id: string) => Promise<T | undefined>;
   mustGet: (tx: ReadTransaction, id: string) => Promise<T>;
-  update: (tx: WriteTransaction, value: Update<T>) => Promise<void>;
-  del: (tx: WriteTransaction, id: string) => Promise<void>;
   list: (tx: ReadTransaction, options?: ListOptions) => Promise<Array<T>>;
 };
 
@@ -41,7 +41,7 @@ export function generate<T extends Entity>(
       mustGetImpl(prefix, schema, tx, id),
     update: (tx: WriteTransaction, update: Update<T>) =>
       updateImpl(prefix, schema, tx, update, logger),
-    del: (tx: WriteTransaction, id: string) => deleteImpl(prefix, tx, id),
+    delete: (tx: WriteTransaction, id: string) => deleteImpl(prefix, tx, id),
     list: (tx: ReadTransaction, options?: ListOptions) =>
       listImpl(prefix, schema, tx, options),
   };
