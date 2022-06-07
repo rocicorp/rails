@@ -19,6 +19,7 @@ const e1 = entitySchema.extend({
 type E1 = z.infer<typeof e1>;
 
 const {
+  init: initE1,
   put: putE1,
   get: getE1,
   mustGet: mustGetE1,
@@ -36,6 +37,7 @@ async function directWrite(
 }
 
 const mutators = {
+  initE1,
   putE1,
   getE1,
   updateE1,
@@ -44,7 +46,7 @@ const mutators = {
   directWrite,
 };
 
-test('create', async () => {
+test('put', async () => {
   type Case = {
     name: string;
     preexisting: boolean;
@@ -127,6 +129,101 @@ test('create', async () => {
     } else {
       expect(error).undefined;
       expect(actual).deep.eq(c.input);
+    }
+  }
+});
+
+test('init', async () => {
+  type Case = {
+    name: string;
+    preexisting: boolean;
+    input: unknown;
+    expectError?: JSONValue;
+    expectResult?: boolean;
+  };
+
+  const id = 'id1';
+
+  const cases: Case[] = [
+    {
+      name: 'null',
+      preexisting: false,
+      input: null,
+      expectError: {_errors: ['Expected object, received null']},
+    },
+    {
+      name: 'undefined',
+      preexisting: false,
+      input: undefined,
+      expectError: {_errors: ['Required']},
+    },
+    {
+      name: 'string',
+      preexisting: false,
+      input: 'foo',
+      expectError: {_errors: ['Expected object, received string']},
+    },
+    {
+      name: 'no-id',
+      preexisting: false,
+      input: {str: 'foo'},
+      expectError: {_errors: [], id: {_errors: ['Required']}},
+    },
+    {
+      name: 'no-str',
+      preexisting: false,
+      input: {id},
+      expectError: {_errors: [], str: {_errors: ['Required']}},
+    },
+    {
+      name: 'valid',
+      preexisting: false,
+      input: {id, str: 'foo'},
+      expectResult: true,
+    },
+    {
+      name: 'with-opt-filed',
+      preexisting: false,
+      input: {id, str: 'foo', optStr: 'bar'},
+      expectResult: true,
+    },
+    {
+      name: 'preexisting',
+      preexisting: true,
+      input: {id, str: 'foo'},
+      expectResult: false,
+    },
+  ];
+
+  for (const c of cases) {
+    const rep = new Replicache({
+      name: nanoid(),
+      mutators,
+      licenseKey: TEST_LICENSE_KEY,
+    });
+
+    const preexisting = {id, str: 'preexisting'};
+    if (c.preexisting) {
+      await rep.mutate.putE1(preexisting);
+    }
+
+    let error = undefined;
+    let result = undefined;
+    try {
+      result = await rep.mutate.initE1(c.input as E1);
+    } catch (e) {
+      error = (e as ZodError).format();
+    }
+
+    const actual = await rep.query(async tx => await tx.get(`e1/${id}`));
+    if (c.expectError !== undefined) {
+      expect(error).deep.eq(c.expectError);
+      expect(actual).undefined;
+      expect(result).undefined;
+    } else {
+      expect(error).undefined;
+      expect(actual).deep.eq(c.preexisting ? preexisting : c.input);
+      expect(result).eq(c.expectResult);
     }
   }
 });
