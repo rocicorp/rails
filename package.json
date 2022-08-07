@@ -1,6 +1,6 @@
 {
   "name": "@rocicorp/rails",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "CRUD interface generator for Replicache",
   "homepage": "https://github.com/rocicorp/rails",
   "repository": "github:rocicorp/rails",
@@ -18,8 +18,8 @@
   "author": "",
   "license": "Apache-2.0",
   "peerDependencies": {
-    "react": ">=16.0 <18.0",
-    "react-dom": ">=16.0 <18.0",
+    "react": ">=16.0 <19.0",
+    "react-dom": ">=16.0 <19.0",
     "replicache": ">=10.0 <12.0"
   },
   "peerDependenciesMeta": {
