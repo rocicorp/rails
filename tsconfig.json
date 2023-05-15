@@ -1,22 +1,20 @@
 {
   "compilerOptions": {
-    "target": "ES2018",
-    "isolatedModules": true,
-
+    "target": "es2022",
+    "module": "ESNext",
     "strict": true,
+    "exactOptionalPropertyTypes": false,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "esModuleInterop": true,
-
-    "importsNotUsedAsValues": "error",
-
+    "declarationMap": true,
+    "sourceMap": true,
     "declaration": true,
     "forceConsistentCasingInFileNames": true,
-    "moduleResolution": "node",
-    "allowJs": true,
-    "lib": ["dom", "esnext"]
+    "moduleResolution": "Node16",
+    "allowJs": true
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": ["node_modules", "dist/**/*", "build/**/*"]

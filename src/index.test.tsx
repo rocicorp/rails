@@ -3,19 +3,20 @@ import {expect} from '@esm-bundle/chai';
 import type {OptionalLogger} from '@rocicorp/logger';
 import {nanoid} from 'nanoid';
 import {
-  JSONObject,
-  JSONValue,
+  ReadonlyJSONObject,
+  ReadonlyJSONValue,
   Replicache,
   TEST_LICENSE_KEY,
   WriteTransaction,
 } from 'replicache';
 import {ZodError, ZodTypeAny, z} from 'zod';
-import {ListOptions, entitySchema, generate, parseIfDebug} from './index';
+import {ListOptions, entitySchema, generate, parseIfDebug} from './index.js';
 
 const e1 = entitySchema.extend({
   str: z.string(),
   optStr: z.string().optional(),
 });
+
 type E1 = z.infer<typeof e1>;
 
 const {
@@ -27,11 +28,11 @@ const {
   mustGet: mustGetE1,
   has: hasE1,
   list: listE1,
-} = generate('e1', e1);
+} = generate<E1>('e1', e1);
 
 async function directWrite(
   tx: WriteTransaction,
-  {key, val}: {key: string; val: JSONValue},
+  {key, val}: {key: string; val: ReadonlyJSONValue},
 ) {
   await tx.put(key, val);
 }
@@ -51,7 +52,7 @@ test('put', async () => {
     name: string;
     preexisting: boolean;
     input: unknown;
-    expectError?: JSONValue;
+    expectError?: ReadonlyJSONValue | undefined;
   };
 
   const id = 'id1';
@@ -138,7 +139,7 @@ test('init', async () => {
     name: string;
     preexisting: boolean;
     input: unknown;
-    expectError?: JSONValue;
+    expectError?: ReadonlyJSONValue;
     expectResult?: boolean;
   };
 
@@ -232,7 +233,7 @@ test('get', async () => {
   type Case = {
     name: string;
     stored: unknown;
-    expectError?: JSONValue;
+    expectError?: ReadonlyJSONValue;
   };
 
   const id = 'id1';
@@ -298,7 +299,7 @@ test('mustGet', async () => {
   type Case = {
     name: string;
     stored: unknown;
-    expectError?: JSONValue;
+    expectError?: ReadonlyJSONValue;
   };
 
   const id = 'id1';
@@ -390,10 +391,10 @@ test('has', async () => {
 test('update', async () => {
   type Case = {
     name: string;
-    prev?: unknown;
-    update: JSONObject;
-    expected?: unknown;
-    expectError?: JSONValue;
+    prev?: unknown | undefined;
+    update: ReadonlyJSONObject;
+    expected?: unknown | undefined;
+    expectError?: ReadonlyJSONValue | undefined;
   };
 
   const id = 'id1';
@@ -510,9 +511,9 @@ test('list', async () => {
     name: string;
     prefix: string;
     schema: ZodTypeAny;
-    options?: ListOptions;
-    expected?: JSONValue[];
-    expectError?: JSONValue;
+    options?: ListOptions | undefined;
+    expected?: ReadonlyJSONValue[] | undefined;
+    expectError?: ReadonlyJSONValue | undefined;
   };
 
   const cases: Case[] = [
@@ -592,7 +593,7 @@ test('parseIfDebug', () => {
   type Case = {
     name: string;
     nodeEnv: string | undefined;
-    input: JSONValue;
+    input: ReadonlyJSONValue;
     expectedError: string | undefined;
   };
 
