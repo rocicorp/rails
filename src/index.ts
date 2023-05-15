@@ -1,18 +1,18 @@
+import type {OptionalLogger} from '@rocicorp/logger';
 import type {
   ReadonlyJSONValue,
   ReadTransaction,
   WriteTransaction,
 } from 'replicache';
 import {z, ZodType} from 'zod';
-import type {OptionalLogger} from '@rocicorp/logger';
 
 export type Update<T> = Entity & Partial<T>;
 
 export function parseIfDebug<T>(schema: ZodType<T>, val: ReadonlyJSONValue): T {
-  if (globalThis.process?.env?.NODE_ENV !== 'production') {
-    return schema.parse(val);
+  if (process.env.NODE_ENV === 'production') {
+    return val as T;
   }
-  return val as T;
+  return schema.parse(val);
 }
 
 export type GenerateResult<T extends Entity> = {
