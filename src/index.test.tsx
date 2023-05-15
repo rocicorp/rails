@@ -1,16 +1,16 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import {expect} from '@esm-bundle/chai';
+import type {OptionalLogger} from '@rocicorp/logger';
+import {nanoid} from 'nanoid';
 import {
   JSONObject,
   JSONValue,
   Replicache,
-  WriteTransaction,
   TEST_LICENSE_KEY,
+  WriteTransaction,
 } from 'replicache';
-import {z, ZodError, ZodTypeAny} from 'zod';
-import {nanoid} from 'nanoid';
-import {entitySchema, generate, ListOptions, parseIfDebug} from './index';
-import type {OptionalLogger} from '@rocicorp/logger';
+import {ZodError, ZodTypeAny, z} from 'zod';
+import {ListOptions, entitySchema, generate, parseIfDebug} from './index';
 
 const e1 = entitySchema.extend({
   str: z.string(),
@@ -122,7 +122,7 @@ test('put', async () => {
       error = (e as ZodError).format();
     }
 
-    const actual = await rep.query(async tx => await tx.get(`e1/${id}`));
+    const actual = await rep.query(tx => tx.get(`e1/${id}`));
     if (c.expectError !== undefined) {
       expect(error).deep.eq(c.expectError);
       expect(actual).undefined;
@@ -215,7 +215,7 @@ test('init', async () => {
       error = (e as ZodError).format();
     }
 
-    const actual = await rep.query(async tx => await tx.get(`e1/${id}`));
+    const actual = await rep.query(tx => tx.get(`e1/${id}`));
     if (c.expectError !== undefined) {
       expect(error).deep.eq(c.expectError);
       expect(actual).undefined;
@@ -336,9 +336,8 @@ test('mustGet', async () => {
       } catch (e) {
         if (e instanceof ZodError) {
           return {error: (e as ZodError).format()};
-        } else {
-          return {error: String(e)};
         }
+        return {error: String(e)};
       }
     });
     expect(error).deep.eq(c.expectError, c.name);
@@ -383,9 +382,7 @@ test('has', async () => {
     if (c.stored !== undefined) {
       await rep.mutate.directWrite({key: `e1/${id}`, val: c.stored as E1});
     }
-    const has = await rep.query(async tx => {
-      return await hasE1(tx, id);
-    });
+    const has = await rep.query(tx => hasE1(tx, id));
     expect(has).eq(c.expectHas, c.name);
   }
 });
@@ -450,7 +447,7 @@ test('update', async () => {
     let actual = undefined;
     try {
       await rep.mutate.updateE1(c.update as E1);
-      actual = await rep.query(async tx => await getE1(tx, id));
+      actual = await rep.query(tx => getE1(tx, id));
     } catch (e) {
       if (e instanceof ZodError) {
         error = e.format();
@@ -501,8 +498,8 @@ test('delete', async () => {
     });
 
     await rep.mutate.deleteE1(id);
-    const actualE1 = await rep.query(async tx => await getE1(tx, id));
-    const actualE12 = await rep.query(async tx => await getE1(tx, 'id2'));
+    const actualE1 = await rep.query(tx => getE1(tx, id));
+    const actualE12 = await rep.query(tx => getE1(tx, 'id2'));
     expect(actualE1).undefined;
     expect(actualE12).deep.eq({id: 'id2', str: 'hot', optStr: 'dog'});
   }
@@ -576,7 +573,7 @@ test('list', async () => {
     let error = undefined;
     let actual = undefined;
     try {
-      actual = await rep.query(async tx => await listE1(tx, c.options));
+      actual = await rep.query(tx => listE1(tx, c.options));
     } catch (e) {
       if (e instanceof ZodError) {
         error = e.format();
@@ -589,7 +586,7 @@ test('list', async () => {
   }
 });
 
-test('parseIfDebug', async () => {
+test('parseIfDebug', () => {
   const schema = z.string();
 
   type Case = {

@@ -89,17 +89,17 @@ async function putImpl<T extends Entity>(
   await tx.put(key(prefix, val.id), val);
 }
 
-async function hasImpl(prefix: string, tx: ReadTransaction, id: string) {
-  return await tx.has(key(prefix, id));
+function hasImpl(prefix: string, tx: ReadTransaction, id: string) {
+  return tx.has(key(prefix, id));
 }
 
-async function getImpl<T extends Entity>(
+function getImpl<T extends Entity>(
   prefix: string,
   schema: ZodType<T>,
   tx: ReadTransaction,
   id: string,
 ) {
-  return await getInternal(schema, tx, key(prefix, id));
+  return getInternal(schema, tx, key(prefix, id));
 }
 
 async function mustGetImpl<T extends Entity>(
@@ -160,8 +160,7 @@ async function listImpl<T extends Entity>(
       limit,
     })
     .values()) {
-    const parsed = parseIfDebug(schema, v);
-    result.push(parsed);
+    result.push(parseIfDebug(schema, v));
   }
   return result;
 }
@@ -175,7 +174,5 @@ async function getInternal<T extends Entity>(
   if (val === undefined) {
     return val;
   }
-  // TODO: parse only in debug mode
-  const parsed = parseIfDebug(schema, val);
-  return parsed;
+  return parseIfDebug(schema, val);
 }
