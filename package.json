@@ -19,7 +19,7 @@
   "peerDependencies": {
     "react": ">=16.0 <19.0",
     "react-dom": ">=16.0 <19.0",
-    "replicache": ">=10.0 <14.0"
+    "replicache": ">=10.0 <14.0 || >12.0.0-beta <12.0.0 || >13.0.0-beta <13.0.0"
   },
   "peerDependenciesMeta": {
     "replicache": {
