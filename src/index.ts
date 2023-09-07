@@ -12,9 +12,7 @@ export function parseIfDebug<T>(schema: ZodType<T>, val: ReadonlyJSONValue): T {
   if (process.env.NODE_ENV === 'production') {
     return val as T;
   }
-  // Don't return the clone. It's useful to be able to cache by identity.
-  schema.parse(val);
-  return val as T;
+  return schema.parse(val);
 }
 
 export type GenerateResult<T extends Entity> = {
