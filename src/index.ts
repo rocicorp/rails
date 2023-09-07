@@ -34,6 +34,8 @@ export type GenerateResult<T extends Entity> = {
   mustGet: (tx: ReadTransaction, id: string) => Promise<T>;
   /** List values matching criteria. */
   list: (tx: ReadTransaction, options?: ListOptions) => Promise<Array<T>>;
+  /** List ids matching criteria. */
+  listIDs: (tx: ReadTransaction, options?: ListOptions) => Promise<string[]>;
 };
 
 export function generate<T extends Entity>(
@@ -54,6 +56,8 @@ export function generate<T extends Entity>(
       mustGetImpl(prefix, schema, tx, id),
     list: (tx: ReadTransaction, options?: ListOptions) =>
       listImpl(prefix, schema, tx, options),
+    listIDs: (tx: ReadTransaction, options?: ListOptions) =>
+      listIDsImpl(prefix, tx, options),
   };
 }
 
@@ -64,6 +68,10 @@ export type Entity = z.TypeOf<typeof entitySchema>;
 
 function key(prefix: string, id: string) {
   return `${prefix}/${id}`;
+}
+
+function id(prefix: string, key: string) {
+  return key.substring(prefix.length + 1);
 }
 
 async function initImpl<T extends Entity>(
@@ -163,6 +171,27 @@ async function listImpl<T extends Entity>(
     })
     .values()) {
     result.push(parseIfDebug(schema, v));
+  }
+  return result;
+}
+
+async function listIDsImpl(
+  prefix: string,
+  tx: ReadTransaction,
+  options?: ListOptions,
+) {
+  const {startAtID, limit} = options ?? {};
+  const result = [];
+  for await (const k of tx
+    .scan({
+      prefix: key(prefix, ''),
+      start: {
+        key: key(prefix, startAtID ?? ''),
+      },
+      limit,
+    })
+    .keys()) {
+    result.push(id(prefix, k));
   }
   return result;
 }

@@ -28,6 +28,7 @@ const {
   mustGet: mustGetE1,
   has: hasE1,
   list: listE1,
+  listIDs: listIDsE1,
 } = generate<E1>('e1', e1);
 
 async function directWrite(
@@ -575,6 +576,79 @@ test('list', async () => {
     let actual = undefined;
     try {
       actual = await rep.query(tx => listE1(tx, c.options));
+    } catch (e) {
+      if (e instanceof ZodError) {
+        error = e.format();
+      } else {
+        error = e;
+      }
+    }
+    expect(error).deep.eq(c.expectError, c.name);
+    expect(actual).deep.eq(c.expected, c.name);
+  }
+});
+
+test('listIDs', async () => {
+  type Case = {
+    name: string;
+    prefix: string;
+    options?: ListOptions | undefined;
+    expected?: string[] | undefined;
+    expectError?: ReadonlyJSONValue | undefined;
+  };
+
+  const cases: Case[] = [
+    {
+      name: 'all',
+      prefix: 'e1',
+      expected: ['bar', 'baz', 'foo'],
+      expectError: undefined,
+    },
+    {
+      name: 'keystart',
+      prefix: 'e1',
+      options: {
+        startAtID: 'f',
+      },
+      expected: ['foo'],
+      expectError: undefined,
+    },
+    {
+      name: 'keystart+limit',
+      prefix: 'e1',
+      options: {
+        startAtID: 'bas',
+        limit: 1,
+      },
+      expected: ['baz'],
+      expectError: undefined,
+    },
+  ];
+
+  for (const c of cases) {
+    const rep = new Replicache({
+      name: nanoid(),
+      mutators,
+      licenseKey: TEST_LICENSE_KEY,
+    });
+
+    await rep.mutate.directWrite({
+      key: `e1/foo`,
+      val: {id: 'foo', str: 'foostr'},
+    });
+    await rep.mutate.directWrite({
+      key: `e1/bar`,
+      val: {id: 'bar', str: 'barstr'},
+    });
+    await rep.mutate.directWrite({
+      key: `e1/baz`,
+      val: {id: 'baz', str: 'bazstr'},
+    });
+
+    let error = undefined;
+    let actual = undefined;
+    try {
+      actual = await rep.query(tx => listIDsE1(tx, c.options));
     } catch (e) {
       if (e instanceof ZodError) {
         error = e.format();
