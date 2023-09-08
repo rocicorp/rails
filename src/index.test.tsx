@@ -10,9 +10,10 @@ import {
   WriteTransaction,
 } from 'replicache';
 import {ZodError, ZodTypeAny, z} from 'zod';
-import {ListOptions, entitySchema, generate, parseIfDebug} from './index.js';
+import {ListOptions, generate, parseIfDebug} from './index.js';
 
-const e1 = entitySchema.extend({
+const e1 = z.object({
+  id: z.string(),
   str: z.string(),
   optStr: z.string().optional(),
 });
@@ -29,7 +30,7 @@ const {
   has: hasE1,
   list: listE1,
   listIDs: listIDsE1,
-} = generate<E1>('e1', e1);
+} = generate<E1>('e1', e1.parse);
 
 async function directWrite(
   tx: WriteTransaction,
@@ -720,7 +721,7 @@ test('parseIfDebug', () => {
       let error;
       let actual;
       try {
-        actual = parseIfDebug(schema, c.input);
+        actual = parseIfDebug(schema.parse, c.input);
       } catch (e) {
         error = e;
       }
@@ -774,7 +775,7 @@ test('optionalLogger', async () => {
   ];
 
   for (const c of cases) {
-    const {update: updateE1} = generate('e1', e1, c.logger);
+    const {update: updateE1} = generate('e1', e1.parse, c.logger);
     output = undefined;
 
     const rep = new Replicache({
@@ -788,4 +789,41 @@ test('optionalLogger', async () => {
     await rep.mutate.updateE1({id: 'foo', str: 'bar'});
     expect(output, c.name).deep.equal(c.expected);
   }
+});
+
+test('undefined parse', async () => {
+  globalThis.process = {
+    env: {
+      NODE_ENV: '',
+    },
+  } as unknown as NodeJS.Process;
+
+  const generated = generate<E1>('e1');
+  const {get, list, listIDs} = generated;
+
+  const r = new Replicache({
+    name: nanoid(),
+    mutators: generated,
+    licenseKey: TEST_LICENSE_KEY,
+  });
+
+  let v = await r.query(tx => get(tx, 'valid'));
+  expect(v).eq(undefined);
+
+  await r.mutate.put({id: 'valid', str: 'bar'});
+  await r.mutate.put({id: 'invalid', bonk: 'baz'} as unknown as E1);
+
+  v = await r.query(tx => get(tx, 'valid'));
+  expect(v).deep.eq({id: 'valid', str: 'bar'});
+  v = await r.query(tx => get(tx, 'invalid'));
+  expect(v).deep.eq({id: 'invalid', bonk: 'baz'});
+
+  const l = await r.query(tx => list(tx));
+  expect(l).deep.eq([
+    {id: 'invalid', bonk: 'baz'},
+    {id: 'valid', str: 'bar'},
+  ]);
+
+  const l2 = await r.query(tx => listIDs(tx));
+  expect(l2).deep.eq(['invalid', 'valid']);
 });

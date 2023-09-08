@@ -4,17 +4,22 @@ import type {
   ReadTransaction,
   WriteTransaction,
 } from 'replicache';
-import {z, ZodType} from 'zod';
 
 export type Update<T> = Entity & Partial<T>;
 
-export function parseIfDebug<T>(schema: ZodType<T>, val: ReadonlyJSONValue): T {
+export type Parse<T> = (val: ReadonlyJSONValue) => T;
+
+export function parseIfDebug<T>(
+  parse: Parse<T> | undefined,
+  val: ReadonlyJSONValue,
+): T {
   if (process.env.NODE_ENV === 'production') {
     return val as T;
   }
-  // Don't return the clone. It's useful to be able to cache by identity.
-  schema.parse(val);
-  return val as T;
+  if (parse === undefined) {
+    return val as T;
+  }
+  return parse(val);
 }
 
 export type GenerateResult<T extends Entity> = {
@@ -40,31 +45,30 @@ export type GenerateResult<T extends Entity> = {
 
 export function generate<T extends Entity>(
   prefix: string,
-  schema: ZodType<T>,
+  parse: Parse<T> | undefined = undefined,
   logger: OptionalLogger = console,
 ): GenerateResult<T> {
   return {
-    put: (tx: WriteTransaction, value: T) => putImpl(prefix, schema, tx, value),
+    put: (tx: WriteTransaction, value: T) => putImpl(prefix, parse, tx, value),
     init: (tx: WriteTransaction, value: T) =>
-      initImpl(prefix, schema, tx, value),
+      initImpl(prefix, parse, tx, value),
     update: (tx: WriteTransaction, update: Update<T>) =>
-      updateImpl(prefix, schema, tx, update, logger),
+      updateImpl(prefix, parse, tx, update, logger),
     delete: (tx: WriteTransaction, id: string) => deleteImpl(prefix, tx, id),
     has: (tx: ReadTransaction, id: string) => hasImpl(prefix, tx, id),
-    get: (tx: ReadTransaction, id: string) => getImpl(prefix, schema, tx, id),
+    get: (tx: ReadTransaction, id: string) => getImpl(prefix, parse, tx, id),
     mustGet: (tx: ReadTransaction, id: string) =>
-      mustGetImpl(prefix, schema, tx, id),
+      mustGetImpl(prefix, parse, tx, id),
     list: (tx: ReadTransaction, options?: ListOptions) =>
-      listImpl(prefix, schema, tx, options),
+      listImpl(prefix, parse, tx, options),
     listIDs: (tx: ReadTransaction, options?: ListOptions) =>
       listIDsImpl(prefix, tx, options),
   };
 }
 
-export const entitySchema = z.object({
-  id: z.string(),
-});
-export type Entity = z.TypeOf<typeof entitySchema>;
+export type Entity = {
+  id: string;
+};
 
 function key(prefix: string, id: string) {
   return `${prefix}/${id}`;
@@ -76,11 +80,11 @@ function id(prefix: string, key: string) {
 
 async function initImpl<T extends Entity>(
   prefix: string,
-  schema: ZodType<T>,
+  parse: Parse<T> | undefined,
   tx: WriteTransaction,
   initial: ReadonlyJSONValue,
 ) {
-  const val = parseIfDebug(schema, initial);
+  const val = parseIfDebug(parse, initial);
   const k = key(prefix, val.id);
   if (await tx.has(k)) {
     return false;
@@ -91,11 +95,11 @@ async function initImpl<T extends Entity>(
 
 async function putImpl<T extends Entity>(
   prefix: string,
-  schema: ZodType<T>,
+  parse: Parse<T> | undefined,
   tx: WriteTransaction,
   initial: ReadonlyJSONValue,
 ) {
-  const val = parseIfDebug(schema, initial);
+  const val = parseIfDebug(parse, initial);
   await tx.put(key(prefix, val.id), val);
 }
 
@@ -105,20 +109,20 @@ function hasImpl(prefix: string, tx: ReadTransaction, id: string) {
 
 function getImpl<T extends Entity>(
   prefix: string,
-  schema: ZodType<T>,
+  parse: Parse<T> | undefined,
   tx: ReadTransaction,
   id: string,
 ) {
-  return getInternal(schema, tx, key(prefix, id));
+  return getInternal(parse, tx, key(prefix, id));
 }
 
 async function mustGetImpl<T extends Entity>(
   prefix: string,
-  schema: ZodType<T>,
+  parse: Parse<T> | undefined,
   tx: ReadTransaction,
   id: string,
 ) {
-  const v = await getInternal(schema, tx, key(prefix, id));
+  const v = await getInternal(parse, tx, key(prefix, id));
   if (v === undefined) {
     throw new Error(`no such entity ${id}`);
   }
@@ -127,20 +131,20 @@ async function mustGetImpl<T extends Entity>(
 
 async function updateImpl<T extends Entity>(
   prefix: string,
-  schema: ZodType<T>,
+  parse: Parse<T> | undefined,
   tx: WriteTransaction,
   update: Update<T>,
   logger: OptionalLogger,
 ) {
   const {id} = update;
   const k = key(prefix, id);
-  const prev = await getInternal(schema, tx, k);
+  const prev = await getInternal(parse, tx, k);
   if (prev === undefined) {
     logger.debug?.(`no such entity ${id}, skipping update`);
     return;
   }
   const next = {...prev, ...update};
-  const parsed = parseIfDebug(schema, next);
+  const parsed = parseIfDebug(parse, next);
   await tx.put(k, parsed);
 }
 
@@ -155,7 +159,7 @@ export type ListOptions = {
 
 async function listImpl<T extends Entity>(
   prefix: string,
-  schema: ZodType<T>,
+  parse: Parse<T> | undefined,
   tx: ReadTransaction,
   options?: ListOptions,
 ) {
@@ -170,7 +174,7 @@ async function listImpl<T extends Entity>(
       limit,
     })
     .values()) {
-    result.push(parseIfDebug(schema, v));
+    result.push(parseIfDebug(parse, v));
   }
   return result;
 }
@@ -197,7 +201,7 @@ async function listIDsImpl(
 }
 
 async function getInternal<T extends Entity>(
-  schema: ZodType<T>,
+  parse: Parse<T> | undefined,
   tx: ReadTransaction,
   key: string,
 ) {
@@ -205,5 +209,5 @@ async function getInternal<T extends Entity>(
   if (val === undefined) {
     return val;
   }
-  return parseIfDebug(schema, val);
+  return parseIfDebug(parse, val);
 }
