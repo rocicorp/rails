@@ -1,6 +1,6 @@
 # Replicache on Rails
 
-Generates a CRUD-style interface for Replicache and validation from a [Zod schema](https://github.com/colinhacks/zod).
+Generates a CRUD-style interface for Replicache and Reflect, with optional schema validation.
 
 ## Install
 
@@ -13,35 +13,34 @@ npm install --save-dev @rocicorp/rails
 ### 1. Define Entities
 
 ```ts
-// todo.ts
+// All entities must include at least id:string.
+export type Todo = {
+  id: string;
+  text: string;
+  complete: boolean;
+  sort: number;
+};
+```
 
-import {z} from 'zod';
-import {entitySchema, generate, Update} from '@rocicorp/rails';
+### 2. Generate Helpers
 
-// All entities must extend `entitySchema`.
-export const todoSchema = entitySchema.extend({
-  text: z.string(),
-  completed: z.boolean(),
-  sort: z.number(),
-});
+```ts
+import {generate} from '@rocicorp/rails';
 
-// Export generated interface.
-export type Todo = z.infer<typeof todoSchema>;
-export type TodoUpdate = Update<Todo>;
 export const {
   put: putTodo,
   get: getTodo,
   update: updateTodo,
   delete: deleteTodo,
   list: listTodos,
-} = generate('todo', todoSchema);
+} = generate<Todo>('todo');
 ```
 
-### 2. Define mutators.ts
+### 3. Build Mutators
+
+The generated functions all have the same signatures as mutators, so they can be used as mutators directly:
 
 ```ts
-// mutators.ts - used on server, too.
-
 import {putTodo, updateTodo, deleteTodo} from './todo';
 
 export const mutators = {
@@ -49,46 +48,75 @@ export const mutators = {
   updateTodo,
   deleteTodo,
 };
-export type M = typeof mutators;
 ```
 
-### 3. Implement app!
+You can also compose them to make more advanced mutators:
 
 ```ts
-// app.tsx
+import {listTodos, updateTodo} from './todo';
 
-import {M, mutators} from './mutators';
-import {listTodos} from './todo';
-import {Replicache} from 'replicache';
-import {useSubscribe} from 'replicache-react';
-
-// register mutators with Replicache
-const rep = new Replicache({
-  //...
-  mutators,
-});
-
-function ListView() {
-  // subscribe to a query
-  const todos = useSubscribe(rep, listTodos, []);
-
-  // run a mutator
-  const onClick = () => {
-    rep.mutate.putTodo({
-      id: nanoid(),
-      text: 'take out the trash',
-      completed: false,
-      sort: todos.length,
-    });
-  };
-
-  ...
+async function markAllComplete(tx: WriteTransaction) {
+  const todos = await listTodos(tx);
+  for (const t of todos) {
+    // Mutators are transactional, so this is safe. The entire function will
+    // run atomically and `t.complete` cannot change while it is running.
+    if (!t.complete) {
+      await updateTodo(todo.id, {complete: true});
+    }
+  }
 }
+
+export const mutators = {
+  // ...
+  markAllComplete,
+};
+```
+
+### 4. Build Subscriptions
+
+The generated functions that are read-only (`get`, `has`, `list`, etc) have the correct signature to be used as subscriptions. So you can use them directly:
+
+```ts
+// subscribe to a query
+const todos = useSubscribe(rep, listTodos, []);
+```
+
+But as with mutators, you can also compose them to make more interesting subscriptions:
+
+```ts
+async function listIncompleteTodos(tx: WriteTransaction) {
+  const todos = await listTodos(tx);
+  return todos.filter(t => !t.complete);
+}
+
+const incompleteTodos = useSubscribe(rep, listIncompleteTodos, []);
 ```
 
 ## Validation
 
-Rails validates reads and writes in debug mode only\*. In production mode, validation is skipped for performance.
+You can optionally pass `generate` a validation function as a second parameter. For example, to use Zod as your schema validator:
+
+```ts
+import * as z from 'zod';
+import {generate} from '@rocicorp/rails';
+
+const todoSchema = {
+  id: z.string(),
+  text: z.string(),
+  complete: z.boolean(),
+  sort: z.number(),
+};
+
+// In this case, the template parameter to generate can be omitted because it
+// is inferred from return type of todoSchema.parse().
+export const {
+  put: putTodo,
+  get: getTodo,
+  update: updateTodo,
+  delete: deleteTodo,
+  list: listTodos,
+} = generate('todo', todoSchema.parse);
+```
 
 ## Conflict Semantics
 
@@ -96,6 +124,63 @@ Rails validates reads and writes in debug mode only\*. In production mode, valid
 - **update**: All keys in an update are applied together atomically. If the entity does not exist a debug message is printed to the console and the update is skipped.
 - **delete**: If the entity doesn't exist, the delete is a no-op.
 
-## TODO
+## Upgrade from 0.6
 
-- Integrate with replidraw and repliear
+### Pluggable Schema
+
+Rails 0.7 made the schema validator pluggable. Instead of passing an instance of zod, pass the parse function.
+
+Before:
+
+```ts
+export const {
+  put: putTodo,
+  // ...
+} = generate<Todo>('todo', todoSchema);
+```
+
+Now:
+
+```ts
+export const {
+  put: putTodo,
+  // ...
+} = generate<Todo>('todo', todoSchema.parse);
+```
+
+### EntitySchema no longer part of Rails
+
+Because the validator is pluggable it no longer makes sense for Rails to provide `entitySchema`. So either define it yourself:
+
+```ts
+const entitySchema = z.object({
+  id: z.string(),
+});
+```
+
+... or simply add `id: z.string()` to each of your entity definitions.
+
+### Parse called in Debug mode
+
+In 0.6.0, zod was only used if `process.env.NODE_ENV !== 'production'`. Now that the validator is pluggable, it makes more sense for the app to do this.
+
+Before:
+
+```ts
+export const {
+  put: putTodo,
+  // ...
+} = generate<Todo>('todo', todoSchema);
+```
+
+Now:
+
+```ts
+export const {
+  put: putTodo,
+  // ...
+} = generate<Todo>(
+  'todo',
+  process.env.NODE_ENV !== 'production' ? todoSchema.parse : undefined,
+);
+```

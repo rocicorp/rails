@@ -9,13 +9,10 @@ export type Update<T> = Entity & Partial<T>;
 
 export type Parse<T> = (val: ReadonlyJSONValue) => T;
 
-export function parseIfDebug<T>(
+export function maybeParse<T>(
   parse: Parse<T> | undefined,
   val: ReadonlyJSONValue,
 ): T {
-  if (process.env.NODE_ENV === 'production') {
-    return val as T;
-  }
   if (parse === undefined) {
     return val as T;
   }
@@ -84,7 +81,7 @@ async function initImpl<T extends Entity>(
   tx: WriteTransaction,
   initial: ReadonlyJSONValue,
 ) {
-  const val = parseIfDebug(parse, initial);
+  const val = maybeParse(parse, initial);
   const k = key(prefix, val.id);
   if (await tx.has(k)) {
     return false;
@@ -99,7 +96,7 @@ async function putImpl<T extends Entity>(
   tx: WriteTransaction,
   initial: ReadonlyJSONValue,
 ) {
-  const val = parseIfDebug(parse, initial);
+  const val = maybeParse(parse, initial);
   await tx.put(key(prefix, val.id), val);
 }
 
@@ -144,7 +141,7 @@ async function updateImpl<T extends Entity>(
     return;
   }
   const next = {...prev, ...update};
-  const parsed = parseIfDebug(parse, next);
+  const parsed = maybeParse(parse, next);
   await tx.put(k, parsed);
 }
 
@@ -174,7 +171,7 @@ async function listImpl<T extends Entity>(
       limit,
     })
     .values()) {
-    result.push(parseIfDebug(parse, v));
+    result.push(maybeParse(parse, v));
   }
   return result;
 }
@@ -209,5 +206,5 @@ async function getInternal<T extends Entity>(
   if (val === undefined) {
     return val;
   }
-  return parseIfDebug(parse, val);
+  return maybeParse(parse, val);
 }
