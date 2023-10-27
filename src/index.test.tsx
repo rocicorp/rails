@@ -30,6 +30,7 @@ const {
   has: hasE1,
   list: listE1,
   listIDs: listIDsE1,
+  entries: entriesE1,
 } = generate<E1>('e1', e1.parse);
 
 async function directWrite(
@@ -49,7 +50,7 @@ const mutators = {
   directWrite,
 };
 
-test('put', async () => {
+suite('put', () => {
   type Case = {
     name: string;
     preexisting: boolean;
@@ -108,35 +109,37 @@ test('put', async () => {
   ];
 
   for (const c of cases) {
-    const rep = new Replicache({
-      name: nanoid(),
-      mutators,
-      licenseKey: TEST_LICENSE_KEY,
+    test(c.name, async () => {
+      const rep = new Replicache({
+        name: nanoid(),
+        mutators,
+        licenseKey: TEST_LICENSE_KEY,
+      });
+
+      if (c.preexisting) {
+        await rep.mutate.putE1({id, str: 'preexisting'});
+      }
+
+      let error = undefined;
+      try {
+        await rep.mutate.putE1(c.input as E1);
+      } catch (e) {
+        error = (e as ZodError).format();
+      }
+
+      const actual = await rep.query(tx => tx.get(`e1/${id}`));
+      if (c.expectError !== undefined) {
+        expect(error).deep.eq(c.expectError);
+        expect(actual).undefined;
+      } else {
+        expect(error).undefined;
+        expect(actual).deep.eq(c.input);
+      }
     });
-
-    if (c.preexisting) {
-      await rep.mutate.putE1({id, str: 'preexisting'});
-    }
-
-    let error = undefined;
-    try {
-      await rep.mutate.putE1(c.input as E1);
-    } catch (e) {
-      error = (e as ZodError).format();
-    }
-
-    const actual = await rep.query(tx => tx.get(`e1/${id}`));
-    if (c.expectError !== undefined) {
-      expect(error).deep.eq(c.expectError);
-      expect(actual).undefined;
-    } else {
-      expect(error).undefined;
-      expect(actual).deep.eq(c.input);
-    }
   }
 });
 
-test('init', async () => {
+suite('init', () => {
   type Case = {
     name: string;
     preexisting: boolean;
@@ -199,39 +202,41 @@ test('init', async () => {
   ];
 
   for (const c of cases) {
-    const rep = new Replicache({
-      name: nanoid(),
-      mutators,
-      licenseKey: TEST_LICENSE_KEY,
+    test(c.name, async () => {
+      const rep = new Replicache({
+        name: nanoid(),
+        mutators,
+        licenseKey: TEST_LICENSE_KEY,
+      });
+
+      const preexisting = {id, str: 'preexisting'};
+      if (c.preexisting) {
+        await rep.mutate.putE1(preexisting);
+      }
+
+      let error = undefined;
+      let result = undefined;
+      try {
+        result = await rep.mutate.initE1(c.input as E1);
+      } catch (e) {
+        error = (e as ZodError).format();
+      }
+
+      const actual = await rep.query(tx => tx.get(`e1/${id}`));
+      if (c.expectError !== undefined) {
+        expect(error).deep.eq(c.expectError);
+        expect(actual).undefined;
+        expect(result).undefined;
+      } else {
+        expect(error).undefined;
+        expect(actual).deep.eq(c.preexisting ? preexisting : c.input);
+        expect(result).eq(c.expectResult);
+      }
     });
-
-    const preexisting = {id, str: 'preexisting'};
-    if (c.preexisting) {
-      await rep.mutate.putE1(preexisting);
-    }
-
-    let error = undefined;
-    let result = undefined;
-    try {
-      result = await rep.mutate.initE1(c.input as E1);
-    } catch (e) {
-      error = (e as ZodError).format();
-    }
-
-    const actual = await rep.query(tx => tx.get(`e1/${id}`));
-    if (c.expectError !== undefined) {
-      expect(error).deep.eq(c.expectError);
-      expect(actual).undefined;
-      expect(result).undefined;
-    } else {
-      expect(error).undefined;
-      expect(actual).deep.eq(c.preexisting ? preexisting : c.input);
-      expect(result).eq(c.expectResult);
-    }
   }
 });
 
-test('get', async () => {
+suite('get', () => {
   type Case = {
     name: string;
     stored: unknown;
@@ -276,28 +281,30 @@ test('get', async () => {
   ];
 
   for (const c of cases) {
-    const rep = new Replicache({
-      name: nanoid(),
-      mutators,
-      licenseKey: TEST_LICENSE_KEY,
-    });
+    test(c.name, async () => {
+      const rep = new Replicache({
+        name: nanoid(),
+        mutators,
+        licenseKey: TEST_LICENSE_KEY,
+      });
 
-    if (c.stored !== undefined) {
-      await rep.mutate.directWrite({key: `e1/${id}`, val: c.stored as E1});
-    }
-    const {actual, error} = await rep.query(async tx => {
-      try {
-        return {actual: await getE1(tx, id)};
-      } catch (e) {
-        return {error: (e as ZodError).format()};
+      if (c.stored !== undefined) {
+        await rep.mutate.directWrite({key: `e1/${id}`, val: c.stored as E1});
       }
+      const {actual, error} = await rep.query(async tx => {
+        try {
+          return {actual: await getE1(tx, id)};
+        } catch (e) {
+          return {error: (e as ZodError).format()};
+        }
+      });
+      expect(error).deep.eq(c.expectError, c.name);
+      expect(actual).deep.eq(c.expectError ? undefined : c.stored, c.name);
     });
-    expect(error).deep.eq(c.expectError, c.name);
-    expect(actual).deep.eq(c.expectError ? undefined : c.stored, c.name);
   }
 });
 
-test('mustGet', async () => {
+suite('mustGet', () => {
   type Case = {
     name: string;
     stored: unknown;
@@ -324,31 +331,33 @@ test('mustGet', async () => {
   ];
 
   for (const c of cases) {
-    const rep = new Replicache({
-      name: nanoid(),
-      mutators,
-      licenseKey: TEST_LICENSE_KEY,
-    });
+    test(c.name, async () => {
+      const rep = new Replicache({
+        name: nanoid(),
+        mutators,
+        licenseKey: TEST_LICENSE_KEY,
+      });
 
-    if (c.stored !== undefined) {
-      await rep.mutate.directWrite({key: `e1/${id}`, val: c.stored as E1});
-    }
-    const {actual, error} = await rep.query(async tx => {
-      try {
-        return {actual: await mustGetE1(tx, id)};
-      } catch (e) {
-        if (e instanceof ZodError) {
-          return {error: (e as ZodError).format()};
-        }
-        return {error: String(e)};
+      if (c.stored !== undefined) {
+        await rep.mutate.directWrite({key: `e1/${id}`, val: c.stored as E1});
       }
+      const {actual, error} = await rep.query(async tx => {
+        try {
+          return {actual: await mustGetE1(tx, id)};
+        } catch (e) {
+          if (e instanceof ZodError) {
+            return {error: (e as ZodError).format()};
+          }
+          return {error: String(e)};
+        }
+      });
+      expect(error).deep.eq(c.expectError, c.name);
+      expect(actual).deep.eq(c.expectError ? undefined : c.stored, c.name);
     });
-    expect(error).deep.eq(c.expectError, c.name);
-    expect(actual).deep.eq(c.expectError ? undefined : c.stored, c.name);
   }
 });
 
-test('has', async () => {
+suite('has', () => {
   type Case = {
     name: string;
     stored: unknown;
@@ -376,21 +385,23 @@ test('has', async () => {
   ];
 
   for (const c of cases) {
-    const rep = new Replicache({
-      name: nanoid(),
-      mutators,
-      licenseKey: TEST_LICENSE_KEY,
-    });
+    test(c.name, async () => {
+      const rep = new Replicache({
+        name: nanoid(),
+        mutators,
+        licenseKey: TEST_LICENSE_KEY,
+      });
 
-    if (c.stored !== undefined) {
-      await rep.mutate.directWrite({key: `e1/${id}`, val: c.stored as E1});
-    }
-    const has = await rep.query(tx => hasE1(tx, id));
-    expect(has).eq(c.expectHas, c.name);
+      if (c.stored !== undefined) {
+        await rep.mutate.directWrite({key: `e1/${id}`, val: c.stored as E1});
+      }
+      const has = await rep.query(tx => hasE1(tx, id));
+      expect(has).eq(c.expectHas, c.name);
+    });
   }
 });
 
-test('update', async () => {
+suite('update', () => {
   type Case = {
     name: string;
     prev?: unknown | undefined;
@@ -436,34 +447,36 @@ test('update', async () => {
   ];
 
   for (const c of cases) {
-    const rep = new Replicache({
-      name: nanoid(),
-      mutators,
-      licenseKey: TEST_LICENSE_KEY,
-    });
+    test(c.name, async () => {
+      const rep = new Replicache({
+        name: nanoid(),
+        mutators,
+        licenseKey: TEST_LICENSE_KEY,
+      });
 
-    if (c.prev !== undefined) {
-      await rep.mutate.directWrite({key: `e1/${id}`, val: c.prev as E1});
-    }
-
-    let error = undefined;
-    let actual = undefined;
-    try {
-      await rep.mutate.updateE1(c.update as E1);
-      actual = await rep.query(tx => getE1(tx, id));
-    } catch (e) {
-      if (e instanceof ZodError) {
-        error = e.format();
-      } else {
-        error = e;
+      if (c.prev !== undefined) {
+        await rep.mutate.directWrite({key: `e1/${id}`, val: c.prev as E1});
       }
-    }
-    expect(error).deep.eq(c.expectError, c.name);
-    expect(actual).deep.eq(c.expectError ? undefined : c.expected, c.name);
+
+      let error = undefined;
+      let actual = undefined;
+      try {
+        await rep.mutate.updateE1(c.update as E1);
+        actual = await rep.query(tx => getE1(tx, id));
+      } catch (e) {
+        if (e instanceof ZodError) {
+          error = e.format();
+        } else {
+          error = e;
+        }
+      }
+      expect(error).deep.eq(c.expectError, c.name);
+      expect(actual).deep.eq(c.expectError ? undefined : c.expected, c.name);
+    });
   }
 });
 
-test('delete', async () => {
+suite('delete', () => {
   type Case = {
     name: string;
     prevExist: boolean;
@@ -483,32 +496,34 @@ test('delete', async () => {
   ];
 
   for (const c of cases) {
-    const rep = new Replicache({
-      name: nanoid(),
-      mutators,
-      licenseKey: TEST_LICENSE_KEY,
-    });
-
-    if (c.prevExist) {
-      await rep.mutate.directWrite({
-        key: `e1/${id}`,
-        val: {id, str: 'foo', optStr: 'bar'},
+    test(c.name, async () => {
+      const rep = new Replicache({
+        name: nanoid(),
+        mutators,
+        licenseKey: TEST_LICENSE_KEY,
       });
-    }
-    await rep.mutate.directWrite({
-      key: `e1/id2`,
-      val: {id: 'id2', str: 'hot', optStr: 'dog'},
-    });
 
-    await rep.mutate.deleteE1(id);
-    const actualE1 = await rep.query(tx => getE1(tx, id));
-    const actualE12 = await rep.query(tx => getE1(tx, 'id2'));
-    expect(actualE1).undefined;
-    expect(actualE12).deep.eq({id: 'id2', str: 'hot', optStr: 'dog'});
+      if (c.prevExist) {
+        await rep.mutate.directWrite({
+          key: `e1/${id}`,
+          val: {id, str: 'foo', optStr: 'bar'},
+        });
+      }
+      await rep.mutate.directWrite({
+        key: `e1/id2`,
+        val: {id: 'id2', str: 'hot', optStr: 'dog'},
+      });
+
+      await rep.mutate.deleteE1(id);
+      const actualE1 = await rep.query(tx => getE1(tx, id));
+      const actualE12 = await rep.query(tx => getE1(tx, 'id2'));
+      expect(actualE1).undefined;
+      expect(actualE12).deep.eq({id: 'id2', str: 'hot', optStr: 'dog'});
+    });
   }
 });
 
-test('list', async () => {
+suite('list', () => {
   type Case = {
     name: string;
     prefix: string;
@@ -554,42 +569,44 @@ test('list', async () => {
   ];
 
   for (const c of cases) {
-    const rep = new Replicache({
-      name: nanoid(),
-      mutators,
-      licenseKey: TEST_LICENSE_KEY,
-    });
+    test(c.name, async () => {
+      const rep = new Replicache({
+        name: nanoid(),
+        mutators,
+        licenseKey: TEST_LICENSE_KEY,
+      });
 
-    await rep.mutate.directWrite({
-      key: `e1/foo`,
-      val: {id: 'foo', str: 'foostr'},
-    });
-    await rep.mutate.directWrite({
-      key: `e1/bar`,
-      val: {id: 'bar', str: 'barstr'},
-    });
-    await rep.mutate.directWrite({
-      key: `e1/baz`,
-      val: {id: 'baz', str: 'bazstr'},
-    });
+      await rep.mutate.directWrite({
+        key: `e1/foo`,
+        val: {id: 'foo', str: 'foostr'},
+      });
+      await rep.mutate.directWrite({
+        key: `e1/bar`,
+        val: {id: 'bar', str: 'barstr'},
+      });
+      await rep.mutate.directWrite({
+        key: `e1/baz`,
+        val: {id: 'baz', str: 'bazstr'},
+      });
 
-    let error = undefined;
-    let actual = undefined;
-    try {
-      actual = await rep.query(tx => listE1(tx, c.options));
-    } catch (e) {
-      if (e instanceof ZodError) {
-        error = e.format();
-      } else {
-        error = e;
+      let error = undefined;
+      let actual = undefined;
+      try {
+        actual = await rep.query(tx => listE1(tx, c.options));
+      } catch (e) {
+        if (e instanceof ZodError) {
+          error = e.format();
+        } else {
+          error = e;
+        }
       }
-    }
-    expect(error).deep.eq(c.expectError, c.name);
-    expect(actual).deep.eq(c.expected, c.name);
+      expect(error).deep.eq(c.expectError, c.name);
+      expect(actual).deep.eq(c.expected, c.name);
+    });
   }
 });
 
-test('listIDs', async () => {
+suite('listIDs', () => {
   type Case = {
     name: string;
     prefix: string;
@@ -627,38 +644,123 @@ test('listIDs', async () => {
   ];
 
   for (const c of cases) {
-    const rep = new Replicache({
-      name: nanoid(),
-      mutators,
-      licenseKey: TEST_LICENSE_KEY,
-    });
+    test(c.name, async () => {
+      const rep = new Replicache({
+        name: nanoid(),
+        mutators,
+        licenseKey: TEST_LICENSE_KEY,
+      });
 
-    await rep.mutate.directWrite({
-      key: `e1/foo`,
-      val: {id: 'foo', str: 'foostr'},
-    });
-    await rep.mutate.directWrite({
-      key: `e1/bar`,
-      val: {id: 'bar', str: 'barstr'},
-    });
-    await rep.mutate.directWrite({
-      key: `e1/baz`,
-      val: {id: 'baz', str: 'bazstr'},
-    });
+      await rep.mutate.directWrite({
+        key: `e1/foo`,
+        val: {id: 'foo', str: 'foostr'},
+      });
+      await rep.mutate.directWrite({
+        key: `e1/bar`,
+        val: {id: 'bar', str: 'barstr'},
+      });
+      await rep.mutate.directWrite({
+        key: `e1/baz`,
+        val: {id: 'baz', str: 'bazstr'},
+      });
 
-    let error = undefined;
-    let actual = undefined;
-    try {
-      actual = await rep.query(tx => listIDsE1(tx, c.options));
-    } catch (e) {
-      if (e instanceof ZodError) {
-        error = e.format();
-      } else {
-        error = e;
+      let error = undefined;
+      let actual = undefined;
+      try {
+        actual = await rep.query(tx => listIDsE1(tx, c.options));
+      } catch (e) {
+        if (e instanceof ZodError) {
+          error = e.format();
+        } else {
+          error = e;
+        }
       }
-    }
-    expect(error).deep.eq(c.expectError, c.name);
-    expect(actual).deep.eq(c.expected, c.name);
+      expect(error).deep.eq(c.expectError, c.name);
+      expect(actual).deep.eq(c.expected, c.name);
+    });
+  }
+});
+
+suite('entries', () => {
+  type Case = {
+    name: string;
+    prefix: string;
+    schema: ZodTypeAny;
+    options?: ListOptions | undefined;
+    expected?: ReadonlyJSONValue[] | undefined;
+    expectError?: ReadonlyJSONValue | undefined;
+  };
+
+  const cases: Case[] = [
+    {
+      name: 'all',
+      prefix: 'e1',
+      schema: e1,
+      expected: [
+        ['bar', {id: 'bar', str: 'barstr'}],
+        ['baz', {id: 'baz', str: 'bazstr'}],
+        ['foo', {id: 'foo', str: 'foostr'}],
+      ],
+      expectError: undefined,
+    },
+    {
+      name: 'keystart',
+      prefix: 'e1',
+      schema: e1,
+      options: {
+        startAtID: 'f',
+      },
+      expected: [['foo', {id: 'foo', str: 'foostr'}]],
+      expectError: undefined,
+    },
+    {
+      name: 'keystart+limit',
+      prefix: 'e1',
+      schema: e1,
+      options: {
+        startAtID: 'bas',
+        limit: 1,
+      },
+      expected: [['baz', {id: 'baz', str: 'bazstr'}]],
+      expectError: undefined,
+    },
+  ];
+
+  for (const c of cases) {
+    test(c.name, async () => {
+      const rep = new Replicache({
+        name: nanoid(),
+        mutators,
+        licenseKey: TEST_LICENSE_KEY,
+      });
+
+      await rep.mutate.directWrite({
+        key: `e1/foo`,
+        val: {id: 'foo', str: 'foostr'},
+      });
+      await rep.mutate.directWrite({
+        key: `e1/bar`,
+        val: {id: 'bar', str: 'barstr'},
+      });
+      await rep.mutate.directWrite({
+        key: `e1/baz`,
+        val: {id: 'baz', str: 'bazstr'},
+      });
+
+      let error = undefined;
+      let actual = undefined;
+      try {
+        actual = await rep.query(tx => entriesE1(tx, c.options));
+      } catch (e) {
+        if (e instanceof ZodError) {
+          error = e.format();
+        } else {
+          error = e;
+        }
+      }
+      expect(error).deep.eq(c.expectError, c.name);
+      expect(actual).deep.eq(c.expected, c.name);
+    });
   }
 });
 
