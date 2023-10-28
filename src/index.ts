@@ -35,9 +35,14 @@ export type GenerateResult<T extends Entity> = {
   /** Get value by ID, or throw if none exists. */
   mustGet: (tx: ReadTransaction, id: string) => Promise<T>;
   /** List values matching criteria. */
-  list: (tx: ReadTransaction, options?: ListOptions) => Promise<Array<T>>;
+  list: (tx: ReadTransaction, options?: ListOptions) => Promise<T[]>;
   /** List ids matching criteria. */
   listIDs: (tx: ReadTransaction, options?: ListOptions) => Promise<string[]>;
+  /** List [id, value] entries matching criteria. */
+  entries: (
+    tx: ReadTransaction,
+    options?: ListOptions,
+  ) => Promise<[string, T][]>;
 };
 
 export function generate<T extends Entity>(
@@ -60,6 +65,8 @@ export function generate<T extends Entity>(
       listImpl(prefix, parse, tx, options),
     listIDs: (tx: ReadTransaction, options?: ListOptions) =>
       listIDsImpl(prefix, tx, options),
+    entries: (tx: ReadTransaction, options?: ListOptions) =>
+      entriesImpl(prefix, parse, tx, options),
   };
 }
 
@@ -193,6 +200,28 @@ async function listIDsImpl(
     })
     .keys()) {
     result.push(id(prefix, k));
+  }
+  return result;
+}
+
+async function entriesImpl<T extends Entity>(
+  prefix: string,
+  parse: Parse<T> | undefined,
+  tx: ReadTransaction,
+  options?: ListOptions,
+): Promise<[string, T][]> {
+  const {startAtID, limit} = options ?? {};
+  const result: [string, T][] = [];
+  for await (const [k, v] of tx
+    .scan({
+      prefix: key(prefix, ''),
+      start: {
+        key: key(prefix, startAtID ?? ''),
+      },
+      limit,
+    })
+    .entries()) {
+    result.push([id(prefix, k), maybeParse(parse, v)]);
   }
   return result;
 }
