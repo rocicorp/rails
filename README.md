@@ -30,9 +30,8 @@ import {generate} from '@rocicorp/rails';
 export const {
   put: putTodo,
   get: getTodo,
-  update: updateTodo,
-  delete: deleteTodo,
   list: listTodos,
+  // ...
 } = generate<Todo>('todo');
 ```
 
@@ -118,11 +117,49 @@ export const {
 } = generate('todo', todoSchema.parse);
 ```
 
-## Conflict Semantics
+## Reference
 
-- **create**: If the entity already exists, it is overwritten.
-- **update**: All keys in an update are applied together atomically. If the entity does not exist a debug message is printed to the console and the update is skipped.
-- **delete**: If the entity doesn't exist, the delete is a no-op.
+### `init(tx: WriteTransaction, value: T): Promise<boolean>`
+
+Writes `value` if it is not already present. If `value` is already present, does nothing. Returns `true` if the value was written or false otherwise.
+
+### `put(tx: WriteTransaction, value: T): Promise<void>`
+
+Writes `value`. If not present, creates, otherwise overwrites.
+
+### `update(tx: WriteTransaction, value: Update<T>) => Promise<void>`
+
+Updates `value`. Value can specify any of the fields of `T` and must contain `id`. Fields not included in `value` are left unaffected.
+
+All fields in an update are applied together atomically. If the entity does not exist a debug message is printed to the console and the update is skipped.
+
+### `delete(tx: WriteTransaction, id: string) => Promise<void>`
+
+Delete any existing value or do nothing if none exist.
+
+### `has(tx: ReadTransaction, id: string) => Promise<boolean>`
+
+Return true if specified value exists, false otherwise.
+
+### `get(tx: ReadTransaction, id: string) => Promise<T | undefined>`
+
+Get value by ID, or return undefined if none exists.
+
+### `mustGet(tx: ReadTransaction, id: string) => Promise<T>`
+
+Get value by ID, or throw if none exists.
+
+### `list(tx: ReadTransaction, options?: {startAtID?: string, limit:? number}) => Promise<T[]>`
+
+List values matching criteria.
+
+### `listIDs(tx: ReadTransaction, options?: {startAtID?: string, limit:? number}) => Promise<string[]>`
+
+List ids matching criteria.
+
+### `entries(tx: ReadTransaction, options?: {startAtID?: string, limit:? number}) => Promise<[string, T][]>`
+
+List [id, value] entries matching criteria.
 
 ## Upgrade from 0.6
 
