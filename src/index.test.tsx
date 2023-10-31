@@ -30,7 +30,7 @@ const {
   has: hasE1,
   list: listE1,
   listIDs: listIDsE1,
-  entries: entriesE1,
+  listEntries: listEntriesE1,
 } = generate<E1>('e1', e1.parse);
 
 async function directWrite(
@@ -681,7 +681,7 @@ suite('listIDs', () => {
   }
 });
 
-suite('entries', () => {
+suite('listEntries', () => {
   type Case = {
     name: string;
     prefix: string;
@@ -750,7 +750,7 @@ suite('entries', () => {
       let error = undefined;
       let actual = undefined;
       try {
-        actual = await rep.query(tx => entriesE1(tx, c.options));
+        actual = await rep.query(tx => listEntriesE1(tx, c.options));
       } catch (e) {
         if (e instanceof ZodError) {
           error = e.format();

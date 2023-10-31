@@ -39,7 +39,7 @@ export type GenerateResult<T extends Entity> = {
   /** List ids matching criteria. */
   listIDs: (tx: ReadTransaction, options?: ListOptions) => Promise<string[]>;
   /** List [id, value] entries matching criteria. */
-  entries: (
+  listEntries: (
     tx: ReadTransaction,
     options?: ListOptions,
   ) => Promise<[string, T][]>;
@@ -65,8 +65,8 @@ export function generate<T extends Entity>(
       listImpl(prefix, parse, tx, options),
     listIDs: (tx: ReadTransaction, options?: ListOptions) =>
       listIDsImpl(prefix, tx, options),
-    entries: (tx: ReadTransaction, options?: ListOptions) =>
-      entriesImpl(prefix, parse, tx, options),
+    listEntries: (tx: ReadTransaction, options?: ListOptions) =>
+      listEntriesImpl(prefix, parse, tx, options),
   };
 }
 
@@ -155,7 +155,6 @@ async function updateImpl<T extends Entity>(
 async function deleteImpl(prefix: string, tx: WriteTransaction, id: string) {
   await tx.del(key(prefix, id));
 }
-
 export type ListOptions = {
   startAtID?: string;
   limit?: number;
@@ -204,7 +203,7 @@ async function listIDsImpl(
   return result;
 }
 
-async function entriesImpl<T extends Entity>(
+async function listEntriesImpl<T extends Entity>(
   prefix: string,
   parse: Parse<T> | undefined,
   tx: ReadTransaction,
