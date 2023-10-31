@@ -157,9 +157,9 @@ List values matching criteria.
 
 List ids matching criteria.
 
-### `entries(tx: ReadTransaction, options?: {startAtID?: string, limit:? number}) => Promise<[string, T][]>`
+### `listEntries(tx: ReadTransaction, options?: {startAtID?: string, limit:? number}) => Promise<[string, T][]>`
 
-List [id, value] entries matching criteria.
+List `[id, value]` entries matching criteria.
 
 ## Upgrade from 0.6
 
