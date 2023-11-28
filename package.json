@@ -21,7 +21,7 @@
   "peerDependencies": {
     "react": ">=16.0 <19.0",
     "react-dom": ">=16.0 <19.0",
-    "replicache": ">=10.0 <14.0 || >12.0.0-beta <12.0.0 || >13.0.0-beta <13.0.0"
+    "replicache": ">=10.0 <15.0 || >12.0.0-beta <12.0.0 || >13.0.0-beta <13.0.0"
   },
   "peerDependenciesMeta": {
     "replicache": {
@@ -42,7 +42,7 @@
     "@web/test-runner-playwright": "^0.11.0",
     "chai": "^5.0.0-alpha.2",
     "nanoid": "^5.0.3",
-    "replicache": "13.0.1",
+    "replicache": "14.0.0",
     "typescript": "^5.3.2",
     "zod": "^3.22.4"
   },
