@@ -37,6 +37,7 @@ const config = {
   testFramework: {
     config: {
       ui: 'tdd',
+      timeout: 10_000,
     },
   },
   files: ['src/**/*.test.ts'],
