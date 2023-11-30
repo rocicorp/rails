@@ -21,6 +21,11 @@ export function maybeParse<T>(
 
 export type GenerateResult<T extends Entity> = {
   /** Write `value`, overwriting any previous version of same value. */
+  set: (tx: WriteTransaction, value: T) => Promise<void>;
+  /**
+   * Write `value`, overwriting any previous version of same value.
+   * @deprecated Use `set` instead.
+   */
   put: (tx: WriteTransaction, value: T) => Promise<void>;
   /** Write `value` only if no previous version of this value exists. */
   init: (tx: WriteTransaction, value: T) => Promise<boolean>;
@@ -51,7 +56,8 @@ export function generate<T extends Entity>(
   logger: OptionalLogger = console,
 ): GenerateResult<T> {
   return {
-    put: (tx: WriteTransaction, value: T) => putImpl(prefix, parse, tx, value),
+    set: (tx: WriteTransaction, value: T) => setImpl(prefix, parse, tx, value),
+    put: (tx: WriteTransaction, value: T) => setImpl(prefix, parse, tx, value),
     init: (tx: WriteTransaction, value: T) =>
       initImpl(prefix, parse, tx, value),
     update: (tx: WriteTransaction, update: Update<T>) =>
@@ -93,18 +99,18 @@ async function initImpl<T extends Entity>(
   if (await tx.has(k)) {
     return false;
   }
-  await tx.put(k, val);
+  await tx.set(k, val);
   return true;
 }
 
-async function putImpl<T extends Entity>(
+async function setImpl<T extends Entity>(
   prefix: string,
   parse: Parse<T> | undefined,
   tx: WriteTransaction,
   initial: ReadonlyJSONValue,
 ) {
   const val = maybeParse(parse, initial);
-  await tx.put(key(prefix, val.id), val);
+  await tx.set(key(prefix, val.id), val);
 }
 
 function hasImpl(prefix: string, tx: ReadTransaction, id: string) {
@@ -149,7 +155,7 @@ async function updateImpl<T extends Entity>(
   }
   const next = {...prev, ...update};
   const parsed = maybeParse(parse, next);
-  await tx.put(k, parsed);
+  await tx.set(k, parsed);
 }
 
 async function deleteImpl(prefix: string, tx: WriteTransaction, id: string) {

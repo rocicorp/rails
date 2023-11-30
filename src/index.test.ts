@@ -22,7 +22,7 @@ type E1 = z.infer<typeof e1>;
 
 const {
   init: initE1,
-  put: putE1,
+  set: setE1,
   update: updateE1,
   delete: deleteE1,
   get: getE1,
@@ -37,12 +37,12 @@ async function directWrite(
   tx: WriteTransaction,
   {key, val}: {key: string; val: ReadonlyJSONValue},
 ) {
-  await tx.put(key, val);
+  await tx.set(key, val);
 }
 
 const mutators = {
   initE1,
-  putE1,
+  setE1,
   getE1,
   updateE1,
   deleteE1,
@@ -50,7 +50,7 @@ const mutators = {
   directWrite,
 };
 
-suite('put', () => {
+suite('set', () => {
   type Case = {
     name: string;
     preexisting: boolean;
@@ -117,12 +117,12 @@ suite('put', () => {
       });
 
       if (c.preexisting) {
-        await rep.mutate.putE1({id, str: 'preexisting'});
+        await rep.mutate.setE1({id, str: 'preexisting'});
       }
 
       let error = undefined;
       try {
-        await rep.mutate.putE1(c.input as E1);
+        await rep.mutate.setE1(c.input as E1);
       } catch (e) {
         error = (e as ZodError).format();
       }
@@ -211,7 +211,7 @@ suite('init', () => {
 
       const preexisting = {id, str: 'preexisting'};
       if (c.preexisting) {
-        await rep.mutate.putE1(preexisting);
+        await rep.mutate.setE1(preexisting);
       }
 
       let error = undefined;
@@ -836,8 +836,8 @@ test('undefined parse', async () => {
   let v = await r.query(tx => get(tx, 'valid'));
   expect(v).eq(undefined);
 
-  await r.mutate.put({id: 'valid', str: 'bar'});
-  await r.mutate.put({id: 'invalid', bonk: 'baz'} as unknown as E1);
+  await r.mutate.set({id: 'valid', str: 'bar'});
+  await r.mutate.set({id: 'invalid', bonk: 'baz'} as unknown as E1);
 
   v = await r.query(tx => get(tx, 'valid'));
   expect(v).deep.eq({id: 'valid', str: 'bar'});
