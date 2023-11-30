@@ -9,10 +9,12 @@
   "scripts": {
     "format": "prettier --write 'src/*.{js,jsx,json,ts,tsx,html,css,md}' '*.{cjs,js,jsx,json,ts,tsx,html,css,md}'",
     "check-format": "prettier --check 'src/*.{js,jsx,json,ts,tsx,html,css,md}' '*.{cjs,js,jsx,json,ts,tsx,html,css,md}'",
+    "check-types": "tsc --noEmit",
     "lint": "eslint --ext .ts,.tsx,.js,.jsx src/",
-    "build": "tsc --module ESNext --outDir out",
-    "prepack": "npm run lint && npm run test && npm run build",
-    "test": "web-test-runner \"src/**/*.test.{jsx,js,ts,tsx}\""
+    "build": "tsc",
+    "prepack": "npm run check-format && npm run lint && npm run test && npm run build",
+    "test": "web-test-runner",
+    "test:watch": "npm test -- --watch"
   },
   "author": "",
   "license": "Apache-2.0",
@@ -27,19 +29,22 @@
     }
   },
   "devDependencies": {
-    "@esm-bundle/chai": "^4.3.4-fix.0",
-    "@rocicorp/eslint-config": "^0.3.0",
-    "@rocicorp/logger": "^4.1.0",
-    "@rocicorp/prettier-config": "^0.1.1",
+    "@rocicorp/eslint-config": "^0.5.1",
+    "@rocicorp/logger": "^5.2.1",
+    "@rocicorp/prettier-config": "^0.2.0",
     "@snowpack/web-test-runner-plugin": "^0.2.2",
-    "@types/chai": "^4.2.22",
-    "@types/mocha": "^9.0.0",
-    "@web/test-runner": "^0.13.18",
-    "nanoid": "^3.3.4",
-    "replicache": "13.0.0-beta.0",
-    "snowpack": "^3.8.8",
-    "typescript": "^4.9.5",
-    "zod": "^3.21.4"
+    "@types/chai": "^4.3.11",
+    "@types/mocha": "^10.0.6",
+    "@web/dev-server": "^0.4.1",
+    "@web/dev-server-esbuild": "^1.0.1",
+    "@web/dev-server-import-maps": "^0.2.0",
+    "@web/test-runner": "^0.18.0",
+    "@web/test-runner-playwright": "^0.11.0",
+    "chai": "^5.0.0-alpha.2",
+    "nanoid": "^5.0.3",
+    "replicache": "13.0.1",
+    "typescript": "^5.3.2",
+    "zod": "^3.22.4"
   },
   "files": [
     "out/index.d.ts",

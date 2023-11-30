@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/naming-convention */
-import {expect} from '@esm-bundle/chai';
 import type {OptionalLogger} from '@rocicorp/logger';
+import {expect} from 'chai';
 import {nanoid} from 'nanoid';
 import {
   ReadonlyJSONObject,

@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
     "target": "es2022",
-    "module": "ESNext",
+    "module": "Node16",
+    "outDir": "out",
     "strict": true,
     "exactOptionalPropertyTypes": false,
     "noUnusedLocals": true,
@@ -14,8 +15,9 @@
     "declaration": true,
     "forceConsistentCasingInFileNames": true,
     "moduleResolution": "Node16",
-    "allowJs": true
+    "allowJs": true,
+    "skipLibCheck": true
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx"],
-  "exclude": ["node_modules", "dist/**/*", "build/**/*"]
+  "include": ["**/*.ts", "**/*.js"],
+  "exclude": ["node_modules", "out"]
 }
