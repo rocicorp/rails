@@ -50,52 +50,67 @@ export type GenerateResult<T extends Entity> = {
   ) => Promise<[string, T][]>;
 };
 
+type Key = (clientID: string, id: string) => string;
+
 export function generate<T extends Entity>(
   prefix: string,
   parse: Parse<T> | undefined = undefined,
   logger: OptionalLogger = console,
 ): GenerateResult<T> {
-  return {
-    set: (tx: WriteTransaction, value: T) => setImpl(prefix, parse, tx, value),
-    put: (tx: WriteTransaction, value: T) => setImpl(prefix, parse, tx, value),
-    init: (tx: WriteTransaction, value: T) =>
-      initImpl(prefix, parse, tx, value),
-    update: (tx: WriteTransaction, update: Update<T>) =>
-      updateImpl(prefix, parse, tx, update, logger),
-    delete: (tx: WriteTransaction, id: string) => deleteImpl(prefix, tx, id),
-    has: (tx: ReadTransaction, id: string) => hasImpl(prefix, tx, id),
-    get: (tx: ReadTransaction, id: string) => getImpl(prefix, parse, tx, id),
-    mustGet: (tx: ReadTransaction, id: string) =>
-      mustGetImpl(prefix, parse, tx, id),
-    list: (tx: ReadTransaction, options?: ListOptions) =>
-      listImpl(prefix, parse, tx, options),
-    listIDs: (tx: ReadTransaction, options?: ListOptions) =>
-      listIDsImpl(prefix, tx, options),
-    listEntries: (tx: ReadTransaction, options?: ListOptions) =>
-      listEntriesImpl(prefix, parse, tx, options),
-  };
+  const key: Key = (_, id) => `${prefix}/${id}`;
+  return generateImpl<T>(key, parse, logger);
+}
+
+export function generateClientKeySpace<T extends Entity>(
+  prefix: string,
+  parse: Parse<T> | undefined = undefined,
+  logger: OptionalLogger = console,
+): GenerateResult<T> {
+  const key: Key = (clientID, id) => `-/c/${clientID}/${prefix}/${id}`;
+  return generateImpl<T>(key, parse, logger);
 }
 
 export type Entity = {
   id: string;
 };
 
-function key(prefix: string, id: string) {
-  return `${prefix}/${id}`;
+function generateImpl<T extends Entity>(
+  key: Key,
+  parse: Parse<T> | undefined,
+  logger: OptionalLogger,
+): GenerateResult<T> {
+  return {
+    set: (tx: WriteTransaction, value: T) => setImpl(key, parse, tx, value),
+    put: (tx: WriteTransaction, value: T) => setImpl(key, parse, tx, value),
+    init: (tx: WriteTransaction, value: T) => initImpl(key, parse, tx, value),
+    update: (tx: WriteTransaction, update: Update<T>) =>
+      updateImpl(key, parse, tx, update, logger),
+    delete: (tx: WriteTransaction, id: string) => deleteImpl(key, tx, id),
+    has: (tx: ReadTransaction, id: string) => hasImpl(key, tx, id),
+    get: (tx: ReadTransaction, id: string) => getImpl(key, parse, tx, id),
+    mustGet: (tx: ReadTransaction, id: string) =>
+      mustGetImpl(key, parse, tx, id),
+    list: (tx: ReadTransaction, options?: ListOptions) =>
+      listImpl(key, parse, tx, options),
+    listIDs: (tx: ReadTransaction, options?: ListOptions) =>
+      listIDsImpl(key, tx, options),
+    listEntries: (tx: ReadTransaction, options?: ListOptions) =>
+      listEntriesImpl(key, parse, tx, options),
+  };
 }
 
 function id(prefix: string, key: string) {
-  return key.substring(prefix.length + 1);
+  return key.substring(prefix.length);
 }
 
 async function initImpl<T extends Entity>(
-  prefix: string,
+  key: Key,
   parse: Parse<T> | undefined,
   tx: WriteTransaction,
   initial: ReadonlyJSONValue,
 ) {
   const val = maybeParse(parse, initial);
-  const k = key(prefix, val.id);
+  const k = key(tx.clientID, val.id);
   if (await tx.has(k)) {
     return false;
   }
@@ -104,35 +119,35 @@ async function initImpl<T extends Entity>(
 }
 
 async function setImpl<T extends Entity>(
-  prefix: string,
+  key: Key,
   parse: Parse<T> | undefined,
   tx: WriteTransaction,
   initial: ReadonlyJSONValue,
 ) {
   const val = maybeParse(parse, initial);
-  await tx.set(key(prefix, val.id), val);
+  await tx.set(key(tx.clientID, val.id), val);
 }
 
-function hasImpl(prefix: string, tx: ReadTransaction, id: string) {
-  return tx.has(key(prefix, id));
+function hasImpl(key: Key, tx: ReadTransaction, id: string) {
+  return tx.has(key(tx.clientID, id));
 }
 
 function getImpl<T extends Entity>(
-  prefix: string,
+  key: Key,
   parse: Parse<T> | undefined,
   tx: ReadTransaction,
   id: string,
 ) {
-  return getInternal(parse, tx, key(prefix, id));
+  return getInternal(parse, tx, key(tx.clientID, id));
 }
 
 async function mustGetImpl<T extends Entity>(
-  prefix: string,
+  key: Key,
   parse: Parse<T> | undefined,
   tx: ReadTransaction,
   id: string,
 ) {
-  const v = await getInternal(parse, tx, key(prefix, id));
+  const v = await getInternal(parse, tx, key(tx.clientID, id));
   if (v === undefined) {
     throw new Error(`no such entity ${id}`);
   }
@@ -140,14 +155,14 @@ async function mustGetImpl<T extends Entity>(
 }
 
 async function updateImpl<T extends Entity>(
-  prefix: string,
+  key: Key,
   parse: Parse<T> | undefined,
   tx: WriteTransaction,
   update: Update<T>,
   logger: OptionalLogger,
 ) {
   const {id} = update;
-  const k = key(prefix, id);
+  const k = key(tx.clientID, id);
   const prev = await getInternal(parse, tx, k);
   if (prev === undefined) {
     logger.debug?.(`no such entity ${id}, skipping update`);
@@ -158,8 +173,8 @@ async function updateImpl<T extends Entity>(
   await tx.set(k, parsed);
 }
 
-async function deleteImpl(prefix: string, tx: WriteTransaction, id: string) {
-  await tx.del(key(prefix, id));
+async function deleteImpl(key: Key, tx: WriteTransaction, id: string) {
+  await tx.del(key(tx.clientID, id));
 }
 export type ListOptions = {
   startAtID?: string;
@@ -167,18 +182,19 @@ export type ListOptions = {
 };
 
 async function listImpl<T extends Entity>(
-  prefix: string,
+  key: Key,
   parse: Parse<T> | undefined,
   tx: ReadTransaction,
   options?: ListOptions,
 ) {
   const {startAtID, limit} = options ?? {};
+  const {clientID} = tx;
   const result = [];
   for await (const v of tx
     .scan({
-      prefix: key(prefix, ''),
+      prefix: key(clientID, ''),
       start: {
-        key: key(prefix, startAtID ?? ''),
+        key: key(clientID, startAtID ?? ''),
       },
       limit,
     })
@@ -189,17 +205,19 @@ async function listImpl<T extends Entity>(
 }
 
 async function listIDsImpl(
-  prefix: string,
+  key: Key,
   tx: ReadTransaction,
   options?: ListOptions,
 ) {
   const {startAtID, limit} = options ?? {};
+  const {clientID} = tx;
   const result = [];
+  const prefix = key(clientID, '');
   for await (const k of tx
     .scan({
-      prefix: key(prefix, ''),
+      prefix,
       start: {
-        key: key(prefix, startAtID ?? ''),
+        key: key(clientID, startAtID ?? ''),
       },
       limit,
     })
@@ -210,18 +228,20 @@ async function listIDsImpl(
 }
 
 async function listEntriesImpl<T extends Entity>(
-  prefix: string,
+  key: Key,
   parse: Parse<T> | undefined,
   tx: ReadTransaction,
   options?: ListOptions,
 ): Promise<[string, T][]> {
   const {startAtID, limit} = options ?? {};
+  const {clientID} = tx;
+  const prefix = key(clientID, '');
   const result: [string, T][] = [];
   for await (const [k, v] of tx
     .scan({
-      prefix: key(prefix, ''),
+      prefix,
       start: {
-        key: key(prefix, startAtID ?? ''),
+        key: key(clientID, startAtID ?? ''),
       },
       limit,
     })
