@@ -5,7 +5,7 @@ import {nanoid} from 'nanoid';
 import {MutatorDefs, Replicache, TEST_LICENSE_KEY} from 'replicache';
 import {Reflect} from '@rocicorp/reflect/client';
 import {ZodError, ZodTypeAny, z} from 'zod';
-import {ListOptions, WriteTransaction, generate} from './index.js';
+import {ListOptions, WriteTransaction, generate} from './generate.js';
 import {ReadonlyJSONObject, ReadonlyJSONValue} from './json.js';
 
 const e1 = z.object({
