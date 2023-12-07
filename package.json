@@ -18,20 +18,11 @@
   },
   "author": "",
   "license": "Apache-2.0",
-  "peerDependencies": {
-    "react": ">=16.0 <19.0",
-    "react-dom": ">=16.0 <19.0",
-    "replicache": ">=10.0 <15.0 || >12.0.0-beta <12.0.0 || >13.0.0-beta <13.0.0"
-  },
-  "peerDependenciesMeta": {
-    "replicache": {
-      "optional": true
-    }
-  },
   "devDependencies": {
     "@rocicorp/eslint-config": "^0.5.1",
-    "@rocicorp/logger": "^5.2.1",
     "@rocicorp/prettier-config": "^0.2.0",
+    "@rocicorp/logger": "^5.2.1",
+    "@rocicorp/reflect": "^0.38.202311200859",
     "@types/chai": "^4.3.11",
     "@types/mocha": "^10.0.6",
     "@web/dev-server": "^0.4.1",

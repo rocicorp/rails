@@ -1,9 +1,5 @@
 import type {OptionalLogger} from '@rocicorp/logger';
-import type {
-  ReadonlyJSONValue,
-  ReadTransaction,
-  WriteTransaction,
-} from 'replicache';
+import type {ReadonlyJSONValue} from './json.js';
 
 export type Update<T> = Entity & Partial<T>;
 
@@ -18,6 +14,33 @@ export function maybeParse<T>(
   }
   return parse(val);
 }
+
+type ScanOptions = {
+  prefix?: string | undefined;
+  start?:
+    | {
+        key?: string | undefined;
+      }
+    | undefined;
+  limit?: number | undefined;
+};
+
+type ScanResult = {
+  values(): AsyncIterable<ReadonlyJSONValue>;
+  keys(): AsyncIterable<string>;
+  entries(): AsyncIterable<Readonly<[string, ReadonlyJSONValue]>>;
+};
+
+export type ReadTransaction = {
+  has(key: string): Promise<boolean>;
+  get(key: string): Promise<ReadonlyJSONValue | undefined>;
+  scan(options?: ScanOptions): ScanResult;
+};
+
+export type WriteTransaction = ReadTransaction & {
+  set(key: string, value: ReadonlyJSONValue): Promise<void>;
+  del(key: string): Promise<boolean>;
+};
 
 export type GenerateResult<T extends Entity> = {
   /** Write `value`, overwriting any previous version of same value. */

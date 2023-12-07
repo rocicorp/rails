@@ -2,15 +2,11 @@
 import type {OptionalLogger} from '@rocicorp/logger';
 import {expect} from 'chai';
 import {nanoid} from 'nanoid';
-import {
-  ReadonlyJSONObject,
-  ReadonlyJSONValue,
-  Replicache,
-  TEST_LICENSE_KEY,
-  WriteTransaction,
-} from 'replicache';
+import {MutatorDefs, Replicache, TEST_LICENSE_KEY} from 'replicache';
+import {Reflect} from '@rocicorp/reflect/client';
 import {ZodError, ZodTypeAny, z} from 'zod';
-import {ListOptions, generate} from './index.js';
+import {ListOptions, WriteTransaction, generate} from './index.js';
+import {ReadonlyJSONObject, ReadonlyJSONValue} from './json.js';
 
 const e1 = z.object({
   id: z.string(),
@@ -49,6 +45,21 @@ const mutators = {
   listE1,
   directWrite,
 };
+
+const factories = [
+  <M extends MutatorDefs>(m: M) =>
+    new Replicache({
+      licenseKey: TEST_LICENSE_KEY,
+      name: nanoid(),
+      mutators: m,
+    }),
+  <M extends MutatorDefs>(m: M) =>
+    new Reflect({
+      roomID: nanoid(),
+      userID: nanoid(),
+      mutators: m,
+    }),
+];
 
 suite('set', () => {
   type Case = {
@@ -108,34 +119,32 @@ suite('set', () => {
     },
   ];
 
-  for (const c of cases) {
-    test(c.name, async () => {
-      const rep = new Replicache({
-        name: nanoid(),
-        mutators,
-        licenseKey: TEST_LICENSE_KEY,
+  for (const f of factories) {
+    for (const c of cases) {
+      test(c.name, async () => {
+        const r = f(mutators);
+
+        if (c.preexisting) {
+          await r.mutate.setE1({id, str: 'preexisting'});
+        }
+
+        let error = undefined;
+        try {
+          await r.mutate.setE1(c.input as E1);
+        } catch (e) {
+          error = (e as ZodError).format();
+        }
+
+        const actual = await r.query(tx => tx.get(`e1/${id}`));
+        if (c.expectError !== undefined) {
+          expect(error).deep.eq(c.expectError);
+          expect(actual).undefined;
+        } else {
+          expect(error).undefined;
+          expect(actual).deep.eq(c.input);
+        }
       });
-
-      if (c.preexisting) {
-        await rep.mutate.setE1({id, str: 'preexisting'});
-      }
-
-      let error = undefined;
-      try {
-        await rep.mutate.setE1(c.input as E1);
-      } catch (e) {
-        error = (e as ZodError).format();
-      }
-
-      const actual = await rep.query(tx => tx.get(`e1/${id}`));
-      if (c.expectError !== undefined) {
-        expect(error).deep.eq(c.expectError);
-        expect(actual).undefined;
-      } else {
-        expect(error).undefined;
-        expect(actual).deep.eq(c.input);
-      }
-    });
+    }
   }
 });
 
@@ -201,38 +210,36 @@ suite('init', () => {
     },
   ];
 
-  for (const c of cases) {
-    test(c.name, async () => {
-      const rep = new Replicache({
-        name: nanoid(),
-        mutators,
-        licenseKey: TEST_LICENSE_KEY,
+  for (const f of factories) {
+    for (const c of cases) {
+      test(c.name, async () => {
+        const r = f(mutators);
+
+        const preexisting = {id, str: 'preexisting'};
+        if (c.preexisting) {
+          await r.mutate.setE1(preexisting);
+        }
+
+        let error = undefined;
+        let result = undefined;
+        try {
+          result = await r.mutate.initE1(c.input as E1);
+        } catch (e) {
+          error = (e as ZodError).format();
+        }
+
+        const actual = await r.query(tx => tx.get(`e1/${id}`));
+        if (c.expectError !== undefined) {
+          expect(error).deep.eq(c.expectError);
+          expect(actual).undefined;
+          expect(result).undefined;
+        } else {
+          expect(error).undefined;
+          expect(actual).deep.eq(c.preexisting ? preexisting : c.input);
+          expect(result).eq(c.expectResult);
+        }
       });
-
-      const preexisting = {id, str: 'preexisting'};
-      if (c.preexisting) {
-        await rep.mutate.setE1(preexisting);
-      }
-
-      let error = undefined;
-      let result = undefined;
-      try {
-        result = await rep.mutate.initE1(c.input as E1);
-      } catch (e) {
-        error = (e as ZodError).format();
-      }
-
-      const actual = await rep.query(tx => tx.get(`e1/${id}`));
-      if (c.expectError !== undefined) {
-        expect(error).deep.eq(c.expectError);
-        expect(actual).undefined;
-        expect(result).undefined;
-      } else {
-        expect(error).undefined;
-        expect(actual).deep.eq(c.preexisting ? preexisting : c.input);
-        expect(result).eq(c.expectResult);
-      }
-    });
+    }
   }
 });
 
@@ -280,27 +287,25 @@ suite('get', () => {
     },
   ];
 
-  for (const c of cases) {
-    test(c.name, async () => {
-      const rep = new Replicache({
-        name: nanoid(),
-        mutators,
-        licenseKey: TEST_LICENSE_KEY,
-      });
+  for (const f of factories) {
+    for (const c of cases) {
+      test(c.name, async () => {
+        const r = f(mutators);
 
-      if (c.stored !== undefined) {
-        await rep.mutate.directWrite({key: `e1/${id}`, val: c.stored as E1});
-      }
-      const {actual, error} = await rep.query(async tx => {
-        try {
-          return {actual: await getE1(tx, id)};
-        } catch (e) {
-          return {error: (e as ZodError).format()};
+        if (c.stored !== undefined) {
+          await r.mutate.directWrite({key: `e1/${id}`, val: c.stored as E1});
         }
+        const {actual, error} = await r.query(async tx => {
+          try {
+            return {actual: await getE1(tx, id)};
+          } catch (e) {
+            return {error: (e as ZodError).format()};
+          }
+        });
+        expect(error).deep.eq(c.expectError, c.name);
+        expect(actual).deep.eq(c.expectError ? undefined : c.stored, c.name);
       });
-      expect(error).deep.eq(c.expectError, c.name);
-      expect(actual).deep.eq(c.expectError ? undefined : c.stored, c.name);
-    });
+    }
   }
 });
 
@@ -330,30 +335,28 @@ suite('mustGet', () => {
     },
   ];
 
-  for (const c of cases) {
-    test(c.name, async () => {
-      const rep = new Replicache({
-        name: nanoid(),
-        mutators,
-        licenseKey: TEST_LICENSE_KEY,
-      });
+  for (const f of factories) {
+    for (const c of cases) {
+      test(c.name, async () => {
+        const r = f(mutators);
 
-      if (c.stored !== undefined) {
-        await rep.mutate.directWrite({key: `e1/${id}`, val: c.stored as E1});
-      }
-      const {actual, error} = await rep.query(async tx => {
-        try {
-          return {actual: await mustGetE1(tx, id)};
-        } catch (e) {
-          if (e instanceof ZodError) {
-            return {error: (e as ZodError).format()};
-          }
-          return {error: String(e)};
+        if (c.stored !== undefined) {
+          await r.mutate.directWrite({key: `e1/${id}`, val: c.stored as E1});
         }
+        const {actual, error} = await r.query(async tx => {
+          try {
+            return {actual: await mustGetE1(tx, id)};
+          } catch (e) {
+            if (e instanceof ZodError) {
+              return {error: (e as ZodError).format()};
+            }
+            return {error: String(e)};
+          }
+        });
+        expect(error).deep.eq(c.expectError, c.name);
+        expect(actual).deep.eq(c.expectError ? undefined : c.stored, c.name);
       });
-      expect(error).deep.eq(c.expectError, c.name);
-      expect(actual).deep.eq(c.expectError ? undefined : c.stored, c.name);
-    });
+    }
   }
 });
 
@@ -384,20 +387,18 @@ suite('has', () => {
     },
   ];
 
-  for (const c of cases) {
-    test(c.name, async () => {
-      const rep = new Replicache({
-        name: nanoid(),
-        mutators,
-        licenseKey: TEST_LICENSE_KEY,
-      });
+  for (const f of factories) {
+    for (const c of cases) {
+      test(c.name, async () => {
+        const r = f(mutators);
 
-      if (c.stored !== undefined) {
-        await rep.mutate.directWrite({key: `e1/${id}`, val: c.stored as E1});
-      }
-      const has = await rep.query(tx => hasE1(tx, id));
-      expect(has).eq(c.expectHas, c.name);
-    });
+        if (c.stored !== undefined) {
+          await r.mutate.directWrite({key: `e1/${id}`, val: c.stored as E1});
+        }
+        const has = await r.query(tx => hasE1(tx, id));
+        expect(has).eq(c.expectHas, c.name);
+      });
+    }
   }
 });
 
@@ -446,33 +447,31 @@ suite('update', () => {
     },
   ];
 
-  for (const c of cases) {
-    test(c.name, async () => {
-      const rep = new Replicache({
-        name: nanoid(),
-        mutators,
-        licenseKey: TEST_LICENSE_KEY,
-      });
+  for (const f of factories) {
+    for (const c of cases) {
+      test(c.name, async () => {
+        const r = f(mutators);
 
-      if (c.prev !== undefined) {
-        await rep.mutate.directWrite({key: `e1/${id}`, val: c.prev as E1});
-      }
-
-      let error = undefined;
-      let actual = undefined;
-      try {
-        await rep.mutate.updateE1(c.update as E1);
-        actual = await rep.query(tx => getE1(tx, id));
-      } catch (e) {
-        if (e instanceof ZodError) {
-          error = e.format();
-        } else {
-          error = e;
+        if (c.prev !== undefined) {
+          await r.mutate.directWrite({key: `e1/${id}`, val: c.prev as E1});
         }
-      }
-      expect(error).deep.eq(c.expectError, c.name);
-      expect(actual).deep.eq(c.expectError ? undefined : c.expected, c.name);
-    });
+
+        let error = undefined;
+        let actual = undefined;
+        try {
+          await r.mutate.updateE1(c.update as E1);
+          actual = await r.query(tx => getE1(tx, id));
+        } catch (e) {
+          if (e instanceof ZodError) {
+            error = e.format();
+          } else {
+            error = e;
+          }
+        }
+        expect(error).deep.eq(c.expectError, c.name);
+        expect(actual).deep.eq(c.expectError ? undefined : c.expected, c.name);
+      });
+    }
   }
 });
 
@@ -495,31 +494,29 @@ suite('delete', () => {
     },
   ];
 
-  for (const c of cases) {
-    test(c.name, async () => {
-      const rep = new Replicache({
-        name: nanoid(),
-        mutators,
-        licenseKey: TEST_LICENSE_KEY,
-      });
+  for (const f of factories) {
+    for (const c of cases) {
+      test(c.name, async () => {
+        const r = f(mutators);
 
-      if (c.prevExist) {
-        await rep.mutate.directWrite({
-          key: `e1/${id}`,
-          val: {id, str: 'foo', optStr: 'bar'},
+        if (c.prevExist) {
+          await r.mutate.directWrite({
+            key: `e1/${id}`,
+            val: {id, str: 'foo', optStr: 'bar'},
+          });
+        }
+        await r.mutate.directWrite({
+          key: `e1/id2`,
+          val: {id: 'id2', str: 'hot', optStr: 'dog'},
         });
-      }
-      await rep.mutate.directWrite({
-        key: `e1/id2`,
-        val: {id: 'id2', str: 'hot', optStr: 'dog'},
-      });
 
-      await rep.mutate.deleteE1(id);
-      const actualE1 = await rep.query(tx => getE1(tx, id));
-      const actualE12 = await rep.query(tx => getE1(tx, 'id2'));
-      expect(actualE1).undefined;
-      expect(actualE12).deep.eq({id: 'id2', str: 'hot', optStr: 'dog'});
-    });
+        await r.mutate.deleteE1(id);
+        const actualE1 = await r.query(tx => getE1(tx, id));
+        const actualE12 = await r.query(tx => getE1(tx, 'id2'));
+        expect(actualE1).undefined;
+        expect(actualE12).deep.eq({id: 'id2', str: 'hot', optStr: 'dog'});
+      });
+    }
   }
 });
 
@@ -568,41 +565,39 @@ suite('list', () => {
     },
   ];
 
-  for (const c of cases) {
-    test(c.name, async () => {
-      const rep = new Replicache({
-        name: nanoid(),
-        mutators,
-        licenseKey: TEST_LICENSE_KEY,
-      });
+  for (const f of factories) {
+    for (const c of cases) {
+      test(c.name, async () => {
+        const r = f(mutators);
 
-      await rep.mutate.directWrite({
-        key: `e1/foo`,
-        val: {id: 'foo', str: 'foostr'},
-      });
-      await rep.mutate.directWrite({
-        key: `e1/bar`,
-        val: {id: 'bar', str: 'barstr'},
-      });
-      await rep.mutate.directWrite({
-        key: `e1/baz`,
-        val: {id: 'baz', str: 'bazstr'},
-      });
+        await r.mutate.directWrite({
+          key: `e1/foo`,
+          val: {id: 'foo', str: 'foostr'},
+        });
+        await r.mutate.directWrite({
+          key: `e1/bar`,
+          val: {id: 'bar', str: 'barstr'},
+        });
+        await r.mutate.directWrite({
+          key: `e1/baz`,
+          val: {id: 'baz', str: 'bazstr'},
+        });
 
-      let error = undefined;
-      let actual = undefined;
-      try {
-        actual = await rep.query(tx => listE1(tx, c.options));
-      } catch (e) {
-        if (e instanceof ZodError) {
-          error = e.format();
-        } else {
-          error = e;
+        let error = undefined;
+        let actual = undefined;
+        try {
+          actual = await r.query(tx => listE1(tx, c.options));
+        } catch (e) {
+          if (e instanceof ZodError) {
+            error = e.format();
+          } else {
+            error = e;
+          }
         }
-      }
-      expect(error).deep.eq(c.expectError, c.name);
-      expect(actual).deep.eq(c.expected, c.name);
-    });
+        expect(error).deep.eq(c.expectError, c.name);
+        expect(actual).deep.eq(c.expected, c.name);
+      });
+    }
   }
 });
 
@@ -643,41 +638,39 @@ suite('listIDs', () => {
     },
   ];
 
-  for (const c of cases) {
-    test(c.name, async () => {
-      const rep = new Replicache({
-        name: nanoid(),
-        mutators,
-        licenseKey: TEST_LICENSE_KEY,
-      });
+  for (const f of factories) {
+    for (const c of cases) {
+      test(c.name, async () => {
+        const r = f(mutators);
 
-      await rep.mutate.directWrite({
-        key: `e1/foo`,
-        val: {id: 'foo', str: 'foostr'},
-      });
-      await rep.mutate.directWrite({
-        key: `e1/bar`,
-        val: {id: 'bar', str: 'barstr'},
-      });
-      await rep.mutate.directWrite({
-        key: `e1/baz`,
-        val: {id: 'baz', str: 'bazstr'},
-      });
+        await r.mutate.directWrite({
+          key: `e1/foo`,
+          val: {id: 'foo', str: 'foostr'},
+        });
+        await r.mutate.directWrite({
+          key: `e1/bar`,
+          val: {id: 'bar', str: 'barstr'},
+        });
+        await r.mutate.directWrite({
+          key: `e1/baz`,
+          val: {id: 'baz', str: 'bazstr'},
+        });
 
-      let error = undefined;
-      let actual = undefined;
-      try {
-        actual = await rep.query(tx => listIDsE1(tx, c.options));
-      } catch (e) {
-        if (e instanceof ZodError) {
-          error = e.format();
-        } else {
-          error = e;
+        let error = undefined;
+        let actual = undefined;
+        try {
+          actual = await r.query(tx => listIDsE1(tx, c.options));
+        } catch (e) {
+          if (e instanceof ZodError) {
+            error = e.format();
+          } else {
+            error = e;
+          }
         }
-      }
-      expect(error).deep.eq(c.expectError, c.name);
-      expect(actual).deep.eq(c.expected, c.name);
-    });
+        expect(error).deep.eq(c.expectError, c.name);
+        expect(actual).deep.eq(c.expected, c.name);
+      });
+    }
   }
 });
 
@@ -726,45 +719,43 @@ suite('listEntries', () => {
     },
   ];
 
-  for (const c of cases) {
-    test(c.name, async () => {
-      const rep = new Replicache({
-        name: nanoid(),
-        mutators,
-        licenseKey: TEST_LICENSE_KEY,
-      });
+  for (const f of factories) {
+    for (const c of cases) {
+      test(c.name, async () => {
+        const r = f(mutators);
 
-      await rep.mutate.directWrite({
-        key: `e1/foo`,
-        val: {id: 'foo', str: 'foostr'},
-      });
-      await rep.mutate.directWrite({
-        key: `e1/bar`,
-        val: {id: 'bar', str: 'barstr'},
-      });
-      await rep.mutate.directWrite({
-        key: `e1/baz`,
-        val: {id: 'baz', str: 'bazstr'},
-      });
+        await r.mutate.directWrite({
+          key: `e1/foo`,
+          val: {id: 'foo', str: 'foostr'},
+        });
+        await r.mutate.directWrite({
+          key: `e1/bar`,
+          val: {id: 'bar', str: 'barstr'},
+        });
+        await r.mutate.directWrite({
+          key: `e1/baz`,
+          val: {id: 'baz', str: 'bazstr'},
+        });
 
-      let error = undefined;
-      let actual = undefined;
-      try {
-        actual = await rep.query(tx => listEntriesE1(tx, c.options));
-      } catch (e) {
-        if (e instanceof ZodError) {
-          error = e.format();
-        } else {
-          error = e;
+        let error = undefined;
+        let actual = undefined;
+        try {
+          actual = await r.query(tx => listEntriesE1(tx, c.options));
+        } catch (e) {
+          if (e instanceof ZodError) {
+            error = e.format();
+          } else {
+            error = e;
+          }
         }
-      }
-      expect(error).deep.eq(c.expectError, c.name);
-      expect(actual).deep.eq(c.expected, c.name);
-    });
+        expect(error).deep.eq(c.expectError, c.name);
+        expect(actual).deep.eq(c.expected, c.name);
+      });
+    }
   }
 });
 
-test('optionalLogger', async () => {
+-test('optionalLogger', async () => {
   type Case = {
     name: string;
     logger: OptionalLogger | undefined;
@@ -800,20 +791,16 @@ test('optionalLogger', async () => {
     },
   ];
 
-  for (const c of cases) {
-    const {update: updateE1} = generate('e1', e1.parse, c.logger);
-    output = undefined;
+  for (const f of factories) {
+    for (const c of cases) {
+      const {update: updateE1} = generate('e1', e1.parse, c.logger);
+      output = undefined;
 
-    const rep = new Replicache({
-      name: nanoid(),
-      mutators: {
-        updateE1,
-      },
-      licenseKey: TEST_LICENSE_KEY,
-    });
+      const r = f({updateE1});
 
-    await rep.mutate.updateE1({id: 'foo', str: 'bar'});
-    expect(output, c.name).deep.equal(c.expected);
+      await r.mutate.updateE1({id: 'foo', str: 'bar'});
+      expect(output, c.name).deep.equal(c.expected);
+    }
   }
 });
 
