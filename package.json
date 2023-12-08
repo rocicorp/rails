@@ -6,6 +6,7 @@
   "repository": "github:rocicorp/rails",
   "type": "module",
   "main": "out/index.js",
+  "exports": "./out/index.js",
   "scripts": {
     "format": "prettier --write 'src/*.{js,jsx,json,ts,tsx,html,css,md}' '*.{cjs,js,jsx,json,ts,tsx,html,css,md}'",
     "check-format": "prettier --check 'src/*.{js,jsx,json,ts,tsx,html,css,md}' '*.{cjs,js,jsx,json,ts,tsx,html,css,md}'",
