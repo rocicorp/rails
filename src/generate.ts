@@ -1,25 +1,28 @@
 import type {OptionalLogger} from '@rocicorp/logger';
 import type {ReadonlyJSONValue} from './json.js';
 
+/**
+ * An entity is something that can be read or written by Rails.
+ */
 export type Entity = {
   id: string;
 };
 
+/**
+ * Describes an update to some existing entity.
+ */
 export type Update<T> = Entity & Partial<T>;
 
+/**
+ * A function that can parse a JSON value into a specific type.
+ * Parse should throw an error if the value cannot be parsed.
+ */
 export type Parse<T> = (val: ReadonlyJSONValue) => T;
 
-export function maybeParse<T>(
-  parse: Parse<T> | undefined,
-  val: ReadonlyJSONValue,
-): T {
-  if (parse === undefined) {
-    return val as T;
-  }
-  return parse(val);
-}
-
-type ScanOptions = {
+/**
+ * The subset of the Replicache/Reflect ScanOptions type that Rails depends on.
+ */
+export type ScanOptions = {
   prefix?: string | undefined;
   start?:
     | {
@@ -29,18 +32,29 @@ type ScanOptions = {
   limit?: number | undefined;
 };
 
-type ScanResult = {
+/**
+ * The subset of the Replicache/Reflect ScanResult type that Rails depends on.
+ */
+export type ScanResult = {
   values(): AsyncIterable<ReadonlyJSONValue>;
   keys(): AsyncIterable<string>;
   entries(): AsyncIterable<Readonly<[string, ReadonlyJSONValue]>>;
 };
 
+/**
+ * The subset of the Replicache/Reflect ReadTransaction type that Rails depends
+ * on.
+ */
 export type ReadTransaction = {
   has(key: string): Promise<boolean>;
   get(key: string): Promise<ReadonlyJSONValue | undefined>;
   scan(options?: ScanOptions): ScanResult;
 };
 
+/**
+ * The subset of the Replicache/Reflect WriteTransaction type that Rails depends
+ * on.
+ */
 export type WriteTransaction = ReadTransaction & {
   set(key: string, value: ReadonlyJSONValue): Promise<void>;
   del(key: string): Promise<boolean>;
@@ -77,6 +91,10 @@ export type GenerateResult<T extends Entity> = {
   ) => Promise<[string, T][]>;
 };
 
+/**
+ * Generates strongly-typed CRUD-style functions for interacting with Reflect
+ * from an Entity.
+ */
 export function generate<T extends Entity>(
   prefix: string,
   parse: Parse<T> | undefined = undefined,
@@ -101,6 +119,13 @@ export function generate<T extends Entity>(
     listEntries: (tx: ReadTransaction, options?: ListOptions) =>
       listEntriesImpl(prefix, parse, tx, options),
   };
+}
+
+function maybeParse<T>(parse: Parse<T> | undefined, val: ReadonlyJSONValue): T {
+  if (parse === undefined) {
+    return val as T;
+  }
+  return parse(val);
 }
 
 function key(prefix: string, id: string) {

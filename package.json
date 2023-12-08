@@ -5,7 +5,8 @@
   "homepage": "https://github.com/rocicorp/rails",
   "repository": "github:rocicorp/rails",
   "type": "module",
-  "main": "out/index.js",
+  "main": "out/src/index.js",
+  "exports": "./out/src/index.js",
   "scripts": {
     "format": "prettier --write 'src/*.{js,jsx,json,ts,tsx,html,css,md}' '*.{cjs,js,jsx,json,ts,tsx,html,css,md}'",
     "check-format": "prettier --check 'src/*.{js,jsx,json,ts,tsx,html,css,md}' '*.{cjs,js,jsx,json,ts,tsx,html,css,md}'",
@@ -37,10 +38,10 @@
     "zod": "^3.22.4"
   },
   "files": [
-    "out/index.d.ts",
-    "out/index.js",
-    "out/index.d.ts.map",
-    "out/index.js.map"
+    "out/src/*.d.ts",
+    "out/src/*.js",
+    "out/src/*.d.ts.map",
+    "out/src/*.js.map"
   ],
   "eslintConfig": {
     "extends": "@rocicorp/eslint-config"
