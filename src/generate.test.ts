@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import type {OptionalLogger} from '@rocicorp/logger';
+import {Reflect} from '@rocicorp/reflect/client';
 import {expect} from 'chai';
 import {nanoid} from 'nanoid';
 import {MutatorDefs, Replicache, TEST_LICENSE_KEY} from 'replicache';
-import {Reflect} from '@rocicorp/reflect/client';
 import {ZodError, ZodTypeAny, z} from 'zod';
 import {ListOptions, WriteTransaction, generate} from './generate.js';
 import {ReadonlyJSONObject, ReadonlyJSONValue} from './json.js';
@@ -327,7 +327,7 @@ suite('mustGet', () => {
     {
       name: 'undefined',
       stored: undefined,
-      expectError: 'Error: no such entity id1',
+      expectError: 'Error: no such entity "id1"',
     },
     {
       name: 'valid',
@@ -787,7 +787,7 @@ suite('listEntries', () => {
           output = args;
         },
       },
-      expected: ['no such entity foo, skipping update'],
+      expected: ['no such entity "foo", skipping update'],
     },
   ];
 
