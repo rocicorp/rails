@@ -48,13 +48,13 @@ export type GeneratePresenceResult<T extends PresenceEntity> = {
   /** Update existing value with new fields. */
   update: (tx: WriteTransaction, value: Update<LookupID, T>) => Promise<void>;
   /** Delete any existing value or do nothing if none exist. */
-  delete: (tx: WriteTransaction, id: LookupID) => Promise<void>;
+  delete: (tx: WriteTransaction, id?: LookupID) => Promise<void>;
   /** Return true if specified value exists, false otherwise. */
-  has: (tx: ReadTransaction, id: LookupID) => Promise<boolean>;
+  has: (tx: ReadTransaction, id?: LookupID) => Promise<boolean>;
   /** Get value by ID, or return undefined if none exists. */
-  get: (tx: ReadTransaction, id: LookupID) => Promise<T | undefined>;
+  get: (tx: ReadTransaction, id?: LookupID) => Promise<T | undefined>;
   /** Get value by ID, or throw if none exists. */
-  mustGet: (tx: ReadTransaction, id: LookupID) => Promise<T>;
+  mustGet: (tx: ReadTransaction, id?: LookupID) => Promise<T>;
   /** List values matching criteria. */
   list: (tx: ReadTransaction, options?: ListOptionsForPresence) => Promise<T[]>;
   /** List ids matching criteria. */
@@ -100,8 +100,11 @@ const idFromEntity: IDFromEntityFunc<PresenceEntity, PresenceEntity> = (
 
 function normalizePresenceID(
   tx: {clientID: string},
-  base: Partial<PresenceEntity>,
+  base: Partial<PresenceEntity> | undefined,
 ) {
+  if (base === undefined) {
+    return {clientID: tx.clientID, id: ''};
+  }
   return {
     clientID: base.clientID ?? tx.clientID,
     id: base.id ?? '',

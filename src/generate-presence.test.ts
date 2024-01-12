@@ -340,7 +340,9 @@ suite('get', () => {
     name: string;
     stored: ((clientID: string) => unknown) | undefined;
     id: string;
-    lookupID?: (clientID: string) => Partial<{clientID: string; id: string}>;
+    lookupID?: (
+      clientID: string,
+    ) => Partial<{clientID: string; id: string}> | undefined;
     expectError?: ReadonlyJSONObject;
   };
 
@@ -391,6 +393,12 @@ suite('get', () => {
       id: '',
       stored: clientID => ({clientID, id: '', str: 'foo'}),
       lookupID: () => ({}),
+    },
+    {
+      name: 'undefined in lookup',
+      id: '',
+      stored: clientID => ({clientID, id: '', str: 'foo'}),
+      lookupID: () => undefined,
     },
     {
       name: 'no-clientID in lookup',
@@ -467,7 +475,9 @@ suite('mustGet', () => {
     name: string;
     id: string;
     stored: ((clientID: string) => unknown) | undefined;
-    lookupID?: (clientID: string) => Partial<{clientID: string; id: string}>;
+    lookupID?: (
+      clientID: string,
+    ) => Partial<{clientID: string; id: string}> | undefined;
     expectError?: (clientID: string) => unknown;
   };
 
@@ -521,6 +531,12 @@ suite('mustGet', () => {
       lookupID: () => ({}),
     },
     {
+      name: 'undefined in lookup',
+      id: '',
+      stored: clientID => ({clientID, id: '', str: 'foo'}),
+      lookupID: () => undefined,
+    },
+    {
       name: 'no-clientID in lookup',
       id,
       stored: clientID => ({clientID, id, str: 'foo'}),
@@ -571,7 +587,9 @@ suite('has', () => {
   type Case = {
     name: string;
     id: string;
-    lookupID?: (clientID: string) => Partial<{clientID: string; id: string}>;
+    lookupID?: (
+      clientID: string,
+    ) => Partial<{clientID: string; id: string}> | undefined;
     stored: ((clientID: string) => unknown) | undefined;
     expectHas: boolean;
   };
@@ -602,6 +620,13 @@ suite('has', () => {
       id: '',
       stored: clientID => ({clientID, id: '', str: 'foo'}),
       lookupID: () => ({}),
+      expectHas: true,
+    },
+    {
+      name: 'undefined in lookup',
+      id: '',
+      stored: clientID => ({clientID, id: '', str: 'foo'}),
+      lookupID: () => undefined,
       expectHas: true,
     },
     {
@@ -772,7 +797,9 @@ suite('delete', () => {
   type Case = {
     name: string;
     id: string;
-    deleteID?: (clientID: string) => Partial<{clientID: string; id: string}>;
+    deleteID?: (
+      clientID: string,
+    ) => Partial<{clientID: string; id: string}> | undefined;
     lookupID?: (clientID: string) => Partial<{clientID: string; id: string}>;
     stored?: (clientID: string) => unknown;
     expectedValue?: (clientID: string) => unknown;
@@ -792,6 +819,12 @@ suite('delete', () => {
       id: '',
       stored: clientID => ({clientID, id: '', str: 'foo', optStr: 'bar'}),
       deleteID: () => ({}),
+    },
+    {
+      name: 'prev-exist undefined deleteID',
+      id: '',
+      stored: clientID => ({clientID, id: '', str: 'foo', optStr: 'bar'}),
+      deleteID: () => undefined,
     },
     {
       name: 'prev-exist no-clientID',

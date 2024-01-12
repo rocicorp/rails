@@ -241,19 +241,19 @@ Write `value` only if no previous version of this value exists.
 
 Update existing value with new fields.
 
-### `delete: (tx: WriteTransaction, id: LookupID) => Promise<void>`
+### `delete: (tx: WriteTransaction, id?: LookupID) => Promise<void>`
 
 Delete any existing value or do nothing if none exist.
 
-### `has: (tx: ReadTransaction, id: LookupID) => Promise<boolean>`
+### `has: (tx: ReadTransaction, id?: LookupID) => Promise<boolean>`
 
 Return true if specified value exists, false otherwise.
 
-### `get: (tx: ReadTransaction, id: LookupID) => Promise<T | undefined>`
+### `get: (tx: ReadTransaction, id?: LookupID) => Promise<T | undefined>`
 
 Get value by ID, or return undefined if none exists.
 
-### `mustGet: (tx: ReadTransaction, id: LookupID) => Promise<T>`
+### `mustGet: (tx: ReadTransaction, id?: LookupID) => Promise<T>`
 
 Get value by ID, or throw if none exists.
 
