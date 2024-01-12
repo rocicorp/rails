@@ -17,6 +17,7 @@ import {
   listEntriesImpl,
   listIDsImpl,
   listImpl,
+  maybeParse,
   mustGetImpl,
   setImpl,
   updateImpl,
@@ -182,30 +183,23 @@ export function generatePresence<T extends PresenceEntity>(
   const parseKeyToIDLocal: KeyToIDFunc<PresenceEntity> = (key: string) =>
     parseKeyToID(name, key);
   const firstKey = () => presencePrefix;
-
-  const parseInternal: ParseInternal<T> = (_, v) => {
-    if (parse !== undefined) {
-      return parse(v);
-    }
-    return v as T;
-  };
-
+  const parseInternal: ParseInternal<T> = (_, v) => maybeParse(parse, v);
   const parseAndValidateClientIDForMutate: ParseInternal<T> = (tx, v) =>
     parseInternal(tx, normalizeForSet(tx, v as OptionalIDs<PresenceEntity>));
+  const set: GeneratePresenceResult<T>['set'] = (tx, value) =>
+    setImpl(keyFromEntityLocal, parseAndValidateClientIDForMutate, tx, value);
 
   return {
-    set: (tx: WriteTransaction, value: OptionalIDs<T>) =>
-      setImpl(keyFromEntityLocal, parseAndValidateClientIDForMutate, tx, value),
-    put: (tx: WriteTransaction, value: OptionalIDs<T>) =>
-      setImpl(keyFromEntityLocal, parseAndValidateClientIDForMutate, tx, value),
-    init: (tx: WriteTransaction, value: OptionalIDs<T>) =>
+    set,
+    put: set,
+    init: (tx, value) =>
       initImpl(
         keyFromEntityLocal,
         parseAndValidateClientIDForMutate,
         tx,
         value,
       ),
-    update: (tx: WriteTransaction, update: Update<LookupID, T>) =>
+    update: (tx, update) =>
       updateImpl(
         keyFromEntityLocal,
         idFromEntity,
@@ -214,25 +208,24 @@ export function generatePresence<T extends PresenceEntity>(
         normalizeUpdate(tx, update),
         logger,
       ),
-    delete: (tx: WriteTransaction, id: Partial<PresenceEntity>) =>
+    delete: (tx, id) =>
       deleteImpl(
         keyFromIDLocal,
         validateMutate,
         tx,
         normalizePresenceID(tx, id),
       ),
-    has: (tx: ReadTransaction, id: Partial<PresenceEntity>) =>
-      hasImpl(keyFromIDLocal, tx, normalizePresenceID(tx, id)),
-    get: (tx: ReadTransaction, id: Partial<PresenceEntity>) =>
+    has: (tx, id) => hasImpl(keyFromIDLocal, tx, normalizePresenceID(tx, id)),
+    get: (tx, id) =>
       getImpl(keyFromIDLocal, parseInternal, tx, normalizePresenceID(tx, id)),
-    mustGet: (tx: ReadTransaction, id: Partial<PresenceEntity>) =>
+    mustGet: (tx, id) =>
       mustGetImpl(
         keyFromIDLocal,
         parseInternal,
         tx,
         normalizePresenceID(tx, id),
       ),
-    list: (tx: ReadTransaction, options?: ListOptionsForPresence) =>
+    list: (tx, options?) =>
       listImpl(
         keyFromIDLocal,
         parseKeyToIDLocal,
@@ -241,7 +234,7 @@ export function generatePresence<T extends PresenceEntity>(
         tx,
         normalizeScanOptions(options),
       ),
-    listIDs: (tx: ReadTransaction, options?: ListOptionsForPresence) =>
+    listIDs: (tx, options?) =>
       listIDsImpl(
         keyFromIDLocal,
         parseKeyToIDLocal,
@@ -249,7 +242,7 @@ export function generatePresence<T extends PresenceEntity>(
         tx,
         normalizeScanOptions(options),
       ),
-    listEntries: (tx: ReadTransaction, options?: ListOptionsForPresence) =>
+    listEntries: (tx, options?) =>
       listEntriesImpl(
         keyFromIDLocal,
         parseKeyToIDLocal,

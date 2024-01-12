@@ -95,17 +95,15 @@ export function generate<T extends Entity>(
   const idFromEntity: IDFromEntityFunc<Entity, string> = (_tx, entity) =>
     entity.id;
   const firstKey = () => prefix;
-
   const parseInternal: ParseInternal<T> = (_, val) => maybeParse(parse, val);
+  const set: GenerateResult<T>['set'] = (tx, value) =>
+    setImpl(keyFromEntity, parseInternal, tx, value);
 
   return {
-    set: (tx: WriteTransaction, value: T) =>
-      setImpl(keyFromEntity, parseInternal, tx, value),
-    put: (tx: WriteTransaction, value: T) =>
-      setImpl(keyFromEntity, parseInternal, tx, value),
-    init: (tx: WriteTransaction, value: T) =>
-      initImpl(keyFromEntity, parseInternal, tx, value),
-    update: (tx: WriteTransaction, update: Update<Entity, T>) =>
+    set,
+    put: set,
+    init: (tx, value) => initImpl(keyFromEntity, parseInternal, tx, value),
+    update: (tx, update) =>
       updateImpl(
         keyFromEntity,
         idFromEntity,
@@ -114,18 +112,15 @@ export function generate<T extends Entity>(
         update,
         logger,
       ),
-    delete: (tx: WriteTransaction, id: string) =>
-      deleteImpl(keyFromID, noop, tx, id),
-    has: (tx: ReadTransaction, id: string) => hasImpl(keyFromID, tx, id),
-    get: (tx: ReadTransaction, id: string) =>
-      getImpl(keyFromID, parseInternal, tx, id),
-    mustGet: (tx: ReadTransaction, id: string) =>
-      mustGetImpl(keyFromID, parseInternal, tx, id),
-    list: (tx: ReadTransaction, options?: ListOptions) =>
+    delete: (tx, id) => deleteImpl(keyFromID, noop, tx, id),
+    has: (tx, id) => hasImpl(keyFromID, tx, id),
+    get: (tx, id) => getImpl(keyFromID, parseInternal, tx, id),
+    mustGet: (tx, id) => mustGetImpl(keyFromID, parseInternal, tx, id),
+    list: (tx, options?) =>
       listImpl(keyFromID, keyToID, firstKey, parse, tx, options),
-    listIDs: (tx: ReadTransaction, options?: ListOptions) =>
+    listIDs: (tx, options?) =>
       listIDsImpl(keyFromID, keyToID, firstKey, tx, options),
-    listEntries: (tx: ReadTransaction, options?: ListOptions) =>
+    listEntries: (tx, options?) =>
       listEntriesImpl(keyFromID, keyToID, firstKey, parse, tx, options),
   };
 }
