@@ -125,9 +125,15 @@ Writes `value` if it is not already present. If `value` is already present, does
 
 ### `put(tx: WriteTransaction, value: T): Promise<void>`
 
+Deprecated. Use `set` instead.
+
 Writes `value`. If not present, creates, otherwise overwrites.
 
-### `update(tx: WriteTransaction, value: Update<T>) => Promise<void>`
+### `set(tx: WriteTransaction, value: T): Promise<void>`
+
+Writes `value`. If not present, creates, otherwise overwrites.
+
+### `update(tx: WriteTransaction, value: Update<Entity, T>) => Promise<void>`
 
 Updates `value`. Value can specify any of the fields of `T` and must contain `id`. Fields not included in `value` are left unaffected.
 
@@ -160,6 +166,108 @@ List ids matching criteria.
 ### `listEntries(tx: ReadTransaction, options?: {startAtID?: string, limit:? number}) => Promise<[string, T][]>`
 
 List `[id, value]` entries matching criteria.
+
+## Presence State
+
+Presence state is a special kind of state that is tied to a certain `clientID`.
+It is designed to be used with Reflect's
+[presence](https://hello.reflect.net/concepts/presence) feature.
+
+The entity type for presence state is slightly different from the `Entity` type:
+
+```ts
+type PresenceEntity = {
+  clientID: string;
+  id: string;
+};
+```
+
+### Generate Presence State Helpers
+
+The function `generatePresence` is similar to the `generate` function but it
+generates functions that are to be used with presences state.
+
+```ts
+type Cursor {
+  clientID: string;
+  id: '',
+  x: number;
+  y: number;
+};
+
+const {
+  set: setCursor,
+  get: getCursor,
+  delete: deleteCursor,
+} = generatePresence<Cursor>('cursor');
+```
+
+### Lookup Presence State
+
+Both the clientID and the id are significant when reading presence state. However,
+for convenience, you can omit the `clientID` and it will default to the current
+client ID. You can also omit the `id` and it will default to `''`.
+
+### Mutating Presence State
+
+When writing you may only change the presence state entities for the current
+client. If you pass in a `clientID` that is different from the current client ID
+a runtime error will be thrown.
+
+When writing you may also omit the `clientID` and the `id` and they will default
+to the current client ID and `''` respectively.
+
+```ts
+await setCursor(tx, {x: 10, y: 20});
+expect(await getCursor(tx, {})).toEqual({
+  clientID: tx.clientID,
+  id: '',
+  x: 10,
+  y: 20,
+});
+```
+
+## Reference for Presence State
+
+### `set: (tx: WriteTransaction, value: OptionalIDs<T>) => Promise<void>`
+
+Write `value`, overwriting any previous version of same value.
+
+### `init: (tx: WriteTransaction, value: OptionalIDs<T>) => Promise<boolean>`
+
+Write `value` only if no previous version of this value exists.
+
+### `update: (tx: WriteTransaction, value: Update<LookupID, T>) => Promise<void>`
+
+Update existing value with new fields.
+
+### `delete: (tx: WriteTransaction, id: LookupID) => Promise<void>`
+
+Delete any existing value or do nothing if none exist.
+
+### `has: (tx: ReadTransaction, id: LookupID) => Promise<boolean>`
+
+Return true if specified value exists, false otherwise.
+
+### `get: (tx: ReadTransaction, id: LookupID) => Promise<T | undefined>`
+
+Get value by ID, or return undefined if none exists.
+
+### `mustGet: (tx: ReadTransaction, id: LookupID) => Promise<T>`
+
+Get value by ID, or throw if none exists.
+
+### `list: (tx: ReadTransaction, options?: ListOptionsForPresence) => Promise<T[]>`
+
+List values matching criteria.
+
+### `listIDs: (tx: ReadTransaction, options?: ListOptionsForPresence) => Promise<PresenceEntity[]>`
+
+List ids matching criteria.
+
+### `listEntries: (tx: ReadTransaction, options?: ListOptionsForPresence) => Promise<[PresenceEntity, T][]>`
+
+List [id, value] entries matching criteria.
 
 ## Upgrade from 0.6
 
