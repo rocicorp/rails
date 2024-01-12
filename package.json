@@ -37,10 +37,8 @@
     "zod": "^3.22.4"
   },
   "files": [
-    "out/index.d.ts",
-    "out/index.js",
-    "out/index.d.ts.map",
-    "out/index.js.map"
+    "out/",
+    "!out/*.test.*"
   ],
   "eslintConfig": {
     "extends": "@rocicorp/eslint-config"
