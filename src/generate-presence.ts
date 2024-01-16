@@ -28,12 +28,21 @@ export type PresenceEntity = {
   id: string;
 };
 
-export type OptionalIDs<T extends PresenceEntity> = Partial<T> &
+/**
+ * Like {@link PresenceEntity}, but with the fields optional. This is used when
+ * doing get, has and delete operations where the clientID and id fields are
+ * optional.
+ */
+export type PresenceID = Partial<PresenceEntity>;
+
+/**
+ * When mutating an entity, you can omit the `clientID` and `id` fields. This
+ * type marks those fields as optional.
+ */
+export type OptionalIDs<T extends PresenceEntity> = PresenceID &
   Omit<T, keyof PresenceEntity>;
 
-export type LookupID = Partial<PresenceEntity>;
-
-export type ListOptionsForPresence = ListOptionsWithLookupID<LookupID>;
+export type ListOptionsForPresence = ListOptionsWithLookupID<PresenceID>;
 
 export type GeneratePresenceResult<T extends PresenceEntity> = {
   /** Write `value`, overwriting any previous version of same value. */
@@ -46,15 +55,15 @@ export type GeneratePresenceResult<T extends PresenceEntity> = {
   /** Write `value` only if no previous version of this value exists. */
   init: (tx: WriteTransaction, value: OptionalIDs<T>) => Promise<boolean>;
   /** Update existing value with new fields. */
-  update: (tx: WriteTransaction, value: Update<LookupID, T>) => Promise<void>;
+  update: (tx: WriteTransaction, value: Update<PresenceID, T>) => Promise<void>;
   /** Delete any existing value or do nothing if none exist. */
-  delete: (tx: WriteTransaction, id?: LookupID) => Promise<void>;
+  delete: (tx: WriteTransaction, id?: PresenceID) => Promise<void>;
   /** Return true if specified value exists, false otherwise. */
-  has: (tx: ReadTransaction, id?: LookupID) => Promise<boolean>;
+  has: (tx: ReadTransaction, id?: PresenceID) => Promise<boolean>;
   /** Get value by ID, or return undefined if none exists. */
-  get: (tx: ReadTransaction, id?: LookupID) => Promise<T | undefined>;
+  get: (tx: ReadTransaction, id?: PresenceID) => Promise<T | undefined>;
   /** Get value by ID, or throw if none exists. */
-  mustGet: (tx: ReadTransaction, id?: LookupID) => Promise<T>;
+  mustGet: (tx: ReadTransaction, id?: PresenceID) => Promise<T>;
   /** List values matching criteria. */
   list: (tx: ReadTransaction, options?: ListOptionsForPresence) => Promise<T[]>;
   /** List ids matching criteria. */
@@ -123,7 +132,7 @@ function normalizeUpdate<T extends {id?: string | undefined}>(
   };
 }
 
-function normalizeForSet<V extends LookupID>(
+function normalizeForSet<V extends PresenceID>(
   tx: {clientID: string},
   v: V,
 ): V & PresenceEntity {
@@ -162,7 +171,7 @@ export function normalizeScanOptions(options?: ListOptionsForPresence) {
   };
 }
 
-function validateMutate(tx: {clientID: string}, id: LookupID): void {
+function validateMutate(tx: {clientID: string}, id: PresenceID): void {
   if (id.clientID && id.clientID !== tx.clientID) {
     throw new Error(
       `Can only mutate own entities. Expected clientID "${tx.clientID}" but received "${id.clientID}"`,
