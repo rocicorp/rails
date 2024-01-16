@@ -2,9 +2,9 @@ export {
   generatePresence,
   type GeneratePresenceResult,
   type ListOptionsForPresence,
-  type LookupID,
   type OptionalIDs,
   type PresenceEntity,
+  type PresenceID,
 } from './generate-presence.js';
 export {
   generate,
