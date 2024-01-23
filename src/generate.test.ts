@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import type {OptionalLogger} from '@rocicorp/logger';
 import {Reflect} from '@rocicorp/reflect/client';
-import {expect} from 'chai';
 import {nanoid} from 'nanoid';
 import {MutatorDefs, Replicache, TEST_LICENSE_KEY} from 'replicache';
+import {expect, suite, test} from 'vitest';
 import {ZodError, ZodTypeAny, z} from 'zod';
 import {ListOptions, WriteTransaction, generate} from './generate.js';
 import {ReadonlyJSONObject, ReadonlyJSONValue} from './json.js';
