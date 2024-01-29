@@ -1844,7 +1844,7 @@ suite('listIDs', () => {
   }
 });
 
-suite.only('listClientIDs', () => {
+suite('listClientIDs', () => {
   type Case = {
     name: string;
     collectionName: 'entryNoID' | 'entryID';
@@ -2307,7 +2307,7 @@ suite('listEntries', () => {
   }
 });
 
-test('optionalLogger', async () => {
+suite('optionalLogger', () => {
   type Case = {
     name: string;
     logger: OptionalLogger | undefined;
@@ -2340,7 +2340,7 @@ test('optionalLogger', async () => {
         },
       },
       expected: clientID => [
-        `no such entity {"clientID":"${clientID}","id":"a"}, skipping update`,
+        `no such entity {"clientID":"${clientID}"}, skipping update`,
       ],
     },
   ];
@@ -2349,18 +2349,20 @@ test('optionalLogger', async () => {
 
   for (const f of factories) {
     for (const c of cases) {
-      const {update: updateEntryNoID} = generatePresence(
-        name,
-        entryNoID.parse,
-        c.logger,
-      );
-      output = undefined;
+      test(c.name, async () => {
+        const {update: updateEntryNoID} = generatePresence(
+          name,
+          entryNoID.parse,
+          c.logger,
+        );
+        output = undefined;
 
-      const r = f({updateEntryNoID});
-      const clientID = await r.clientID;
+        const r = f({updateEntryNoID});
+        const clientID = await r.clientID;
 
-      await r.mutate.updateEntryNoID({clientID, str: 'bar'});
-      expect(output, c.name).toEqual(c.expected?.(clientID));
+        await r.mutate.updateEntryNoID({clientID, str: 'bar'});
+        expect(output).toEqual(c.expected?.(clientID));
+      });
     }
   }
 });
