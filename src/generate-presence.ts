@@ -73,12 +73,12 @@ export type OptionalClientID<T extends PresenceEntity> = {
   clientID?: string | undefined;
 } & Omit<T, 'clientID'>;
 
-export type ListOptionsForPresence<T extends PresenceEntity> = {
+export type ListOptions<T extends PresenceEntity> = {
   startAtID?: StartAtID<T>;
   limit?: number;
 };
 
-type Update<T extends PresenceEntity> =
+export type Update<T extends PresenceEntity> =
   IsIDMissing<T> extends false ? Pick<T, 'id'> & Partial<T> : Partial<T>;
 
 export type GeneratePresenceResult<T extends PresenceEntity> = {
@@ -102,10 +102,7 @@ export type GeneratePresenceResult<T extends PresenceEntity> = {
   /** Get value by ID, or throw if none exists. */
   mustGet: (tx: ReadTransaction, id?: PresenceID<T>) => Promise<T>;
   /** List values matching criteria. */
-  list: (
-    tx: ReadTransaction,
-    options?: ListOptionsForPresence<T>,
-  ) => Promise<T[]>;
+  list: (tx: ReadTransaction, options?: ListOptions<T>) => Promise<T[]>;
 
   /**
    * List ids matching criteria. Here the id is `{clientID: string}` if the
@@ -113,7 +110,7 @@ export type GeneratePresenceResult<T extends PresenceEntity> = {
    */
   listIDs: (
     tx: ReadTransaction,
-    options?: ListOptionsForPresence<T>,
+    options?: ListOptions<T>,
   ) => Promise<ListID<T>[]>;
 
   /**
@@ -122,13 +119,13 @@ export type GeneratePresenceResult<T extends PresenceEntity> = {
    */
   listClientIDs: (
     tx: ReadTransaction,
-    options?: ListOptionsForPresence<T>,
+    options?: ListOptions<T>,
   ) => Promise<string[]>;
 
   /** List [id, value] entries matching criteria. */
   listEntries: (
     tx: ReadTransaction,
-    options?: ListOptionsForPresence<T>,
+    options?: ListOptions<T>,
   ) => Promise<[ListID<T>, T][]>;
 };
 
@@ -225,7 +222,7 @@ function normalizeForSet<
 }
 
 export function normalizeScanOptions<T extends PresenceEntity>(
-  options?: ListOptionsForPresence<T>,
+  options?: ListOptions<T>,
 ): ListOptionsWith<ListID<T>> | undefined {
   if (!options) {
     return options;

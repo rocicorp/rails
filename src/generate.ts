@@ -8,7 +8,9 @@ export type Entity = {
   id: string;
 };
 
-export type Update<Entity, T> = Entity & Partial<T>;
+export type Update<T> = Entity & Partial<T>;
+
+type UpdateWith<Entity, T> = Entity & Partial<T>;
 
 /**
  * A function that can parse a JSON value into a specific type.
@@ -83,7 +85,7 @@ export type GenerateResult<T extends Entity> = {
   /** Write `value` only if no previous version of this value exists. */
   init: (tx: WriteTransaction, value: T) => Promise<boolean>;
   /** Update existing value with new fields. */
-  update: (tx: WriteTransaction, value: Update<Entity, T>) => Promise<void>;
+  update: (tx: WriteTransaction, value: Update<T>) => Promise<void>;
   /** Delete any existing value or do nothing if none exist. */
   delete: (tx: WriteTransaction, id: string) => Promise<void>;
   /** Return true if specified value exists, false otherwise. */
@@ -250,7 +252,7 @@ export async function updateImpl<
   parseExisting: ParseInternal<Entity>,
   parseNew: ParseInternal<Entity>,
   tx: WriteTransaction,
-  update: Update<Entity, T>,
+  update: UpdateWith<Entity, T>,
   logger: OptionalLogger,
 ) {
   const k = keyFromEntity(tx, update);
