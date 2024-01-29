@@ -4,38 +4,77 @@ import {Reflect} from '@rocicorp/reflect/client';
 import {nanoid} from 'nanoid';
 import {MutatorDefs, Replicache, TEST_LICENSE_KEY} from 'replicache';
 import {expect, suite, test} from 'vitest';
-import {ZodError, ZodTypeAny, z} from 'zod';
+import {ZodError, z} from 'zod';
 import {
   ListOptionsForPresence,
   PresenceEntity,
   generatePresence,
+  keyFromID,
   normalizeScanOptions,
   parseKeyToID,
 } from './generate-presence.js';
-import {ListOptionsWithLookupID, WriteTransaction} from './generate.js';
-import {ReadonlyJSONObject, ReadonlyJSONValue} from './json.js';
+import {WriteTransaction} from './generate.js';
+import {ReadonlyJSONValue} from './json.js';
 
-const e1 = z.object({
-  clientID: z.string(),
-  id: z.string(),
-  str: z.string(),
-  optStr: z.string().optional(),
-});
+const entryNoID = z
+  .object({
+    clientID: z.string(),
+    str: z.string(),
+    optStr: z.string().optional(),
+  })
+  .strict();
 
-type E1 = z.infer<typeof e1>;
+type EntryNoID = z.infer<typeof entryNoID>;
 
 const {
-  init: initE1,
-  set: setE1,
-  update: updateE1,
-  delete: deleteE1,
-  get: getE1,
-  mustGet: mustGetE1,
-  has: hasE1,
-  list: listE1,
-  listIDs: listIDsE1,
-  listEntries: listEntriesE1,
-} = generatePresence<E1>('e1', e1.parse);
+  init: initEntryNoID,
+  set: setEntryNoID,
+  update: updateEntryNoID,
+  delete: deleteEntryNoID,
+  get: getEntryNoID,
+  mustGet: mustGetEntryNoID,
+  has: hasEntryNoID,
+  list: listEntryNoID,
+  listIDs: listIDsEntryNoID,
+  listClientIDs: listClientIDsEntryNoID,
+  listEntries: listEntriesEntryNoID,
+} = generatePresence<EntryNoID>('entryNoID', entryNoID.parse);
+
+const entryID = z
+  .object({
+    clientID: z.string(),
+    id: z.string(),
+    str: z.string(),
+    optStr: z.string().optional(),
+  })
+  .strict();
+
+type EntryID = z.infer<typeof entryID>;
+
+const {
+  init: initEntryID,
+  set: setEntryID,
+  update: updateEntryID,
+  delete: deleteEntryID,
+  get: getEntryID,
+  mustGet: mustGetEntryID,
+  has: hasEntryID,
+  list: listEntryID,
+  listIDs: listIDsEntryID,
+  listClientIDs: listClientIDsEntryID,
+  listEntries: listEntriesEntryID,
+} = generatePresence<EntryID>('entryID', entryID.parse);
+
+const collectionNames = ['entryNoID', 'entryID'] as const;
+
+function sameForBoth<C extends object>(
+  c: C,
+): [C & {collectionName: 'entryNoID'}, C & {collectionName: 'entryID'}] {
+  return collectionNames.map(collectionName => ({...c, collectionName})) as [
+    C & {collectionName: 'entryNoID'},
+    C & {collectionName: 'entryID'},
+  ];
+}
 
 async function directWrite(
   tx: WriteTransaction,
@@ -45,12 +84,18 @@ async function directWrite(
 }
 
 const mutators = {
-  initE1,
-  setE1,
-  getE1,
-  updateE1,
-  deleteE1,
-  listE1,
+  initEntryNoID,
+  setEntryNoID,
+  updateEntryNoID,
+  deleteEntryNoID,
+  listEntryNoID,
+
+  initEntryID,
+  setEntryID,
+  updateEntryID,
+  deleteEntryID,
+  listEntryID,
+
   directWrite,
 };
 
@@ -67,111 +112,140 @@ const factories = [
       userID: nanoid(),
       mutators: m,
     }),
-];
+] as const;
 
 suite('set', () => {
   type Case = {
     name: string;
-    id: string;
-    preexisting: boolean;
-    input: (clientID: string) => unknown;
-    written?: (clientID: string) => unknown;
-    expectError?: (clientID: string) => unknown;
+    value: ReadonlyJSONValue | undefined;
+    expectedKey?: string;
+    expectedValue?: ReadonlyJSONValue;
+    expectError?: ReadonlyJSONValue;
+    collectionName: 'entryNoID' | 'entryID';
   };
 
-  const id = 'id1';
+  const clientID = '$CLIENT_ID';
+  const id = 'b';
 
   const cases: Case[] = [
     {
-      name: 'normalize id',
-      id: '',
-      preexisting: false,
-      input: clientID => ({clientID, str: 'foo'}),
-      written: clientID => ({clientID, id: '', str: 'foo'}),
+      name: 'set with clientID (no id)',
+      collectionName: 'entryNoID',
+      value: {clientID, str: 'foo'},
+      expectedValue: {clientID, str: 'foo'},
+      expectedKey: `-/p/${clientID}/entryNoID/`,
     },
     {
-      name: 'normalize clientID',
-      id: 'id2',
-      preexisting: false,
-      input: () => ({id: 'id2', str: 'foo'}),
-      written: clientID => ({clientID, id: 'id2', str: 'foo'}),
+      name: 'set with clientID (no id)',
+      collectionName: 'entryID',
+      value: {clientID, str: 'foo'},
+      expectError: {_errors: [], id: {_errors: ['Required']}},
+    },
+
+    {
+      name: 'set with clientID and id',
+      collectionName: 'entryNoID',
+      value: {clientID, id: 'a', str: 'foo'},
+      expectError: {
+        _errors: ["Unrecognized key(s) in object: 'id'"],
+      },
     },
     {
-      name: 'normalize clientID & id',
-      id: '',
-      preexisting: false,
-      input: () => ({str: 'foo'}),
-      written: clientID => ({clientID, id: '', str: 'foo'}),
+      name: 'set with clientID and id',
+      collectionName: 'entryID',
+      value: {clientID, id: 'a', str: 'foo'},
+      expectedValue: {clientID, id: 'a', str: 'foo'},
+      expectedKey: '-/p/$CLIENT_ID/entryID/id/a',
     },
     {
-      name: 'null',
-      id,
-      preexisting: false,
-      input: () => null,
-      expectError: () => 'TypeError: Expected object, received null',
+      name: 'set with implicit clientID (no id)',
+      collectionName: 'entryNoID',
+      value: {str: 'foo'},
+      expectedValue: {clientID, str: 'foo'},
+      expectedKey: `-/p/${clientID}/entryNoID/`,
     },
     {
-      name: 'undefined',
-      id,
-      preexisting: false,
-      input: () => undefined,
-      expectError: () => 'TypeError: Expected object, received undefined',
+      name: 'set with implicit clientID (no id)',
+      collectionName: 'entryID',
+      value: {str: 'foo'},
+      expectError: {_errors: [], id: {_errors: ['Required']}},
+    },
+
+    ...sameForBoth({
+      name: 'set to null',
+      value: null,
+      expectError: 'TypeError: Expected object, received null',
+    }),
+
+    ...sameForBoth({
+      name: 'set to undefined',
+      value: undefined,
+      expectError: 'TypeError: Expected object, received undefined',
+    }),
+
+    ...sameForBoth({
+      name: 'set to string',
+      value: 'junk',
+      expectError: 'TypeError: Expected object, received string',
+    }),
+
+    {
+      name: 'set to value missing str',
+      collectionName: 'entryNoID',
+      value: {},
+      expectError: {_errors: [], str: {_errors: ['Required']}},
     },
     {
-      name: 'string',
-      id,
-      preexisting: false,
-      input: () => 'foo',
-      expectError: () => 'TypeError: Expected object, received string',
+      name: 'set to value missing str',
+      collectionName: 'entryID',
+      value: {id: 'c'},
+      expectError: {_errors: [], str: {_errors: ['Required']}},
+    },
+
+    {
+      name: 'set with optStr',
+      collectionName: 'entryNoID',
+      value: {str: 'foo', optStr: 'bar'},
+      expectedValue: {clientID, str: 'foo', optStr: 'bar'},
+      expectedKey: `-/p/${clientID}/entryNoID/`,
     },
     {
-      name: 'no-str',
-      id,
-      preexisting: false,
-      input: clientID => ({clientID, id}),
-      expectError: () => ({_errors: [], str: {_errors: ['Required']}}),
+      name: 'set with optStr',
+      collectionName: 'entryID',
+      value: {str: 'foo', id, optStr: 'bar'},
+      expectedValue: {clientID, id, str: 'foo', optStr: 'bar'},
+      expectedKey: `-/p/${clientID}/entryID/id/${id}`,
     },
+
     {
-      name: 'valid',
-      id,
-      preexisting: false,
-      input: clientID => ({clientID, id, str: 'foo'}),
-    },
-    {
-      name: 'with-opt-filed',
-      id,
-      preexisting: false,
-      input: clientID => ({clientID, id, str: 'foo', optStr: 'bar'}),
-    },
-    {
-      name: 'preexisting',
-      id,
-      preexisting: true,
-      input: clientID => ({clientID, id, str: 'foo'}),
+      name: 'setting with wrong clientID',
+      collectionName: 'entryNoID',
+      value: {clientID: 'wrong', str: 'foo'},
+      expectError: `Error: Can only mutate own entities. Expected clientID "${clientID}" but received "wrong"`,
     },
     {
       name: 'setting with wrong clientID',
-      id,
-      preexisting: false,
-      input: () => ({clientID: 'wrong', id, str: 'foo'}),
-      expectError: clientID =>
-        `Error: Can only mutate own entities. Expected clientID "${clientID}" but received "wrong"`,
+      collectionName: 'entryID',
+      value: {clientID: 'wrong', id: 'v', str: 'foo'},
+      expectError: `Error: Can only mutate own entities. Expected clientID "${clientID}" but received "wrong"`,
     },
   ];
 
   for (const f of factories) {
     for (const c of cases) {
-      test(c.name, async () => {
-        const {written = c.input, id} = c;
+      test(`${c.name} using ${c.collectionName}`, async () => {
+        const {expectedValue, collectionName} = c;
         const r = f(mutators);
         const clientID = await r.clientID;
-        if (c.preexisting) {
-          await r.mutate.setE1({clientID, id, str: 'preexisting'});
-        }
-
+        const replace = <V extends ReadonlyJSONValue | undefined>(v: V): V =>
+          replaceClientID(v, '$CLIENT_ID', clientID) as V;
         let error = undefined;
         try {
-          await r.mutate.setE1(c.input(clientID) as E1);
+          if (collectionName === 'entryID') {
+            await r.mutate.setEntryID(replace(c.value) as EntryID);
+          } else {
+            await r.mutate.setEntryNoID(replace(c.value) as EntryNoID);
+          }
         } catch (e) {
           if (e instanceof ZodError) {
             error = e.format();
@@ -180,16 +254,12 @@ suite('set', () => {
           }
         }
 
-        const key = `-/p/${clientID}/e1/${id}`;
-
-        const actual = await r.query(tx => tx.get(key));
-
-        if (c.expectError !== undefined) {
-          expect(error).deep.equal(c.expectError?.(clientID));
-          expect(actual).undefined;
+        if (c.expectError) {
+          expect(error).toEqual(replace(c.expectError));
         } else {
-          expect(error).undefined;
-          expect(actual).deep.equal(written(clientID));
+          const key = replaceClientID(c.expectedKey!, '$CLIENT_ID', clientID);
+          const actual = await r.query(tx => tx.get(key));
+          expect(actual).toEqual(replace(expectedValue));
         }
       });
     }
@@ -199,675 +269,144 @@ suite('set', () => {
 suite('init', () => {
   type Case = {
     name: string;
-    id: string;
-    preexisting: boolean;
-    input: (clientID: string) => unknown;
-    written?: (clientID: string) => unknown;
-    expectError?: (clientID: string) => unknown;
-    expectResult?: boolean;
+    collectionName: 'entryNoID' | 'entryID';
+    value: ReadonlyJSONValue | undefined;
+    expectedKey: string;
+    expectedValue: ReadonlyJSONValue | undefined;
+    expectError?: ReadonlyJSONValue;
+    preexisting?: ReadonlyJSONValue;
   };
 
-  const id = 'id1';
+  const clientID = '$CLIENT_ID';
 
   const cases: Case[] = [
     {
       name: 'null',
-      id,
-      preexisting: false,
-      input: () => null,
-      expectError: () => 'TypeError: Expected object, received null',
+      collectionName: 'entryNoID',
+      value: null,
+      expectError: 'TypeError: Expected object, received null',
+      expectedKey: `-/p/${clientID}/entryNoID/`,
+      expectedValue: undefined,
     },
-    {
-      name: 'undefined',
-      id,
-      preexisting: false,
-      input: () => undefined,
-      expectError: () => 'TypeError: Expected object, received undefined',
-    },
-    {
-      name: 'string',
-      id,
-      preexisting: false,
-      input: () => 'foo',
-      expectError: () => 'TypeError: Expected object, received string',
-    },
-    {
-      name: 'no-clientID, no-id',
-      id: '',
-      preexisting: false,
-      input: () => ({str: 'foo'}),
-      written: clientID => ({clientID, id: '', str: 'foo'}),
-      expectResult: true,
-    },
-    {
-      name: 'no-clientID',
-      id,
-      preexisting: false,
-      input: () => ({id, str: 'foo'}),
-      written: clientID => ({clientID, id, str: 'foo'}),
-      expectResult: true,
-    },
-
-    {
-      name: 'no-id',
-      id: '',
-      preexisting: false,
-      input: clientID => ({clientID, str: 'foo'}),
-      written: clientID => ({clientID, id: '', str: 'foo'}),
-      expectResult: true,
-    },
-    {
-      name: 'no-str',
-      id,
-      preexisting: false,
-      input: clientID => ({clientID, id}),
-      expectError: () => ({_errors: [], str: {_errors: ['Required']}}),
-    },
-    {
-      name: 'valid',
-      id,
-      preexisting: false,
-      input: clientID => ({clientID, id, str: 'foo'}),
-      expectResult: true,
-    },
-    {
-      name: 'with-opt-filed',
-      id,
-      preexisting: false,
-      input: clientID => ({clientID, id, str: 'foo', optStr: 'bar'}),
-      expectResult: true,
-    },
-    {
-      name: 'preexisting',
-      id,
-      preexisting: true,
-      input: clientID => ({clientID, id, str: 'foo'}),
-      expectResult: false,
-    },
-    {
-      name: 'setting with wrong clientID',
-      id,
-      preexisting: false,
-      input: () => ({clientID: 'wrong', id, str: 'foo'}),
-      expectError: clientID =>
-        `Error: Can only mutate own entities. Expected clientID "${clientID}" but received "wrong"`,
-    },
-  ];
-
-  for (const f of factories) {
-    for (const c of cases) {
-      test(c.name, async () => {
-        const {id, input, written = input} = c;
-        const r = f(mutators);
-        const clientID = await r.clientID;
-
-        const preexisting = {clientID, id, str: 'preexisting'};
-        if (c.preexisting) {
-          await r.mutate.setE1(preexisting);
-        }
-
-        let error = undefined;
-        let result = undefined;
-        try {
-          result = await r.mutate.initE1(input(clientID) as E1);
-        } catch (e) {
-          if (e instanceof ZodError) {
-            error = e.format();
-          } else {
-            error = String(e);
-          }
-        }
-
-        const actual = await r.query(tx => tx.get(`-/p/${clientID}/e1/${id}`));
-        if (c.expectError !== undefined) {
-          expect(error).deep.equal(c.expectError(clientID));
-          expect(actual).undefined;
-          expect(result).undefined;
-        } else {
-          expect(error).undefined;
-          expect(actual).deep.equal(
-            c.preexisting ? preexisting : written(clientID),
-          );
-          expect(result).eq(c.expectResult);
-        }
-      });
-    }
-  }
-});
-
-suite('get', () => {
-  type Case = {
-    name: string;
-    stored: ((clientID: string) => unknown) | undefined;
-    id: string;
-    lookupID?: (
-      clientID: string,
-    ) => Partial<{clientID: string; id: string}> | undefined;
-    expectError?: ReadonlyJSONObject;
-  };
-
-  const id = 'id1';
-
-  const cases: Case[] = [
     {
       name: 'null',
-      id,
-      stored: () => null,
-      expectError: {_errors: ['Expected object, received null']},
+      collectionName: 'entryID',
+      value: null,
+      expectError: 'TypeError: Expected object, received null',
+      expectedKey: `-/p/${clientID}/entryID/id/a`,
+      expectedValue: undefined,
     },
     {
       name: 'undefined',
-      id,
-      stored: undefined,
+      collectionName: 'entryNoID',
+      value: undefined,
+      expectError: 'TypeError: Expected object, received undefined',
+      expectedKey: `-/p/${clientID}/entryNoID/`,
+      expectedValue: undefined,
+    },
+    {
+      name: 'undefined',
+      collectionName: 'entryID',
+      value: undefined,
+      expectError: 'TypeError: Expected object, received undefined',
+      expectedKey: `-/p/${clientID}/entryID/id/b`,
+      expectedValue: undefined,
     },
     {
       name: 'string',
-      id,
-      stored: () => 'foo',
-      expectError: {_errors: ['Expected object, received string']},
+      collectionName: 'entryNoID',
+      value: 'junk',
+      expectError: 'TypeError: Expected object, received string',
+      expectedKey: `-/p/${clientID}/entryNoID/`,
+      expectedValue: undefined,
     },
     {
-      name: 'no-clientID, no-id in stored',
-      id,
-      stored: () => ({str: 'foo'}),
-      expectError: {
-        _errors: [],
-        clientID: {_errors: ['Required']},
-        id: {_errors: ['Required']},
-      },
+      name: 'string',
+      collectionName: 'entryID',
+      value: 'junk',
+      expectError: 'TypeError: Expected object, received string',
+      expectedKey: `-/p/${clientID}/entryID/id/b`,
+      expectedValue: undefined,
     },
     {
-      name: 'no-clientID in stored',
-      id,
-      stored: () => ({id, str: 'foo'}),
-      expectError: {_errors: [], clientID: {_errors: ['Required']}},
+      name: 'init with clientID',
+      collectionName: 'entryNoID',
+      value: {clientID, str: 'foo'},
+      expectedKey: `-/p/${clientID}/entryNoID/`,
+      expectedValue: {clientID, str: 'foo'},
     },
     {
-      name: 'no-id in stored',
-      id,
-      stored: clientID => ({clientID, str: 'foo'}),
-      expectError: {_errors: [], id: {_errors: ['Required']}},
+      name: 'init with clientID and id',
+      collectionName: 'entryID',
+      value: {clientID, id: 'a', str: 'foo'},
+      expectedKey: `-/p/${clientID}/entryID/id/a`,
+      expectedValue: {clientID, id: 'a', str: 'foo'},
+    },
+
+    {
+      name: 'init with clientID with preexisting',
+      collectionName: 'entryNoID',
+      preexisting: {clientID, str: 'before'},
+      value: {clientID, str: 'foo'},
+      expectedKey: `-/p/${clientID}/entryNoID/`,
+      expectedValue: {clientID, str: 'before'},
     },
     {
-      name: 'no-clientID, no-id in lookup',
-      id: '',
-      stored: clientID => ({clientID, id: '', str: 'foo'}),
-      lookupID: () => ({}),
+      name: 'init with clientID and id with preexisting',
+      collectionName: 'entryID',
+      preexisting: {clientID, id: 'a', str: 'before'},
+      value: {clientID, id: 'a', str: 'foo'},
+      expectedKey: `-/p/${clientID}/entryID/id/a`,
+      expectedValue: {clientID, id: 'a', str: 'before'},
     },
+
     {
-      name: 'undefined in lookup',
-      id: '',
-      stored: clientID => ({clientID, id: '', str: 'foo'}),
-      lookupID: () => undefined,
-    },
-    {
-      name: 'no-clientID in lookup',
-      id,
-      stored: clientID => ({clientID, id, str: 'foo'}),
-      lookupID: () => ({id}),
-    },
-    {
-      name: 'no-id in lookup',
-      id: '',
-      stored: clientID => ({clientID, id: '', str: 'foo'}),
-      lookupID: clientID => ({clientID}),
-    },
-    {
-      name: 'no-str',
-      id,
-      stored: clientID => ({clientID, id}),
+      name: 'no str',
+      collectionName: 'entryNoID',
+      value: {clientID},
+      expectedKey: `-/p/${clientID}/entryNoID/`,
+      expectedValue: undefined,
       expectError: {_errors: [], str: {_errors: ['Required']}},
     },
     {
-      name: 'valid',
-      id,
-      stored: clientID => ({clientID, id, str: 'foo'}),
-    },
-    {
-      name: 'with-opt-filed',
-      id,
-      stored: clientID => ({clientID, id, str: 'foo', optStr: 'bar'}),
-    },
-  ];
-
-  for (const f of factories) {
-    for (const c of cases) {
-      test(c.name, async () => {
-        const r = f(mutators);
-        const clientID = await r.clientID;
-        const {id, lookupID = (clientID: string) => ({clientID, id})} = c;
-
-        if (c.stored !== undefined) {
-          await r.mutate.directWrite({
-            key: `-/p/${clientID}/e1/${id}`,
-            val: c.stored(clientID) as E1,
-          });
-        }
-        const {actual, error} = await r.query(
-          async (
-            tx,
-          ): Promise<
-            | {
-                actual: E1 | undefined;
-                error?: undefined;
-              }
-            | {error: {_errors: string[]}; actual?: undefined}
-          > => {
-            try {
-              return {actual: await getE1(tx, lookupID(clientID))};
-            } catch (e) {
-              return {error: (e as ZodError).format()};
-            }
-          },
-        );
-        expect(error).deep.equal(c.expectError, c.name);
-        expect(actual).deep.equal(
-          c.expectError ? undefined : c.stored?.(clientID),
-          c.name,
-        );
-      });
-    }
-  }
-});
-
-suite('mustGet', () => {
-  type Case = {
-    name: string;
-    id: string;
-    stored: ((clientID: string) => unknown) | undefined;
-    lookupID?: (
-      clientID: string,
-    ) => Partial<{clientID: string; id: string}> | undefined;
-    expectError?: (clientID: string) => unknown;
-  };
-
-  const id = 'id1';
-
-  const cases: Case[] = [
-    {
-      name: 'null',
-      id,
-      stored: () => null,
-      expectError: () => ({_errors: ['Expected object, received null']}),
-    },
-    {
-      name: 'undefined',
-      id,
-      stored: undefined,
-      expectError: clientID =>
-        `Error: no such entity {"clientID":"${clientID}","id":"${id}"}`,
-    },
-    {
-      name: 'valid',
-      id,
-      stored: clientID => ({clientID, id, str: 'foo'}),
-    },
-    {
-      name: 'no-clientID, no-id in stored',
-      id,
-      stored: () => ({str: 'foo'}),
-      expectError: () => ({
-        _errors: [],
-        clientID: {_errors: ['Required']},
-        id: {_errors: ['Required']},
-      }),
-    },
-    {
-      name: 'no-clientID in stored',
-      id,
-      stored: () => ({id, str: 'foo'}),
-      expectError: () => ({_errors: [], clientID: {_errors: ['Required']}}),
-    },
-    {
-      name: 'no-id in stored',
-      id,
-      stored: clientID => ({clientID, str: 'foo'}),
-      expectError: () => ({_errors: [], id: {_errors: ['Required']}}),
-    },
-    {
-      name: 'no-clientID, no-id in lookup',
-      id: '',
-      stored: clientID => ({clientID, id: '', str: 'foo'}),
-      lookupID: () => ({}),
-    },
-    {
-      name: 'undefined in lookup',
-      id: '',
-      stored: clientID => ({clientID, id: '', str: 'foo'}),
-      lookupID: () => undefined,
-    },
-    {
-      name: 'no-clientID in lookup',
-      id,
-      stored: clientID => ({clientID, id, str: 'foo'}),
-      lookupID: () => ({id}),
-    },
-    {
-      name: 'no-id in lookup',
-      id: '',
-      stored: clientID => ({clientID, id: '', str: 'foo'}),
-      lookupID: clientID => ({clientID}),
-    },
-  ];
-
-  for (const f of factories) {
-    for (const c of cases) {
-      test(c.name, async () => {
-        const r = f(mutators);
-        const {id, lookupID = (clientID: string) => ({clientID, id})} = c;
-        const clientID = await r.clientID;
-
-        if (c.stored !== undefined) {
-          await r.mutate.directWrite({
-            key: `-/p/${clientID}/e1/${id}`,
-            val: c.stored(clientID) as E1,
-          });
-        }
-        const {actual, error} = await r.query(async tx => {
-          try {
-            return {actual: await mustGetE1(tx, lookupID(clientID))};
-          } catch (e) {
-            if (e instanceof ZodError) {
-              return {error: (e as ZodError).format()};
-            }
-            return {error: String(e)};
-          }
-        });
-        expect(error).deep.equal(c.expectError?.(clientID), c.name);
-        expect(actual).deep.equal(
-          c.expectError ? undefined : c.stored?.(clientID),
-          c.name,
-        );
-      });
-    }
-  }
-});
-
-suite('has', () => {
-  type Case = {
-    name: string;
-    id: string;
-    lookupID?: (
-      clientID: string,
-    ) => Partial<{clientID: string; id: string}> | undefined;
-    stored: ((clientID: string) => unknown) | undefined;
-    expectHas: boolean;
-  };
-
-  const id = 'id1';
-
-  const cases: Case[] = [
-    {
-      name: 'undefined',
-      id,
-      stored: undefined,
-      expectHas: false,
-    },
-    {
-      name: 'null',
-      id,
-      stored: () => null,
-      expectHas: true,
-    },
-    {
-      name: 'string',
-      id,
-      stored: () => 'foo',
-      expectHas: true,
-    },
-    {
-      name: 'no-clientID, no-id in lookup',
-      id: '',
-      stored: clientID => ({clientID, id: '', str: 'foo'}),
-      lookupID: () => ({}),
-      expectHas: true,
-    },
-    {
-      name: 'undefined in lookup',
-      id: '',
-      stored: clientID => ({clientID, id: '', str: 'foo'}),
-      lookupID: () => undefined,
-      expectHas: true,
-    },
-    {
-      name: 'no-clientID in lookup',
-      id,
-      stored: clientID => ({clientID, id, str: 'foo'}),
-      lookupID: () => ({id}),
-      expectHas: true,
-    },
-    {
-      name: 'no-id in lookup',
-      id: '',
-      stored: clientID => ({clientID, id: '', str: 'foo'}),
-      lookupID: clientID => ({clientID}),
-      expectHas: true,
-    },
-  ];
-
-  for (const f of factories) {
-    for (const c of cases) {
-      test(c.name, async () => {
-        const r = f(mutators);
-        const clientID = await r.clientID;
-        const {id, lookupID = (clientID: string) => ({clientID, id})} = c;
-
-        if (c.stored !== undefined) {
-          await r.mutate.directWrite({
-            key: `-/p/${clientID}/e1/${id}`,
-            val: c.stored(clientID) as E1,
-          });
-        }
-        const has = await r.query(tx => hasE1(tx, lookupID(clientID)));
-        expect(has).eq(c.expectHas, c.name);
-      });
-    }
-  }
-});
-
-suite('update', () => {
-  type Case = {
-    name: string;
-    id: string;
-    prev?: (clientID: string) => unknown;
-    update: (clientID: string) => ReadonlyJSONObject;
-    expected?: (clientID: string) => unknown;
-    expectError?: (clientID: string) => unknown;
-  };
-
-  const id = 'id1';
-
-  const cases: Case[] = [
-    {
-      name: 'prev-invalid',
-      id,
-      prev: () => null,
-      update: () => ({}),
-      expectError: () => ({_errors: ['Expected object, received null']}),
-    },
-    {
-      name: 'not-existing-update-clientID',
-      id,
-      prev: clientID => ({clientID, id, str: 'foo', optStr: 'bar'}),
-      update: clientID => ({clientID, id, str: 'baz'}),
-      expected: clientID => ({clientID, id, str: 'baz', optStr: 'bar'}),
-    },
-    {
-      name: "not-existing-update-clientID different id doesn't change old",
-      id: 'a',
-      prev: clientID => ({clientID, id: 'a', str: 'foo', optStr: 'bar'}),
-      update: clientID => ({clientID, id: 'b', str: 'baz'}),
-      expected: clientID => ({clientID, id: 'a', str: 'foo', optStr: 'bar'}),
-    },
-    {
-      name: 'not-existing-update-clientID different id sets new',
-      id: 'b',
-      prev: clientID => ({clientID, id: 'a', str: 'foo', optStr: 'bar'}),
-      update: clientID => ({clientID, id: 'b', str: 'baz'}),
-      expected: clientID => ({clientID, id: 'b', str: 'baz', optStr: 'bar'}),
-    },
-    {
-      name: 'not-existing-update no clientID, no id',
-      id: '',
-      prev: clientID => ({clientID, id: '', str: 'foo', optStr: 'bar'}),
-      update: () => ({str: 'baz'}),
-      expected: clientID => ({clientID, id: '', str: 'baz', optStr: 'bar'}),
-    },
-    {
-      name: 'not-existing-update no clientID',
-      id,
-      prev: clientID => ({clientID, id, str: 'foo', optStr: 'bar'}),
-      update: () => ({id, str: 'baz'}),
-      expected: clientID => ({clientID, id, str: 'baz', optStr: 'bar'}),
-    },
-    {
-      name: 'not-existing-update no id',
-      id: '',
-      prev: clientID => ({clientID, id: '', str: 'foo', optStr: 'bar'}),
-      update: clientID => ({clientID, str: 'baz'}),
-      expected: clientID => ({clientID, id: '', str: 'baz', optStr: 'bar'}),
-    },
-    {
-      name: 'invalid-update',
-      id,
-      prev: clientID => ({clientID, id, str: 'foo', optStr: 'bar'}),
-      update: clientID => ({clientID, id, str: 42}),
-      expected: clientID => ({clientID, id, str: 'foo', optStr: 'bar'}),
-      expectError: () => ({
-        _errors: [],
-        str: {_errors: ['Expected string, received number']},
-      }),
-    },
-    {
-      name: 'valid-update',
-      id,
-      prev: clientID => ({clientID, id, str: 'foo', optStr: 'bar'}),
-      update: clientID => ({clientID, id, str: 'baz'}),
-      expected: clientID => ({clientID, id, str: 'baz', optStr: 'bar'}),
-      expectError: undefined,
+      name: 'no str',
+      collectionName: 'entryID',
+      value: {clientID, id: 'c'},
+      expectedKey: `-/p/${clientID}/entryID/id/c`,
+      expectedValue: undefined,
+      expectError: {_errors: [], str: {_errors: ['Required']}},
     },
 
     {
-      name: 'update with wrong clientID',
-      id,
-      prev: clientID => ({clientID, id, str: 'foo', optStr: 'bar'}),
-      update: () => ({clientID: 'wrong', id, str: 'baz'}),
-      expectError: clientID =>
-        `Error: Can only mutate own entities. Expected clientID "${clientID}" but received "wrong"`,
-    },
-  ];
-
-  for (const f of factories) {
-    for (const c of cases) {
-      test(c.name, async () => {
-        const r = f(mutators);
-        const clientID = await r.clientID;
-        const {id} = c;
-
-        if (c.prev !== undefined) {
-          await r.mutate.directWrite({
-            key: `-/p/${clientID}/e1/${id}`,
-            val: c.prev(clientID) as E1,
-          });
-        }
-
-        let error = undefined;
-        let actual = undefined;
-        try {
-          await r.mutate.updateE1(c.update(clientID) as E1);
-          actual = await r.query(tx => getE1(tx, {clientID, id}));
-        } catch (e) {
-          if (e instanceof ZodError) {
-            error = e.format();
-          } else {
-            error = String(e);
-          }
-        }
-        expect(error).deep.equal(c.expectError?.(clientID), c.name);
-        expect(actual).deep.equal(
-          c.expectError ? undefined : c.expected?.(clientID),
-          c.name,
-        );
-      });
-    }
-  }
-});
-
-suite('delete', () => {
-  type Case = {
-    name: string;
-    id: string;
-    deleteID?: (
-      clientID: string,
-    ) => Partial<{clientID: string; id: string}> | undefined;
-    lookupID?: (clientID: string) => Partial<{clientID: string; id: string}>;
-    stored?: (clientID: string) => unknown;
-    expectedValue?: (clientID: string) => unknown;
-    expectError?: (clientID: string) => unknown;
-  };
-
-  const id = 'id1';
-
-  const cases: Case[] = [
-    {
-      name: 'prev-exist',
-      id,
-      stored: clientID => ({clientID, id, str: 'foo', optStr: 'bar'}),
+      name: 'with optStr',
+      collectionName: 'entryNoID',
+      value: {clientID, str: 'x', optStr: 'y'},
+      expectedKey: `-/p/${clientID}/entryNoID/`,
+      expectedValue: {clientID, str: 'x', optStr: 'y'},
     },
     {
-      name: 'prev-exist no-clientID, no-id',
-      id: '',
-      stored: clientID => ({clientID, id: '', str: 'foo', optStr: 'bar'}),
-      deleteID: () => ({}),
-    },
-    {
-      name: 'prev-exist undefined deleteID',
-      id: '',
-      stored: clientID => ({clientID, id: '', str: 'foo', optStr: 'bar'}),
-      deleteID: () => undefined,
-    },
-    {
-      name: 'prev-exist no-clientID',
-      id,
-      stored: clientID => ({clientID, id, str: 'foo', optStr: 'bar'}),
-      deleteID: () => ({id}),
-    },
-    {
-      name: 'prev-exist no-id',
-      id: '',
-      stored: clientID => ({clientID, id: '', str: 'foo', optStr: 'bar'}),
-      deleteID: clientID => ({clientID}),
-    },
-    {
-      name: 'prev-not-exist',
-      id,
-    },
-    {
-      name: 'prev-exist different id',
-      id,
-      stored: clientID => ({clientID, id: 'a', str: 'foo', optStr: 'bar'}),
-    },
-    {
-      name: 'different id',
-      id: 'a',
-      stored: clientID => ({clientID, id: 'a', str: 'foo', optStr: 'bar'}),
-      deleteID: clientID => ({clientID, id: 'b'}),
-      lookupID: clientID => ({clientID, id: 'a'}),
-      expectedValue: clientID => ({
-        clientID,
-        id: 'a',
-        str: 'foo',
-        optStr: 'bar',
-      }),
+      name: 'with optStr',
+      collectionName: 'entryID',
+      value: {clientID, id: 'z', str: 'x', optStr: 'y'},
+      expectedKey: `-/p/${clientID}/entryID/id/z`,
+      expectedValue: {clientID, id: 'z', str: 'x', optStr: 'y'},
     },
 
     {
-      name: 'deleting with wrong clientID',
-      id,
-      stored: clientID => ({clientID, id, str: 'foo', optStr: 'bar'}),
-      deleteID: () => ({clientID: 'wrong', id}),
-      expectError: clientID =>
-        `Error: Can only mutate own entities. Expected clientID "${clientID}" but received "wrong"`,
+      name: 'with wrong clientID',
+      collectionName: 'entryNoID',
+      value: {clientID: 'wrong', str: 'x'},
+      expectedKey: `-/p/${clientID}/entryNoID/`,
+      expectedValue: undefined,
+      expectError: `Error: Can only mutate own entities. Expected clientID "${clientID}" but received "wrong"`,
+    },
+    {
+      name: 'with wrong clientID',
+      collectionName: 'entryID',
+      value: {clientID: 'wrong', id: 'z', str: 'x'},
+      expectedKey: `-/p/${clientID}/entryID/id/z`,
+      expectedValue: undefined,
+      expectError: `Error: Can only mutate own entities. Expected clientID "${clientID}" but received "wrong"`,
     },
   ];
 
@@ -877,32 +416,985 @@ suite('delete', () => {
         const r = f(mutators);
         const clientID = await r.clientID;
         const {
-          id,
-          deleteID = (clientID: string) => ({
-            clientID,
-            id,
-          }),
-          lookupID = deleteID,
-        } = c;
+          expectError,
+          expectedKey,
+          expectedValue,
+          collectionName,
+          preexisting,
+          value,
+        } = replaceClientID(c, '$CLIENT_ID', clientID);
 
-        if (c.stored) {
+        if (preexisting) {
+          if (collectionName === 'entryID') {
+            await r.mutate.setEntryID(preexisting as EntryID);
+          } else {
+            await r.mutate.setEntryNoID(preexisting as EntryNoID);
+          }
+        }
+
+        let error;
+        let result;
+        try {
+          if (collectionName === 'entryID') {
+            result = await r.mutate.initEntryID(value as EntryID);
+          } else {
+            result = await r.mutate.initEntryNoID(value as EntryNoID);
+          }
+        } catch (e) {
+          if (e instanceof ZodError) {
+            error = e.format();
+          } else {
+            error = String(e);
+          }
+        }
+
+        const key = expectedKey;
+        const actual = await r.query(tx => tx.get(key));
+
+        if (expectError) {
+          expect(error).toEqual(expectError);
+          expect(actual).toEqual(preexisting);
+          expect(result).undefined;
+        } else {
+          expect(error).undefined;
+          expect(actual).toEqual(expectedValue);
+        }
+      });
+    }
+  }
+});
+
+function replaceClientID<V extends ReadonlyJSONValue | undefined>(
+  v: V,
+  from: string,
+  to: string,
+): V {
+  switch (typeof v) {
+    case 'string':
+      return v.replaceAll(from, to) as V;
+    case 'object':
+      if (v === null) {
+        return v;
+      }
+      if (Array.isArray(v)) {
+        return v.map(v => replaceClientID(v, from, to)) as unknown as V;
+      }
+      return Object.fromEntries(
+        Object.entries(v).map(([k, v]) => [
+          replaceClientID(k, from, to),
+          replaceClientID(v, from, to),
+        ]),
+      ) as V;
+    default:
+      return v;
+  }
+}
+
+suite('get', () => {
+  type Case = {
+    name: string;
+    collectionName: 'entryNoID' | 'entryID';
+    stored?: ReadonlyJSONValue | undefined;
+    storedKey?: string;
+    param: ReadonlyJSONValue | undefined;
+    expectedValue?: ReadonlyJSONValue | undefined;
+    expectedError?: ReadonlyJSONValue;
+  };
+
+  const clientID = '$CLIENT_ID';
+  const id = 'b';
+
+  const cases: Case[] = [
+    {
+      name: 'Get with clientID, existing',
+      collectionName: 'entryNoID',
+      stored: {clientID, str: 'foo'},
+      param: {clientID},
+    },
+    {
+      name: 'Get with clientID and id, existing',
+      collectionName: 'entryID',
+      stored: {clientID, id: 'a', str: 'foo'},
+      param: {clientID, id: 'a'},
+    },
+
+    {
+      name: 'Get with clientID, non existing',
+      collectionName: 'entryNoID',
+      stored: undefined,
+      param: {clientID},
+    },
+    {
+      name: 'Get with clientID and id, non existing',
+      collectionName: 'entryID',
+      stored: undefined,
+      param: {clientID, id: 'a'},
+    },
+
+    {
+      name: 'Get with implicit clientID, existing',
+      collectionName: 'entryNoID',
+      stored: {clientID, str: 'foo'},
+      param: {},
+    },
+    {
+      name: 'Get with implicit clientID and id, existing',
+      collectionName: 'entryID',
+      stored: {clientID, id: 'a', str: 'foo'},
+      param: {id: 'a'},
+    },
+    {
+      name: 'Get with no param, existing',
+      collectionName: 'entryNoID',
+      stored: {clientID, str: 'foo'},
+      param: undefined,
+    },
+    {
+      name: 'Get with no param when id is required, existing',
+      collectionName: 'entryNoID',
+      stored: {clientID, id: 'a', str: 'foo'},
+      param: undefined,
+      expectedValue: undefined,
+    },
+
+    {
+      name: 'Stored value is incorrect (extra id)',
+      collectionName: 'entryNoID',
+      stored: {clientID, id: 'a', str: 'foo'},
+      storedKey: `-/p/${clientID}/entryNoID/`,
+      param: {clientID},
+      expectedError: {
+        _errors: ["Unrecognized key(s) in object: 'id'"],
+      },
+      expectedValue: undefined,
+    },
+    {
+      name: 'Stored value is incorrect (missing id)',
+      collectionName: 'entryID',
+      stored: {clientID, str: 'foo'},
+      storedKey: '-/p/$CLIENT_ID/entryID/id/a',
+      param: {clientID, id: 'a'},
+      expectedError: {
+        _errors: [],
+        id: {_errors: ['Required']},
+      },
+      expectedValue: undefined,
+    },
+    {
+      name: 'Stored value is incorrect (missing clientID)',
+      collectionName: 'entryNoID',
+      stored: {str: 'foo'},
+      storedKey: `-/p/${clientID}/entryNoID/`,
+      param: {clientID},
+      expectedError: {
+        _errors: [],
+        clientID: {_errors: ['Required']},
+      },
+      expectedValue: undefined,
+    },
+    {
+      name: 'Stored value is incorrect (missing id and clientID)',
+      collectionName: 'entryID',
+      stored: {str: 'foo'},
+      storedKey: '-/p/$CLIENT_ID/entryID/id/a',
+      param: {clientID, id: 'a'},
+      expectedError: {
+        _errors: [],
+        clientID: {_errors: ['Required']},
+        id: {_errors: ['Required']},
+      },
+      expectedValue: undefined,
+    },
+    {
+      name: 'Stored value is incorrect (missing str)',
+      collectionName: 'entryNoID',
+      stored: {clientID},
+      storedKey: `-/p/${clientID}/entryNoID/`,
+      param: {clientID},
+      expectedError: {
+        _errors: [],
+        str: {_errors: ['Required']},
+      },
+      expectedValue: undefined,
+    },
+    {
+      name: 'Stored value is incorrect (wrong optStr)',
+      collectionName: 'entryID',
+      stored: {clientID, id, str: 'a', optStr: true},
+      storedKey: `-/p/${clientID}/entryID/id/${id}`,
+      param: {clientID, id},
+      expectedError: {
+        _errors: [],
+        optStr: {_errors: ['Expected string, received boolean']},
+      },
+      expectedValue: undefined,
+    },
+    {
+      name: 'Stored value is incorrect (null)',
+      collectionName: 'entryNoID',
+      stored: null,
+      storedKey: `-/p/${clientID}/entryNoID/`,
+      param: {clientID},
+      expectedError: {
+        _errors: ['Expected object, received null'],
+      },
+      expectedValue: undefined,
+    },
+    {
+      name: 'Stored value is incorrect (string)',
+      collectionName: 'entryID',
+      stored: 'junk',
+      storedKey: '-/p/$CLIENT_ID/entryID/id/a',
+      param: {clientID, id: 'a'},
+      expectedError: {
+        _errors: ['Expected object, received string'],
+      },
+      expectedValue: undefined,
+    },
+  ];
+
+  for (const f of factories) {
+    for (const c of cases) {
+      test(`${c.name} using ${c.collectionName}`, async () => {
+        const r = f(mutators);
+        const clientID = await r.clientID;
+
+        const fixedC = replaceClientID(c, '$CLIENT_ID', clientID);
+        const {
+          collectionName,
+          stored,
+          storedKey = stored
+            ? keyFromID(collectionName, stored as PresenceEntity)
+            : undefined,
+          param,
+          expectedError,
+        } = fixedC;
+        const expectedValue =
+          'expectedValue' in fixedC ? fixedC.expectedValue : stored;
+
+        if (stored !== undefined && storedKey !== undefined) {
           await r.mutate.directWrite({
-            key: `-/p/${clientID}/e1/${id}`,
-            val: c.stored(clientID) as E1,
+            key: storedKey,
+            val: stored,
+          });
+        }
+        const {actual, error} = await r.query(async tx => {
+          try {
+            return {
+              actual:
+                collectionName === 'entryNoID'
+                  ? await getEntryNoID(tx, param as EntryNoID)
+                  : await getEntryID(tx, param as EntryID),
+            };
+          } catch (e) {
+            return {error: (e as ZodError).format()};
+          }
+        });
+
+        expect(error).toEqual(expectedError);
+        expect(actual).toEqual(expectedValue);
+      });
+    }
+  }
+});
+
+suite('mustGet', () => {
+  type Case = {
+    name: string;
+    collectionName: 'entryNoID' | 'entryID';
+    stored?: ReadonlyJSONValue | undefined;
+    storedKey?: string;
+    param: ReadonlyJSONValue | undefined;
+    expectedValue?: ReadonlyJSONValue | undefined;
+    expectedError?: ReadonlyJSONValue;
+  };
+
+  const clientID = '$CLIENT_ID';
+  const id = 'b';
+
+  const cases: Case[] = [
+    {
+      name: 'Get with clientID, existing',
+      collectionName: 'entryNoID',
+      stored: {clientID, str: 'foo'},
+      param: {clientID},
+    },
+    {
+      name: 'Get with clientID and id, existing',
+      collectionName: 'entryID',
+      stored: {clientID, id: 'a', str: 'foo'},
+      param: {clientID, id: 'a'},
+    },
+
+    {
+      name: 'Get with clientID, non existing',
+      collectionName: 'entryNoID',
+      stored: undefined,
+      param: {clientID},
+      expectedError: `Error: no such entity {"clientID":"${clientID}"}`,
+      expectedValue: undefined,
+    },
+    {
+      name: 'Get with clientID and id, non existing',
+      collectionName: 'entryID',
+      stored: undefined,
+      param: {clientID, id: 'a'},
+      expectedError: `Error: no such entity {"clientID":"${clientID}","id":"a"}`,
+      expectedValue: undefined,
+    },
+
+    {
+      name: 'Get with implicit clientID, existing',
+      collectionName: 'entryNoID',
+      stored: {clientID, str: 'foo'},
+      param: {},
+    },
+    {
+      name: 'Get with implicit clientID and id, existing',
+      collectionName: 'entryID',
+      stored: {clientID, id: 'a', str: 'foo'},
+      param: {id: 'a'},
+    },
+    {
+      name: 'Get with no param, existing',
+      collectionName: 'entryNoID',
+      stored: {clientID, str: 'foo'},
+      param: undefined,
+    },
+    {
+      name: 'Get with no param when id is required, existing',
+      collectionName: 'entryNoID',
+      stored: {clientID, id: 'a', str: 'foo'},
+      param: undefined,
+      expectedError: `Error: no such entity {"clientID":"${clientID}"}`,
+      expectedValue: undefined,
+    },
+
+    {
+      name: 'Stored value is incorrect (extra id)',
+      collectionName: 'entryNoID',
+      stored: {clientID, id: 'a', str: 'foo'},
+      storedKey: `-/p/${clientID}/entryNoID/`,
+      param: {clientID},
+      expectedError: {
+        _errors: ["Unrecognized key(s) in object: 'id'"],
+      },
+      expectedValue: undefined,
+    },
+    {
+      name: 'Stored value is incorrect (missing id)',
+      collectionName: 'entryID',
+      stored: {clientID, str: 'foo'},
+      storedKey: '-/p/$CLIENT_ID/entryID/id/a',
+      param: {clientID, id: 'a'},
+      expectedError: {
+        _errors: [],
+        id: {_errors: ['Required']},
+      },
+      expectedValue: undefined,
+    },
+    {
+      name: 'Stored value is incorrect (missing clientID)',
+      collectionName: 'entryNoID',
+      stored: {str: 'foo'},
+      storedKey: `-/p/${clientID}/entryNoID/`,
+      param: {clientID},
+      expectedError: {
+        _errors: [],
+        clientID: {_errors: ['Required']},
+      },
+      expectedValue: undefined,
+    },
+    {
+      name: 'Stored value is incorrect (missing id and clientID)',
+      collectionName: 'entryID',
+      stored: {str: 'foo'},
+      storedKey: '-/p/$CLIENT_ID/entryID/id/a',
+      param: {clientID, id: 'a'},
+      expectedError: {
+        _errors: [],
+        clientID: {_errors: ['Required']},
+        id: {_errors: ['Required']},
+      },
+      expectedValue: undefined,
+    },
+    {
+      name: 'Stored value is incorrect (missing str)',
+      collectionName: 'entryNoID',
+      stored: {clientID},
+      storedKey: `-/p/${clientID}/entryNoID/`,
+      param: {clientID},
+      expectedError: {
+        _errors: [],
+        str: {_errors: ['Required']},
+      },
+      expectedValue: undefined,
+    },
+    {
+      name: 'Stored value is incorrect (wrong optStr)',
+      collectionName: 'entryID',
+      stored: {clientID, id, str: 'a', optStr: true},
+      storedKey: `-/p/${clientID}/entryID/id/${id}`,
+      param: {clientID, id},
+      expectedError: {
+        _errors: [],
+        optStr: {_errors: ['Expected string, received boolean']},
+      },
+      expectedValue: undefined,
+    },
+    {
+      name: 'Stored value is incorrect (null)',
+      collectionName: 'entryNoID',
+      stored: null,
+      storedKey: `-/p/${clientID}/entryNoID/`,
+      param: {clientID},
+      expectedError: {
+        _errors: ['Expected object, received null'],
+      },
+      expectedValue: undefined,
+    },
+    {
+      name: 'Stored value is incorrect (string)',
+      collectionName: 'entryID',
+      stored: 'junk',
+      storedKey: '-/p/$CLIENT_ID/entryID/id/a',
+      param: {clientID, id: 'a'},
+      expectedError: {
+        _errors: ['Expected object, received string'],
+      },
+      expectedValue: undefined,
+    },
+  ];
+
+  for (const f of factories) {
+    for (const c of cases) {
+      test(`${c.name} using ${c.collectionName}`, async () => {
+        const r = f(mutators);
+        const clientID = await r.clientID;
+
+        const fixedC = replaceClientID(c, '$CLIENT_ID', clientID);
+        const {
+          collectionName,
+          stored,
+          storedKey = stored
+            ? keyFromID(collectionName, stored as PresenceEntity)
+            : undefined,
+          param,
+          expectedError,
+        } = fixedC;
+        const expectedValue =
+          'expectedValue' in fixedC ? fixedC.expectedValue : stored;
+
+        if (stored !== undefined && storedKey !== undefined) {
+          await r.mutate.directWrite({
+            key: storedKey,
+            val: stored,
+          });
+        }
+        const {actual, error} = await r.query(async tx => {
+          try {
+            return {
+              actual:
+                collectionName === 'entryNoID'
+                  ? await mustGetEntryNoID(tx, param as EntryNoID)
+                  : await mustGetEntryID(tx, param as EntryID),
+            };
+          } catch (e) {
+            if (e instanceof ZodError) {
+              return {error: e.format()};
+            }
+            return {error: String(e)};
+          }
+        });
+
+        expect(error).toEqual(expectedError);
+        expect(actual).toEqual(expectedValue);
+      });
+    }
+  }
+});
+
+suite('has', () => {
+  type Case = {
+    name: string;
+    collectionName: 'entryNoID' | 'entryID';
+    stored?: ReadonlyJSONValue | undefined;
+    storedKey?: string;
+    param: ReadonlyJSONValue | undefined;
+    expectedHas: boolean;
+  };
+
+  const clientID = '$CLIENT_ID';
+  const id = 'b';
+
+  const cases: Case[] = [
+    {
+      name: 'undefined',
+      collectionName: 'entryNoID',
+      stored: undefined,
+      param: {clientID},
+      expectedHas: false,
+    },
+    {
+      name: 'null',
+      collectionName: 'entryNoID',
+      stored: null,
+      storedKey: `-/p/${clientID}/entryNoID/`,
+      param: {clientID},
+      expectedHas: true,
+    },
+    {
+      name: 'string',
+      collectionName: 'entryID',
+      stored: 'junk',
+      storedKey: `-/p/${clientID}/entryID/id/${id}`,
+      param: {clientID, id},
+      expectedHas: true,
+    },
+    {
+      name: 'valid',
+      collectionName: 'entryNoID',
+      stored: {clientID, str: 'foo'},
+      param: {clientID},
+      expectedHas: true,
+    },
+    {
+      name: 'valid',
+      collectionName: 'entryID',
+      stored: {clientID, id, str: 'foo'},
+      param: {clientID, id},
+      expectedHas: true,
+    },
+    {
+      name: 'valid implicit clientID',
+      collectionName: 'entryNoID',
+      stored: {clientID, str: 'foo'},
+      param: {},
+      expectedHas: true,
+    },
+    {
+      name: 'valid implicit clientID',
+      collectionName: 'entryID',
+      stored: {clientID, id, str: 'foo'},
+      param: {id},
+      expectedHas: true,
+    },
+    {
+      name: 'valid no param',
+      collectionName: 'entryNoID',
+      stored: {clientID, str: 'foo'},
+      param: undefined,
+      expectedHas: true,
+    },
+  ];
+
+  for (const f of factories) {
+    for (const c of cases) {
+      test(`${c.name} using ${c.collectionName}`, async () => {
+        const r = f(mutators);
+        const clientID = await r.clientID;
+        const {
+          collectionName,
+          stored,
+          storedKey = stored
+            ? keyFromID(collectionName, stored as PresenceEntity)
+            : undefined,
+          param,
+          expectedHas,
+        }: Case = replaceClientID(c, '$CLIENT_ID', clientID);
+
+        if (stored !== undefined && storedKey) {
+          await r.mutate.directWrite({
+            key: storedKey,
+            val: stored,
+          });
+        }
+        const has = await r.query(tx => {
+          if (collectionName === 'entryNoID') {
+            return hasEntryNoID(tx, param as EntryNoID);
+          }
+          return hasEntryID(tx, param as EntryID);
+        });
+        expect(has).toBe(expectedHas);
+      });
+    }
+  }
+});
+
+suite('update', () => {
+  type Case = {
+    name: string;
+    collectionName: 'entryNoID' | 'entryID';
+    stored?: ReadonlyJSONValue | undefined;
+    storedKey?: string;
+    param: ReadonlyJSONValue | undefined;
+    expectedValue: ReadonlyJSONValue | undefined;
+    expectedKey?: string;
+    expectedError?: ReadonlyJSONValue;
+  };
+
+  const clientID = '$CLIENT_ID';
+  const id = 'b';
+
+  const cases: Case[] = [
+    {
+      name: 'stored value invalid',
+      collectionName: 'entryNoID',
+      stored: null,
+      storedKey: `-/p/${clientID}/entryNoID/`,
+      param: {},
+      expectedValue: null,
+      expectedKey: `-/p/${clientID}/entryNoID/`,
+      expectedError: {_errors: ['Expected object, received null']},
+    },
+    {
+      name: 'stored value invalid',
+      collectionName: 'entryID',
+      stored: 'joke',
+      storedKey: `-/p/${clientID}/entryID/id/${id}`,
+      param: {id},
+      expectedValue: 'joke',
+      expectedKey: `-/p/${clientID}/entryID/id/${id}`,
+      expectedError: {_errors: ['Expected object, received string']},
+    },
+    {
+      name: 'stored value invalid',
+      collectionName: 'entryNoID',
+      stored: {clientID, id: 'should not have id', str: 'foo'},
+      storedKey: `-/p/${clientID}/entryNoID/`,
+      param: {clientID, str: 'bar'},
+      expectedValue: {clientID, id: 'should not have id', str: 'foo'},
+      expectedKey: `-/p/${clientID}/entryNoID/`,
+      expectedError: {_errors: ["Unrecognized key(s) in object: 'id'"]},
+    },
+    {
+      name: 'stored value invalid',
+      collectionName: 'entryID',
+      stored: {clientID, str: 'missing id'},
+      storedKey: `-/p/${clientID}/entryID/id/${id}`,
+      param: {clientID, id, str: 'bar'},
+      expectedValue: {clientID, str: 'missing id'},
+      expectedKey: `-/p/${clientID}/entryID/id/${id}`,
+      expectedError: {_errors: [], id: {_errors: ['Required']}},
+    },
+    {
+      name: 'no previous value',
+      collectionName: 'entryID',
+      param: {clientID, str: 'foo'},
+      expectedValue: undefined,
+      expectedKey: `-/p/${clientID}/entryID/`,
+    },
+    {
+      name: 'no previous value',
+      collectionName: 'entryID',
+      param: {clientID, str: 'foo', id},
+      expectedValue: undefined,
+      expectedKey: `-/p/${clientID}/entryID/id/${id}`,
+    },
+    {
+      name: 'valid',
+      collectionName: 'entryNoID',
+      stored: {clientID, str: 'foo'},
+      param: {clientID, str: 'bar'},
+      expectedValue: {clientID, str: 'bar'},
+    },
+    {
+      name: 'valid',
+      collectionName: 'entryNoID',
+      stored: {clientID, str: 'foo'},
+      param: {clientID, optStr: 'opt'},
+      expectedValue: {clientID, str: 'foo', optStr: 'opt'},
+    },
+    {
+      name: 'valid',
+      collectionName: 'entryID',
+      stored: {clientID, id, str: 'foo'},
+      param: {clientID, id, str: 'bar'},
+      expectedValue: {clientID, id, str: 'bar'},
+    },
+    {
+      name: 'valid',
+      collectionName: 'entryID',
+      stored: {clientID, id, str: 'foo'},
+      param: {clientID, id, optStr: 'opt'},
+      expectedValue: {clientID, id, str: 'foo', optStr: 'opt'},
+    },
+
+    {
+      name: 'valid implicit clientID',
+      collectionName: 'entryNoID',
+      stored: {clientID, str: 'foo'},
+      param: {str: 'bar'},
+      expectedValue: {clientID, str: 'bar'},
+    },
+    {
+      name: 'valid implicit clientID',
+      collectionName: 'entryNoID',
+      stored: {clientID, str: 'foo'},
+      param: {optStr: 'opt'},
+      expectedValue: {clientID, str: 'foo', optStr: 'opt'},
+    },
+    {
+      name: 'valid implicit clientID',
+      collectionName: 'entryID',
+      stored: {clientID, id, str: 'foo'},
+      param: {id, str: 'bar'},
+      expectedValue: {clientID, id, str: 'bar'},
+    },
+    {
+      name: 'valid implicit clientID',
+      collectionName: 'entryID',
+      stored: {clientID, id, str: 'foo'},
+      param: {id, optStr: 'opt'},
+      expectedValue: {clientID, id, str: 'foo', optStr: 'opt'},
+    },
+
+    {
+      name: 'invalid update has wrong shape',
+      collectionName: 'entryNoID',
+      stored: {clientID, str: 'foo'},
+      param: {clientID, str: 'bar', extra: true},
+      expectedValue: {clientID, str: 'foo'},
+      expectedError: {_errors: ["Unrecognized key(s) in object: 'extra'"]},
+    },
+    {
+      name: 'invalid update has wrong type',
+      collectionName: 'entryID',
+      stored: {clientID, id, str: 'foo'},
+      param: {clientID, id, str: false},
+      expectedValue: {clientID, id, str: 'foo'},
+      expectedError: {
+        _errors: [],
+        str: {_errors: ['Expected string, received boolean']},
+      },
+    },
+
+    {
+      name: 'update with wrong clientID',
+      collectionName: 'entryNoID',
+      stored: {clientID, str: 'foo'},
+      param: {clientID: 'wrong', str: 'bar'},
+      expectedValue: {clientID, str: 'foo'},
+      expectedError: `Error: Can only mutate own entities. Expected clientID "${clientID}" but received "wrong"`,
+    },
+    {
+      name: 'update with wrong clientID',
+      collectionName: 'entryID',
+      stored: {clientID, id, str: 'foo'},
+      param: {clientID: 'wrong', id, str: 'bar'},
+      expectedValue: {clientID, id, str: 'foo'},
+      expectedError: `Error: Can only mutate own entities. Expected clientID "${clientID}" but received "wrong"`,
+    },
+  ];
+
+  for (const f of factories) {
+    for (const c of cases) {
+      test(`${c.name} using ${c.collectionName}`, async () => {
+        const r = f(mutators);
+        const clientID = await r.clientID;
+        const {
+          collectionName,
+          stored,
+          storedKey = stored !== undefined
+            ? keyFromID(collectionName, stored as PresenceEntity)
+            : undefined,
+          param,
+          expectedValue,
+          expectedKey = keyFromID(
+            collectionName,
+            expectedValue as PresenceEntity,
+          ),
+          expectedError,
+        }: Case = replaceClientID(c, '$CLIENT_ID', clientID);
+
+        if (stored !== undefined && storedKey !== undefined) {
+          await r.mutate.directWrite({
+            key: storedKey,
+            val: stored,
+          });
+        }
+
+        let error;
+
+        try {
+          if (collectionName === 'entryNoID') {
+            await r.mutate.updateEntryNoID(param as EntryNoID);
+          } else {
+            await r.mutate.updateEntryID(param as EntryID);
+          }
+        } catch (e) {
+          if (e instanceof ZodError) {
+            error = e.format();
+          } else {
+            error = String(e);
+          }
+        }
+        const actual = await r.query(tx => tx.get(expectedKey));
+        expect(error).toEqual(expectedError);
+        expect(actual).toEqual(expectedValue);
+      });
+    }
+  }
+});
+
+suite('delete', () => {
+  type Case = {
+    name: string;
+    collectionName: 'entryNoID' | 'entryID';
+    stored?: ReadonlyJSONValue | undefined;
+    storedKey?: string;
+    param: ReadonlyJSONValue | undefined;
+    expectedValue?: ReadonlyJSONValue | undefined;
+    expectedKey: string;
+    expectedError?: ReadonlyJSONValue;
+  };
+
+  const clientID = '$CLIENT_ID';
+  const id = 'b';
+
+  const cases: Case[] = [
+    {
+      name: 'previous exist',
+      collectionName: 'entryNoID',
+      stored: {clientID, str: 'foo'},
+      param: {clientID},
+      expectedValue: undefined,
+      expectedKey: `-/p/${clientID}/entryNoID/`,
+    },
+    {
+      name: 'previous exist',
+      collectionName: 'entryID',
+      stored: {clientID, id, str: 'foo'},
+      param: {clientID, id},
+      expectedValue: undefined,
+      expectedKey: `-/p/${clientID}/entryID/id/${id}`,
+    },
+
+    {
+      name: 'previous exist implicit clientID',
+      collectionName: 'entryNoID',
+      stored: {clientID, str: 'foo'},
+      param: {},
+      expectedValue: undefined,
+      expectedKey: `-/p/${clientID}/entryNoID/`,
+    },
+    {
+      name: 'previous exist implicit clientID',
+      collectionName: 'entryID',
+      stored: {clientID, id, str: 'foo'},
+      param: {id},
+      expectedValue: undefined,
+      expectedKey: `-/p/${clientID}/entryID/id/${id}`,
+    },
+    {
+      name: 'previous exist no param',
+      collectionName: 'entryNoID',
+      stored: {clientID, str: 'foo'},
+      param: undefined,
+      expectedValue: undefined,
+      expectedKey: `-/p/${clientID}/entryNoID/`,
+    },
+
+    {
+      name: 'no stored value at key',
+      collectionName: 'entryNoID',
+      stored: undefined,
+      param: {clientID},
+      expectedValue: undefined,
+      expectedKey: `-/p/${clientID}/entryNoID/`,
+    },
+    {
+      name: 'no stored value at key',
+      collectionName: 'entryID',
+      stored: undefined,
+      param: {clientID, id},
+      expectedValue: undefined,
+      expectedKey: `-/p/${clientID}/entryNoID/id/${id}`,
+    },
+    {
+      name: 'no stored value at key implicit clientID',
+      collectionName: 'entryNoID',
+      stored: undefined,
+      param: {},
+      expectedValue: undefined,
+      expectedKey: `-/p/${clientID}/entryNoID/`,
+    },
+    {
+      name: 'no stored value at key implicit clientID',
+      collectionName: 'entryID',
+      stored: undefined,
+      param: {id},
+      expectedValue: undefined,
+      expectedKey: `-/p/${clientID}/entryNoID/id/${id}`,
+    },
+    {
+      name: 'no stored value at key implicit clientID',
+      collectionName: 'entryNoID',
+      stored: undefined,
+      param: undefined,
+      expectedValue: undefined,
+      expectedKey: `-/p/${clientID}/entryNoID/`,
+    },
+
+    {
+      name: 'wrong clientID',
+      collectionName: 'entryNoID',
+      stored: {clientID, str: 'foo'},
+      param: {clientID: 'wrong'},
+      expectedValue: {clientID, str: 'foo'},
+      expectedKey: `-/p/${clientID}/entryNoID/`,
+      expectedError: `Error: Can only mutate own entities. Expected clientID "${clientID}" but received "wrong"`,
+    },
+    {
+      name: 'wrong clientID',
+      collectionName: 'entryID',
+      stored: {clientID, id, str: 'foo'},
+      param: {clientID: 'wrong', id},
+      expectedValue: {clientID, id, str: 'foo'},
+      expectedKey: `-/p/${clientID}/entryID/id/${id}`,
+      expectedError: `Error: Can only mutate own entities. Expected clientID "${clientID}" but received "wrong"`,
+    },
+  ];
+
+  for (const f of factories) {
+    for (const c of cases) {
+      test(`${c.name} using ${c.collectionName}`, async () => {
+        const r = f(mutators);
+        const clientID = await r.clientID;
+        const {
+          collectionName,
+          stored,
+          storedKey = stored !== undefined
+            ? keyFromID(collectionName, stored as PresenceEntity)
+            : undefined,
+          param,
+          expectedValue,
+          expectedKey,
+          expectedError,
+        }: Case = replaceClientID(c, '$CLIENT_ID', clientID);
+
+        if (stored && storedKey) {
+          await r.mutate.directWrite({
+            key: storedKey,
+            val: stored,
           });
         }
 
         let error;
         try {
-          await r.mutate.deleteE1(deleteID(clientID));
+          if (collectionName === 'entryNoID') {
+            await r.mutate.deleteEntryNoID(param as EntryNoID);
+          } else {
+            await r.mutate.deleteEntryID(param as EntryID);
+          }
         } catch (e) {
           error = String(e);
         }
 
-        const actual = await r.query(tx => getE1(tx, lookupID(clientID)));
+        const actual = await r.query(tx => tx.get(expectedKey));
 
-        expect(actual).deep.equal(c.expectedValue?.(clientID));
-        expect(error).deep.equal(c.expectError?.(clientID));
+        expect(actual).toEqual(expectedValue);
+        expect(error).toEqual(expectedError);
       });
     }
   }
@@ -911,102 +1403,215 @@ suite('delete', () => {
 suite('list', () => {
   type Case = {
     name: string;
-    schema: ZodTypeAny;
-    options?: ListOptionsForPresence | undefined;
-    expected?: ReadonlyJSONObject[] | undefined;
-    expectError?: ReadonlyJSONObject | undefined;
+    collectionName: 'entryNoID' | 'entryID';
+    stored: Record<string, ReadonlyJSONValue>;
+    param:
+      | ListOptionsForPresence<EntryID>
+      | ListOptionsForPresence<EntryNoID>
+      | undefined;
+    expectedValues: ReadonlyJSONValue[] | undefined;
+    expectedError?: ReadonlyJSONValue;
   };
 
   const cases: Case[] = [
     {
       name: 'all',
-      schema: e1,
-      expected: [
-        {clientID: 'bar', id: '', str: 'bar--str'},
-        {clientID: 'bar', id: 'c', str: 'bar-c-str'},
-        {clientID: 'baz', id: 'e', str: 'baz-e-str'},
-        {clientID: 'baz', id: 'g', str: 'baz-g-str'},
-        {clientID: 'foo', id: 'a', str: 'foo-a-str'},
+      collectionName: 'entryNoID',
+      stored: {
+        '-/p/clientF/entryNoID/': {clientID: 'clientF', str: 'f'},
+        '-/p/clientB/entryNoID/': {clientID: 'clientB', str: 'b'},
+        '-/p/clientD/entryNoID/': {clientID: 'clientD', str: 'd'},
+      },
+      param: undefined,
+      expectedValues: [
+        {clientID: 'clientB', str: 'b'},
+        {clientID: 'clientD', str: 'd'},
+        {clientID: 'clientF', str: 'f'},
       ],
-      expectError: undefined,
     },
+
     {
-      name: 'keystart, clientID',
-      schema: e1,
-      options: {
-        startAtID: {clientID: 'f'},
+      name: 'all',
+      collectionName: 'entryID',
+      stored: {
+        '-/p/clientF/entryID/id/f': {clientID: 'clientF', id: 'f', str: 'f'},
+        '-/p/clientB/entryID/id/b': {clientID: 'clientB', id: 'b', str: 'b'},
+        '-/p/clientD/entryID/id/d': {clientID: 'clientD', id: 'd', str: 'd'},
       },
-      expected: [{clientID: 'foo', id: 'a', str: 'foo-a-str'}],
-      expectError: undefined,
-    },
-    {
-      name: 'keystart, clientID baz',
-      schema: e1,
-      options: {
-        startAtID: {clientID: 'baz'},
-      },
-      expected: [
-        {clientID: 'baz', id: 'e', str: 'baz-e-str'},
-        {clientID: 'baz', id: 'g', str: 'baz-g-str'},
-        {clientID: 'foo', id: 'a', str: 'foo-a-str'},
+      param: undefined,
+      expectedValues: [
+        {clientID: 'clientB', id: 'b', str: 'b'},
+        {clientID: 'clientD', id: 'd', str: 'd'},
+        {clientID: 'clientF', id: 'f', str: 'f'},
       ],
-      expectError: undefined,
     },
+
     {
-      name: 'keystart, clientID and id',
-      schema: e1,
-      options: {
-        startAtID: {clientID: 'baz', id: 'g'},
+      name: 'startAtID',
+      collectionName: 'entryNoID',
+      stored: {
+        '-/p/clientF/entryNoID/': {clientID: 'clientF', str: 'f'},
+        '-/p/clientB/entryNoID/': {clientID: 'clientB', str: 'b'},
+        '-/p/clientD/entryNoID/': {clientID: 'clientD', str: 'd'},
       },
-      expected: [
-        {clientID: 'baz', id: 'g', str: 'baz-g-str'},
-        {clientID: 'foo', id: 'a', str: 'foo-a-str'},
+      param: {startAtID: {clientID: 'clientC'}},
+      expectedValues: [
+        {clientID: 'clientD', str: 'd'},
+        {clientID: 'clientF', str: 'f'},
       ],
-      expectError: undefined,
     },
     {
-      name: 'keystart+limit',
-      schema: e1,
-      options: {
-        startAtID: {clientID: 'bas'},
-        limit: 1,
+      name: 'startAtID',
+      collectionName: 'entryID',
+      stored: {
+        '-/p/clientF/entryID/id/f': {clientID: 'clientF', id: 'f', str: 'f'},
+        '-/p/clientB/entryID/id/b': {clientID: 'clientB', id: 'b', str: 'b'},
+        '-/p/clientD/entryID/id/d': {clientID: 'clientD', id: 'd', str: 'd'},
       },
-      expected: [{clientID: 'baz', id: 'e', str: 'baz-e-str'}],
-      expectError: undefined,
+      param: {startAtID: {clientID: 'clientC'}},
+      expectedValues: [
+        {clientID: 'clientD', id: 'd', str: 'd'},
+        {clientID: 'clientF', id: 'f', str: 'f'},
+      ],
+    },
+    {
+      name: 'startAtID with clientID and id',
+      collectionName: 'entryID',
+      stored: {
+        '-/p/clientF/entryID/id/f': {clientID: 'clientF', id: 'f', str: 'f'},
+        '-/p/clientB/entryID/id/b': {
+          clientID: 'clientB',
+          id: 'b',
+          str: 'b',
+        },
+        '-/p/clientD/entryID/id/d111': {
+          clientID: 'clientD',
+          id: 'd111',
+          str: 'd',
+        },
+        '-/p/clientD/entryID/id/d222': {
+          clientID: 'clientD',
+          id: 'd222',
+          str: 'd',
+        },
+        '-/p/clientD/entryID/id/d333': {
+          clientID: 'clientD',
+          id: 'd333',
+          str: 'd',
+        },
+      },
+      param: {startAtID: {clientID: 'clientD', id: 'd2'}},
+      expectedValues: [
+        {
+          clientID: 'clientD',
+          id: 'd222',
+          str: 'd',
+        },
+        {
+          clientID: 'clientD',
+          id: 'd333',
+          str: 'd',
+        },
+        {
+          clientID: 'clientF',
+          id: 'f',
+          str: 'f',
+        },
+      ],
+    },
+
+    {
+      name: 'startAtID and limit',
+      collectionName: 'entryNoID',
+      stored: {
+        '-/p/clientF/entryNoID/': {clientID: 'clientF', str: 'f'},
+        '-/p/clientB/entryNoID/': {clientID: 'clientB', str: 'b'},
+        '-/p/clientD/entryNoID/': {clientID: 'clientD', str: 'd'},
+      },
+      param: {startAtID: {clientID: 'clientC'}, limit: 1},
+      expectedValues: [{clientID: 'clientD', str: 'd'}],
+    },
+    {
+      name: 'startAtID and limit',
+      collectionName: 'entryID',
+      stored: {
+        '-/p/clientF/entryID/id/f': {clientID: 'clientF', id: 'f', str: 'f'},
+        '-/p/clientB/entryID/id/b': {clientID: 'clientB', id: 'b', str: 'b'},
+        '-/p/clientD/entryID/id/d': {clientID: 'clientD', id: 'd', str: 'd'},
+      },
+      param: {startAtID: {clientID: 'clientC'}, limit: 1},
+      expectedValues: [{clientID: 'clientD', id: 'd', str: 'd'}],
+    },
+    {
+      name: 'startAtID with clientID and id and limit',
+      collectionName: 'entryID',
+      stored: {
+        '-/p/clientF/entryID/id/f': {clientID: 'clientF', id: 'f', str: 'f'},
+        '-/p/clientB/entryID/id/b': {
+          clientID: 'clientB',
+          id: 'b',
+          str: 'b',
+        },
+        '-/p/clientD/entryID/id/d111': {
+          clientID: 'clientD',
+          id: 'd111',
+          str: 'd',
+        },
+        '-/p/clientD/entryID/id/d222': {
+          clientID: 'clientD',
+          id: 'd222',
+          str: 'd',
+        },
+        '-/p/clientD/entryID/id/d333': {
+          clientID: 'clientD',
+          id: 'd333',
+          str: 'd',
+        },
+      },
+      param: {startAtID: {clientID: 'clientD', id: 'd2'}, limit: 2},
+      expectedValues: [
+        {
+          clientID: 'clientD',
+          id: 'd222',
+          str: 'd',
+        },
+        {
+          clientID: 'clientD',
+          id: 'd333',
+          str: 'd',
+        },
+      ],
     },
   ];
 
   for (const f of factories) {
     for (const c of cases) {
-      test(c.name, async () => {
+      test(`${c.name} using ${c.collectionName}`, async () => {
         const r = f(mutators);
+        const clientID = await r.clientID;
+        const {
+          collectionName,
+          stored,
+          param,
+          expectedValues,
+          expectedError,
+        }: Case = replaceClientID(c, '$CLIENT_ID', clientID);
 
-        for (const [clientID, id] of [
-          ['foo', 'a'],
-          ['bar', ''],
-          ['bar', 'c'],
-          ['baz', 'e'],
-          ['baz', 'g'],
-        ] as const) {
+        for (const [key, val] of Object.entries(stored)) {
           await r.mutate.directWrite({
-            key: `-/p/${clientID}/e1/${id}`,
-            val: {clientID, id, str: `${clientID}-${id}-str`},
+            key,
+            val,
           });
         }
 
-        await r.mutate.directWrite({
-          key: `-/p/ignore/me`,
-          val: 'data that should be ignored',
-        });
-        await r.mutate.directWrite({
-          key: `-/p/foo`,
-          val: 'data that should be ignored',
-        });
-
-        let error = undefined;
-        let actual = undefined;
+        let error;
+        let actual;
         try {
-          actual = await r.query(tx => listE1(tx, c.options));
+          if (collectionName === 'entryNoID') {
+            actual = await r.query(tx => listEntryNoID(tx, param));
+          } else {
+            actual = await r.query(tx => listEntryID(tx, param));
+          }
         } catch (e) {
           if (e instanceof ZodError) {
             error = e.format();
@@ -1014,8 +1619,8 @@ suite('list', () => {
             error = e;
           }
         }
-        expect(error).deep.equal(c.expectError, c.name);
-        expect(actual).deep.equal(c.expected, c.name);
+        expect(error).toEqual(expectedError);
+        expect(actual).toEqual(expectedValues);
       });
     }
   }
@@ -1024,88 +1629,207 @@ suite('list', () => {
 suite('listIDs', () => {
   type Case = {
     name: string;
-    prefix: string;
-    options?: ListOptionsForPresence | undefined;
-    expected?: PresenceEntity[] | undefined;
-    expectError?: ReadonlyJSONObject | undefined;
+    collectionName: 'entryNoID' | 'entryID';
+    stored: Record<string, ReadonlyJSONValue>;
+    param:
+      | ListOptionsForPresence<EntryID>
+      | ListOptionsForPresence<EntryNoID>
+      | undefined;
+    expectedValues: ReadonlyJSONValue[] | undefined;
+    expectedError?: ReadonlyJSONValue;
   };
 
   const cases: Case[] = [
     {
       name: 'all',
-      prefix: 'e1',
-      expected: [
-        {clientID: 'bar', id: 'c'},
-        {clientID: 'baz', id: 'e'},
-        {clientID: 'baz', id: 'g'},
-        {clientID: 'foo', id: 'a'},
+      collectionName: 'entryNoID',
+      stored: {
+        '-/p/clientF/entryNoID/': {clientID: 'clientF', str: 'f'},
+        '-/p/clientB/entryNoID/': {clientID: 'clientB', str: 'b'},
+        '-/p/clientD/entryNoID/': {clientID: 'clientD', str: 'd'},
+      },
+      param: undefined,
+      expectedValues: [
+        {clientID: 'clientB'},
+        {clientID: 'clientD'},
+        {clientID: 'clientF'},
       ],
-      expectError: undefined,
     },
+
     {
-      name: 'keystart',
-      prefix: 'e1',
-      options: {
-        startAtID: {clientID: 'f', id: ''},
+      name: 'all',
+      collectionName: 'entryID',
+      stored: {
+        '-/p/clientF/entryID/id/f': {clientID: 'clientF', id: 'f', str: 'f'},
+        '-/p/clientB/entryID/id/b': {clientID: 'clientB', id: 'b', str: 'b'},
+        '-/p/clientD/entryID/id/d': {clientID: 'clientD', id: 'd', str: 'd'},
       },
-      expected: [{clientID: 'foo', id: 'a'}],
-      expectError: undefined,
-    },
-    {
-      name: 'keystart',
-      prefix: 'e1',
-      options: {
-        startAtID: {clientID: 'baz', id: 'e'},
-      },
-      expected: [
-        {clientID: 'baz', id: 'e'},
-        {clientID: 'baz', id: 'g'},
-        {clientID: 'foo', id: 'a'},
+      param: undefined,
+      expectedValues: [
+        {clientID: 'clientB', id: 'b'},
+        {clientID: 'clientD', id: 'd'},
+        {clientID: 'clientF', id: 'f'},
       ],
-      expectError: undefined,
+    },
+
+    {
+      name: 'startAtID',
+      collectionName: 'entryNoID',
+      stored: {
+        '-/p/clientF/entryNoID/': {clientID: 'clientF', str: 'f'},
+        '-/p/clientB/entryNoID/': {clientID: 'clientB', str: 'b'},
+        '-/p/clientD/entryNoID/': {clientID: 'clientD', str: 'd'},
+      },
+      param: {startAtID: {clientID: 'clientC'}},
+      expectedValues: [{clientID: 'clientD'}, {clientID: 'clientF'}],
     },
     {
-      name: 'keystart+limit',
-      prefix: 'e1',
-      options: {
-        startAtID: {clientID: 'bas', id: ''},
-        limit: 1,
+      name: 'startAtID',
+      collectionName: 'entryID',
+      stored: {
+        '-/p/clientF/entryID/id/f': {clientID: 'clientF', id: 'f', str: 'f'},
+        '-/p/clientB/entryID/id/b': {clientID: 'clientB', id: 'b', str: 'b'},
+        '-/p/clientD/entryID/id/d': {clientID: 'clientD', id: 'd', str: 'd'},
       },
-      expected: [{clientID: 'baz', id: 'e'}],
-      expectError: undefined,
+      param: {startAtID: {clientID: 'clientC'}},
+      expectedValues: [
+        {clientID: 'clientD', id: 'd'},
+        {clientID: 'clientF', id: 'f'},
+      ],
+    },
+    {
+      name: 'startAtID with clientID and id',
+      collectionName: 'entryID',
+      stored: {
+        '-/p/clientF/entryID/id/f': {clientID: 'clientF', id: 'f', str: 'f'},
+        '-/p/clientB/entryID/id/b': {
+          clientID: 'clientB',
+          id: 'b',
+          str: 'b',
+        },
+        '-/p/clientD/entryID/id/d111': {
+          clientID: 'clientD',
+          id: 'd111',
+          str: 'd',
+        },
+        '-/p/clientD/entryID/id/d222': {
+          clientID: 'clientD',
+          id: 'd222',
+          str: 'd',
+        },
+        '-/p/clientD/entryID/id/d333': {
+          clientID: 'clientD',
+          id: 'd333',
+          str: 'd',
+        },
+      },
+      param: {startAtID: {clientID: 'clientD', id: 'd2'}},
+      expectedValues: [
+        {
+          clientID: 'clientD',
+          id: 'd222',
+        },
+        {
+          clientID: 'clientD',
+          id: 'd333',
+        },
+        {
+          clientID: 'clientF',
+          id: 'f',
+        },
+      ],
+    },
+
+    {
+      name: 'startAtID and limit',
+      collectionName: 'entryNoID',
+      stored: {
+        '-/p/clientF/entryNoID/': {clientID: 'clientF', str: 'f'},
+        '-/p/clientB/entryNoID/': {clientID: 'clientB', str: 'b'},
+        '-/p/clientD/entryNoID/': {clientID: 'clientD', str: 'd'},
+      },
+      param: {startAtID: {clientID: 'clientC'}, limit: 1},
+      expectedValues: [{clientID: 'clientD'}],
+    },
+    {
+      name: 'startAtID and limit',
+      collectionName: 'entryID',
+      stored: {
+        '-/p/clientF/entryID/id/f': {clientID: 'clientF', id: 'f', str: 'f'},
+        '-/p/clientB/entryID/id/b': {clientID: 'clientB', id: 'b', str: 'b'},
+        '-/p/clientD/entryID/id/d': {clientID: 'clientD', id: 'd', str: 'd'},
+      },
+      param: {startAtID: {clientID: 'clientC'}, limit: 1},
+      expectedValues: [{clientID: 'clientD', id: 'd'}],
+    },
+    {
+      name: 'startAtID with clientID and id and limit',
+      collectionName: 'entryID',
+      stored: {
+        '-/p/clientF/entryID/id/f': {clientID: 'clientF', id: 'f', str: 'f'},
+        '-/p/clientB/entryID/id/b': {
+          clientID: 'clientB',
+          id: 'b',
+          str: 'b',
+        },
+        '-/p/clientD/entryID/id/d111': {
+          clientID: 'clientD',
+          id: 'd111',
+          str: 'd',
+        },
+        '-/p/clientD/entryID/id/d222': {
+          clientID: 'clientD',
+          id: 'd222',
+          str: 'd',
+        },
+        '-/p/clientD/entryID/id/d333': {
+          clientID: 'clientD',
+          id: 'd333',
+          str: 'd',
+        },
+      },
+      param: {startAtID: {clientID: 'clientD', id: 'd2'}, limit: 2},
+      expectedValues: [
+        {
+          clientID: 'clientD',
+          id: 'd222',
+        },
+        {
+          clientID: 'clientD',
+          id: 'd333',
+        },
+      ],
     },
   ];
 
   for (const f of factories) {
     for (const c of cases) {
-      test(c.name, async () => {
+      test(`${c.name} using ${c.collectionName}`, async () => {
         const r = f(mutators);
+        const clientID = await r.clientID;
+        const {
+          collectionName,
+          stored,
+          param,
+          expectedValues,
+          expectedError,
+        }: Case = replaceClientID(c, '$CLIENT_ID', clientID);
 
-        for (const [clientID, id] of [
-          ['foo', 'a'],
-          ['bar', 'c'],
-          ['baz', 'e'],
-          ['baz', 'g'],
-        ] as const) {
+        for (const [key, val] of Object.entries(stored)) {
           await r.mutate.directWrite({
-            key: `-/p/${clientID}/e1/${id}`,
-            val: {clientID, id, str: `${clientID}-${id}-str`},
+            key,
+            val,
           });
         }
 
-        await r.mutate.directWrite({
-          key: `-/p/ignore/me`,
-          val: 'data that should be ignored',
-        });
-        await r.mutate.directWrite({
-          key: `-/p/foo`,
-          val: 'data that should be ignored',
-        });
-
-        let error = undefined;
-        let actual = undefined;
+        let error;
+        let actual;
         try {
-          actual = await r.query(tx => listIDsE1(tx, c.options));
+          if (collectionName === 'entryNoID') {
+            actual = await r.query(tx => listIDsEntryNoID(tx, param));
+          } else {
+            actual = await r.query(tx => listIDsEntryID(tx, param));
+          }
         } catch (e) {
           if (e instanceof ZodError) {
             error = e.format();
@@ -1113,8 +1837,193 @@ suite('listIDs', () => {
             error = e;
           }
         }
-        expect(error).deep.equal(c.expectError, c.name);
-        expect(actual).deep.equal(c.expected, c.name);
+        expect(error).toEqual(expectedError);
+        expect(actual).toEqual(expectedValues);
+      });
+    }
+  }
+});
+
+suite.only('listClientIDs', () => {
+  type Case = {
+    name: string;
+    collectionName: 'entryNoID' | 'entryID';
+    stored: Record<string, ReadonlyJSONValue>;
+    param:
+      | ListOptionsForPresence<EntryID>
+      | ListOptionsForPresence<EntryNoID>
+      | undefined;
+    expectedValues: ReadonlyJSONValue[] | undefined;
+    expectedError?: ReadonlyJSONValue;
+  };
+
+  const cases: Case[] = [
+    {
+      name: 'all',
+      collectionName: 'entryNoID',
+      stored: {
+        '-/p/clientF/entryNoID/': {clientID: 'clientF', str: 'f'},
+        '-/p/clientB/entryNoID/': {clientID: 'clientB', str: 'b'},
+        '-/p/clientD/entryNoID/': {clientID: 'clientD', str: 'd'},
+      },
+      param: undefined,
+      expectedValues: ['clientB', 'clientD', 'clientF'],
+    },
+
+    {
+      name: 'all',
+      collectionName: 'entryID',
+      stored: {
+        '-/p/clientF/entryID/id/f': {clientID: 'clientF', id: 'f', str: 'f'},
+        '-/p/clientB/entryID/id/b': {clientID: 'clientB', id: 'b', str: 'b'},
+        '-/p/clientD/entryID/id/d': {clientID: 'clientD', id: 'd', str: 'd'},
+      },
+      param: undefined,
+      expectedValues: ['clientB', 'clientD', 'clientF'],
+    },
+
+    {
+      name: 'startAtID',
+      collectionName: 'entryNoID',
+      stored: {
+        '-/p/clientF/entryNoID/': {clientID: 'clientF', str: 'f'},
+        '-/p/clientB/entryNoID/': {clientID: 'clientB', str: 'b'},
+        '-/p/clientD/entryNoID/': {clientID: 'clientD', str: 'd'},
+      },
+      param: {startAtID: {clientID: 'clientC'}},
+      expectedValues: ['clientD', 'clientF'],
+    },
+    {
+      name: 'startAtID',
+      collectionName: 'entryID',
+      stored: {
+        '-/p/clientF/entryID/id/f': {clientID: 'clientF', id: 'f', str: 'f'},
+        '-/p/clientB/entryID/id/b': {clientID: 'clientB', id: 'b', str: 'b'},
+        '-/p/clientD/entryID/id/d': {clientID: 'clientD', id: 'd', str: 'd'},
+      },
+      param: {startAtID: {clientID: 'clientC'}},
+      expectedValues: ['clientD', 'clientF'],
+    },
+    {
+      name: 'startAtID with clientID and id',
+      collectionName: 'entryID',
+      stored: {
+        '-/p/clientF/entryID/id/f': {clientID: 'clientF', id: 'f', str: 'f'},
+        '-/p/clientB/entryID/id/b': {
+          clientID: 'clientB',
+          id: 'b',
+          str: 'b',
+        },
+        '-/p/clientD/entryID/id/d111': {
+          clientID: 'clientD',
+          id: 'd111',
+          str: 'd',
+        },
+        '-/p/clientD/entryID/id/d222': {
+          clientID: 'clientD',
+          id: 'd222',
+          str: 'd',
+        },
+        '-/p/clientD/entryID/id/d333': {
+          clientID: 'clientD',
+          id: 'd333',
+          str: 'd',
+        },
+      },
+      param: {startAtID: {clientID: 'clientD', id: 'd2'}},
+      expectedValues: ['clientD', 'clientF'],
+    },
+
+    {
+      name: 'startAtID and limit',
+      collectionName: 'entryNoID',
+      stored: {
+        '-/p/clientF/entryNoID/': {clientID: 'clientF', str: 'f'},
+        '-/p/clientB/entryNoID/': {clientID: 'clientB', str: 'b'},
+        '-/p/clientD/entryNoID/': {clientID: 'clientD', str: 'd'},
+      },
+      param: {startAtID: {clientID: 'clientC'}, limit: 1},
+      expectedValues: ['clientD'],
+    },
+    {
+      name: 'startAtID and limit',
+      collectionName: 'entryID',
+      stored: {
+        '-/p/clientF/entryID/id/f': {clientID: 'clientF', id: 'f', str: 'f'},
+        '-/p/clientB/entryID/id/b': {clientID: 'clientB', id: 'b', str: 'b'},
+        '-/p/clientD/entryID/id/d': {clientID: 'clientD', id: 'd', str: 'd'},
+      },
+      param: {startAtID: {clientID: 'clientC'}, limit: 1},
+      expectedValues: ['clientD'],
+    },
+    {
+      name: 'startAtID with clientID and id and limit',
+      collectionName: 'entryID',
+      stored: {
+        '-/p/clientF/entryID/id/f': {clientID: 'clientF', id: 'f', str: 'f'},
+        '-/p/clientB/entryID/id/b': {
+          clientID: 'clientB',
+          id: 'b',
+          str: 'b',
+        },
+        '-/p/clientD/entryID/id/d111': {
+          clientID: 'clientD',
+          id: 'd111',
+          str: 'd',
+        },
+        '-/p/clientD/entryID/id/d222': {
+          clientID: 'clientD',
+          id: 'd222',
+          str: 'd',
+        },
+        '-/p/clientD/entryID/id/d333': {
+          clientID: 'clientD',
+          id: 'd333',
+          str: 'd',
+        },
+      },
+      param: {startAtID: {clientID: 'clientD', id: 'd2'}, limit: 2},
+      expectedValues: ['clientD', 'clientF'],
+    },
+  ];
+
+  for (const f of factories) {
+    for (const c of cases) {
+      test(`${c.name} using ${c.collectionName}`, async () => {
+        const r = f(mutators);
+        const clientID = await r.clientID;
+        const {
+          collectionName,
+          stored,
+          param,
+          expectedValues,
+          expectedError,
+        }: Case = replaceClientID(c, '$CLIENT_ID', clientID);
+
+        for (const [key, val] of Object.entries(stored)) {
+          await r.mutate.directWrite({
+            key,
+            val,
+          });
+        }
+
+        let error;
+        let actual;
+        try {
+          if (collectionName === 'entryNoID') {
+            actual = await r.query(tx => listClientIDsEntryNoID(tx, param));
+          } else {
+            actual = await r.query(tx => listClientIDsEntryID(tx, param));
+          }
+        } catch (e) {
+          if (e instanceof ZodError) {
+            error = e.format();
+          } else {
+            error = e;
+          }
+        }
+        expect(error).toEqual(expectedError);
+        expect(actual).toEqual(expectedValues);
       });
     }
   }
@@ -1123,101 +2032,267 @@ suite('listIDs', () => {
 suite('listEntries', () => {
   type Case = {
     name: string;
-    prefix: string;
-    schema: ZodTypeAny;
-    options?: ListOptionsWithLookupID<PresenceEntity> | undefined;
-    expected?: ReadonlyJSONObject[][] | undefined;
-    expectError?: ReadonlyJSONObject | undefined;
+    collectionName: 'entryNoID' | 'entryID';
+    stored: Record<string, ReadonlyJSONValue>;
+    param:
+      | ListOptionsForPresence<EntryID>
+      | ListOptionsForPresence<EntryNoID>
+      | undefined;
+    expectedValues: ReadonlyJSONValue[] | undefined;
+    expectedError?: ReadonlyJSONValue;
   };
 
   const cases: Case[] = [
     {
       name: 'all',
-      prefix: 'e1',
-      schema: e1,
-      expected: [
+      collectionName: 'entryNoID',
+      stored: {
+        '-/p/clientF/entryNoID/': {clientID: 'clientF', str: 'f'},
+        '-/p/clientB/entryNoID/': {clientID: 'clientB', str: 'b'},
+        '-/p/clientD/entryNoID/': {clientID: 'clientD', str: 'd'},
+      },
+      param: undefined,
+      expectedValues: [
+        [{clientID: 'clientB'}, {clientID: 'clientB', str: 'b'}],
+        [{clientID: 'clientD'}, {clientID: 'clientD', str: 'd'}],
+        [{clientID: 'clientF'}, {clientID: 'clientF', str: 'f'}],
+      ],
+    },
+
+    {
+      name: 'all',
+      collectionName: 'entryID',
+      stored: {
+        '-/p/clientF/entryID/id/f': {clientID: 'clientF', id: 'f', str: 'f'},
+        '-/p/clientB/entryID/id/b': {clientID: 'clientB', id: 'b', str: 'b'},
+        '-/p/clientD/entryID/id/d': {clientID: 'clientD', id: 'd', str: 'd'},
+      },
+      param: undefined,
+      expectedValues: [
         [
-          {clientID: 'bar', id: 'c'},
-          {clientID: 'bar', id: 'c', str: 'bar-c-str'},
+          {clientID: 'clientB', id: 'b'},
+          {clientID: 'clientB', id: 'b', str: 'b'},
         ],
         [
-          {clientID: 'baz', id: 'e'},
-          {clientID: 'baz', id: 'e', str: 'baz-e-str'},
+          {clientID: 'clientD', id: 'd'},
+          {clientID: 'clientD', id: 'd', str: 'd'},
         ],
         [
-          {clientID: 'baz', id: 'g'},
-          {clientID: 'baz', id: 'g', str: 'baz-g-str'},
-        ],
-        [
-          {clientID: 'foo', id: 'a'},
-          {clientID: 'foo', id: 'a', str: 'foo-a-str'},
+          {clientID: 'clientF', id: 'f'},
+          {clientID: 'clientF', id: 'f', str: 'f'},
         ],
       ],
-      expectError: undefined,
+    },
+
+    {
+      name: 'startAtID',
+      collectionName: 'entryNoID',
+      stored: {
+        '-/p/clientF/entryNoID/': {clientID: 'clientF', str: 'f'},
+        '-/p/clientB/entryNoID/': {clientID: 'clientB', str: 'b'},
+        '-/p/clientD/entryNoID/': {clientID: 'clientD', str: 'd'},
+      },
+      param: {startAtID: {clientID: 'clientC'}},
+      expectedValues: [
+        [{clientID: 'clientD'}, {clientID: 'clientD', str: 'd'}],
+        [{clientID: 'clientF'}, {clientID: 'clientF', str: 'f'}],
+      ],
     },
     {
-      name: 'keystart',
-      prefix: 'e1',
-      schema: e1,
-      options: {
-        startAtID: {clientID: 'f', id: ''},
+      name: 'startAtID',
+      collectionName: 'entryID',
+      stored: {
+        '-/p/clientF/entryID/id/f': {clientID: 'clientF', id: 'f', str: 'f'},
+        '-/p/clientB/entryID/id/b': {clientID: 'clientB', id: 'b', str: 'b'},
+        '-/p/clientD/entryID/id/d': {clientID: 'clientD', id: 'd', str: 'd'},
       },
-      expected: [
+      param: {startAtID: {clientID: 'clientC'}},
+      expectedValues: [
         [
-          {clientID: 'foo', id: 'a'},
-          {clientID: 'foo', id: 'a', str: 'foo-a-str'},
+          {clientID: 'clientD', id: 'd'},
+          {clientID: 'clientD', id: 'd', str: 'd'},
+        ],
+        [
+          {clientID: 'clientF', id: 'f'},
+          {clientID: 'clientF', id: 'f', str: 'f'},
         ],
       ],
-      expectError: undefined,
     },
     {
-      name: 'keystart+limit',
-      prefix: 'e1',
-      schema: e1,
-      options: {
-        startAtID: {clientID: 'bas', id: ''},
-        limit: 1,
+      name: 'startAtID with clientID and id',
+      collectionName: 'entryID',
+      stored: {
+        '-/p/clientF/entryID/id/f': {clientID: 'clientF', id: 'f', str: 'f'},
+        '-/p/clientB/entryID/id/b': {
+          clientID: 'clientB',
+          id: 'b',
+          str: 'b',
+        },
+        '-/p/clientD/entryID/id/d111': {
+          clientID: 'clientD',
+          id: 'd111',
+          str: 'd',
+        },
+        '-/p/clientD/entryID/id/d222': {
+          clientID: 'clientD',
+          id: 'd222',
+          str: 'd',
+        },
+        '-/p/clientD/entryID/id/d333': {
+          clientID: 'clientD',
+          id: 'd333',
+          str: 'd',
+        },
       },
-      expected: [
+      param: {startAtID: {clientID: 'clientD', id: 'd2'}},
+      expectedValues: [
         [
-          {clientID: 'baz', id: 'e'},
-          {clientID: 'baz', id: 'e', str: 'baz-e-str'},
+          {
+            clientID: 'clientD',
+            id: 'd222',
+          },
+          {
+            clientID: 'clientD',
+            id: 'd222',
+            str: 'd',
+          },
+        ],
+        [
+          {
+            clientID: 'clientD',
+            id: 'd333',
+          },
+          {
+            clientID: 'clientD',
+            id: 'd333',
+            str: 'd',
+          },
+        ],
+        [
+          {
+            clientID: 'clientF',
+            id: 'f',
+          },
+          {
+            clientID: 'clientF',
+            id: 'f',
+            str: 'f',
+          },
         ],
       ],
-      expectError: undefined,
+    },
+
+    {
+      name: 'startAtID and limit',
+      collectionName: 'entryNoID',
+      stored: {
+        '-/p/clientF/entryNoID/': {clientID: 'clientF', str: 'f'},
+        '-/p/clientB/entryNoID/': {clientID: 'clientB', str: 'b'},
+        '-/p/clientD/entryNoID/': {clientID: 'clientD', str: 'd'},
+      },
+      param: {startAtID: {clientID: 'clientC'}, limit: 1},
+      expectedValues: [
+        [{clientID: 'clientD'}, {clientID: 'clientD', str: 'd'}],
+      ],
+    },
+    {
+      name: 'startAtID and limit',
+      collectionName: 'entryID',
+      stored: {
+        '-/p/clientF/entryID/id/f': {clientID: 'clientF', id: 'f', str: 'f'},
+        '-/p/clientB/entryID/id/b': {clientID: 'clientB', id: 'b', str: 'b'},
+        '-/p/clientD/entryID/id/d': {clientID: 'clientD', id: 'd', str: 'd'},
+      },
+      param: {startAtID: {clientID: 'clientC'}, limit: 1},
+      expectedValues: [
+        [
+          {clientID: 'clientD', id: 'd'},
+          {clientID: 'clientD', id: 'd', str: 'd'},
+        ],
+      ],
+    },
+    {
+      name: 'startAtID with clientID and id and limit',
+      collectionName: 'entryID',
+      stored: {
+        '-/p/clientF/entryID/id/f': {clientID: 'clientF', id: 'f', str: 'f'},
+        '-/p/clientB/entryID/id/b': {
+          clientID: 'clientB',
+          id: 'b',
+          str: 'b',
+        },
+        '-/p/clientD/entryID/id/d111': {
+          clientID: 'clientD',
+          id: 'd111',
+          str: 'd',
+        },
+        '-/p/clientD/entryID/id/d222': {
+          clientID: 'clientD',
+          id: 'd222',
+          str: 'd',
+        },
+        '-/p/clientD/entryID/id/d333': {
+          clientID: 'clientD',
+          id: 'd333',
+          str: 'd',
+        },
+      },
+      param: {startAtID: {clientID: 'clientD', id: 'd2'}, limit: 2},
+      expectedValues: [
+        [
+          {
+            clientID: 'clientD',
+            id: 'd222',
+          },
+          {
+            clientID: 'clientD',
+            id: 'd222',
+            str: 'd',
+          },
+        ],
+        [
+          {
+            clientID: 'clientD',
+            id: 'd333',
+          },
+          {
+            clientID: 'clientD',
+            id: 'd333',
+            str: 'd',
+          },
+        ],
+      ],
     },
   ];
 
   for (const f of factories) {
     for (const c of cases) {
-      test(c.name, async () => {
+      test(`${c.name} using ${c.collectionName}`, async () => {
         const r = f(mutators);
+        const clientID = await r.clientID;
+        const {
+          collectionName,
+          stored,
+          param,
+          expectedValues,
+          expectedError,
+        }: Case = replaceClientID(c, '$CLIENT_ID', clientID);
 
-        for (const [clientID, id] of [
-          ['foo', 'a'],
-          ['bar', 'c'],
-          ['baz', 'e'],
-          ['baz', 'g'],
-        ] as const) {
+        for (const [key, val] of Object.entries(stored)) {
           await r.mutate.directWrite({
-            key: `-/p/${clientID}/e1/${id}`,
-            val: {clientID, id, str: `${clientID}-${id}-str`},
+            key,
+            val,
           });
         }
 
-        await r.mutate.directWrite({
-          key: `-/p/ignore/me`,
-          val: 'data that should be ignored',
-        });
-        await r.mutate.directWrite({
-          key: `-/p/foo`,
-          val: 'data that should be ignored',
-        });
-
-        let error = undefined;
-        let actual = undefined;
+        let error;
+        let actual;
         try {
-          actual = await r.query(tx => listEntriesE1(tx, c.options));
+          if (collectionName === 'entryNoID') {
+            actual = await r.query(tx => listEntriesEntryNoID(tx, param));
+          } else {
+            actual = await r.query(tx => listEntriesEntryID(tx, param));
+          }
         } catch (e) {
           if (e instanceof ZodError) {
             error = e.format();
@@ -1225,8 +2300,8 @@ suite('listEntries', () => {
             error = e;
           }
         }
-        expect(error).deep.equal(c.expectError, c.name);
-        expect(actual).deep.equal(c.expected, c.name);
+        expect(error).toEqual(expectedError);
+        expect(actual).toEqual(expectedValues);
       });
     }
   }
@@ -1274,14 +2349,18 @@ test('optionalLogger', async () => {
 
   for (const f of factories) {
     for (const c of cases) {
-      const {update: updateE1} = generatePresence(name, e1.parse, c.logger);
+      const {update: updateEntryNoID} = generatePresence(
+        name,
+        entryNoID.parse,
+        c.logger,
+      );
       output = undefined;
 
-      const r = f({updateE1});
+      const r = f({updateEntryNoID});
       const clientID = await r.clientID;
 
-      await r.mutate.updateE1({clientID, id: 'a', str: 'bar'});
-      expect(output, c.name).deep.equal(c.expected?.(clientID));
+      await r.mutate.updateEntryNoID({clientID, str: 'bar'});
+      expect(output, c.name).toEqual(c.expected?.(clientID));
     }
   }
 });
@@ -1294,7 +2373,7 @@ test('undefined parse', async () => {
   } as unknown as NodeJS.Process;
 
   const name = 'nnn';
-  const generated = generatePresence<E1>(name);
+  const generated = generatePresence<EntryNoID>(name);
   const {get, list, listIDs} = generated;
 
   const r = new Replicache({
@@ -1304,78 +2383,81 @@ test('undefined parse', async () => {
   });
   const clientID = await r.clientID;
 
-  let v = await r.query(tx => get(tx, {clientID, id: 'id1'}));
-  expect(v).eq(undefined);
+  let v = await r.query(tx => get(tx, {clientID}));
+  expect(v).toBe(undefined);
 
-  await r.mutate.set({clientID, id: 'id1', str: 'bar'});
+  await r.mutate.set({clientID, str: 'bar'});
   await r.mutate.set({
     clientID,
     id: 'id2',
     bonk: 'baz',
-  } as unknown as E1);
+  } as unknown as EntryNoID);
 
-  v = await r.query(tx => get(tx, {clientID, id: 'id1'}));
-  expect(v).deep.equal({clientID, id: 'id1', str: 'bar'});
-  v = await r.query(tx => get(tx, {clientID, id: 'id2'}));
-  expect(v).deep.equal({clientID, id: 'id2', bonk: 'baz'});
+  v = await r.query(tx => get(tx, {clientID}));
+  expect(v).toEqual({clientID, str: 'bar'});
+  v = await r.query(tx =>
+    get(tx, {clientID, id: 'id2'} as unknown as EntryNoID),
+  );
+  expect(v).toEqual({clientID, id: 'id2', bonk: 'baz'});
 
   const l = await r.query(tx => list(tx));
-  expect(l).deep.equal([
-    {clientID, id: 'id1', str: 'bar'},
+  expect(l).toEqual([
+    {clientID, str: 'bar'},
     {clientID, id: 'id2', bonk: 'baz'},
   ]);
 
   const l2 = await r.query(tx => listIDs(tx));
-  expect(l2).deep.equal([
-    {clientID, id: 'id1'},
-    {clientID, id: 'id2'},
-  ]);
+  expect(l2).toEqual([{clientID}, {clientID, id: 'id2'}]);
 });
 
 test('parse key', () => {
   const name = 'foo';
-  expect(parseKeyToID(name, '-/p/clientID1/foo/id1')).deep.equals({
+  expect(parseKeyToID(name, '-/p/clientID1/foo/id/id1')).toEqual({
     clientID: 'clientID1',
     id: 'id1',
   });
-  expect(parseKeyToID(name, '-/p/clientID1/bar/id1')).equals(undefined);
-  expect(parseKeyToID(name, '-/p/clientID1/foo/id1/')).equals(undefined);
-  expect(parseKeyToID(name, '-/p/clientID1/foo/id1/more')).equals(undefined);
-  expect(parseKeyToID(name, '-/p/clientID1/foo/')).deep.equals({
+  expect(parseKeyToID(name, '-/p/clientID1/foo/id/')).toEqual({
     clientID: 'clientID1',
     id: '',
   });
-  expect(parseKeyToID(name, '-/p/clientID1/foo')).equals(undefined);
-  expect(parseKeyToID(name, '-/p/clientID1/')).equals(undefined);
-  expect(parseKeyToID(name, '-/p/clientID1')).equals(undefined);
-  expect(parseKeyToID(name, '-/p/')).equals(undefined);
-  expect(parseKeyToID(name, '-/p')).equals(undefined);
-  expect(parseKeyToID(name, '-/')).equals(undefined);
-  expect(parseKeyToID(name, '-')).equals(undefined);
-  expect(parseKeyToID(name, '')).equals(undefined);
-  expect(parseKeyToID(name, 'baz')).equals(undefined);
+  expect(parseKeyToID(name, '-/p/clientID1/foo/')).toEqual({
+    clientID: 'clientID1',
+  });
+
+  expect(parseKeyToID(name, '-/p/clientID1')).toBe(undefined);
+  expect(parseKeyToID(name, '-/p/clientID1/')).toBe(undefined);
+  expect(parseKeyToID(name, '-/p/clientID1/xxx')).toBe(undefined);
+  expect(parseKeyToID(name, '-/p/clientID1/foo')).toBe(undefined);
+  expect(parseKeyToID(name, '-/p/clientID1/foo/id')).toBe(undefined);
+  expect(parseKeyToID(name, '-/p//')).toBe(undefined);
+  expect(parseKeyToID(name, '-/p/clientID1/foo/id/id1/')).toBe(undefined);
+  expect(parseKeyToID(name, '-/p/clientID1/foo/id//')).toBe(undefined);
+  expect(parseKeyToID(name, '-/p/')).toBe(undefined);
+  expect(parseKeyToID(name, '-/p')).toBe(undefined);
+  expect(parseKeyToID(name, '-/')).toBe(undefined);
+  expect(parseKeyToID(name, '-')).toBe(undefined);
+  expect(parseKeyToID(name, '')).toBe(undefined);
+  expect(parseKeyToID(name, 'mango')).toBe(undefined);
 });
 
 test('normalizeScanOptions', () => {
   expect(normalizeScanOptions(undefined)).undefined;
-  expect(normalizeScanOptions({})).deep.equal({
+  expect(normalizeScanOptions({})).toEqual({
     startAtID: undefined,
     limit: undefined,
   });
-  expect(normalizeScanOptions({limit: 123})).deep.equal({
+  expect(normalizeScanOptions({limit: 123})).toEqual({
     startAtID: undefined,
     limit: 123,
   });
-  expect(normalizeScanOptions({startAtID: {}})).deep.equal({
-    startAtID: {clientID: '', id: ''},
+  expect(
+    normalizeScanOptions<EntryID>({startAtID: {clientID: 'cid', id: 'a'}}),
+  ).toEqual({
+    startAtID: {clientID: 'cid', id: 'a'},
     limit: undefined,
   });
-  expect(normalizeScanOptions({startAtID: {id: 'a'}})).deep.equal({
-    startAtID: {clientID: '', id: 'a'},
-    limit: undefined,
-  });
-  expect(normalizeScanOptions({startAtID: {clientID: 'b'}})).deep.equal({
-    startAtID: {clientID: 'b', id: ''},
+  expect(normalizeScanOptions({startAtID: {clientID: 'b'}})).toEqual({
+    startAtID: {clientID: 'b'},
     limit: undefined,
   });
 });

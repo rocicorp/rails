@@ -445,6 +445,13 @@ suite('update', () => {
       expected: {id, str: 'baz', optStr: 'bar'},
       expectError: undefined,
     },
+    {
+      name: 'valid-update, no str',
+      prev: {id, str: 'foo', optStr: 'bar'},
+      update: {id},
+      expected: {id, str: 'foo', optStr: 'bar'},
+      expectError: undefined,
+    },
   ];
 
   for (const f of factories) {
