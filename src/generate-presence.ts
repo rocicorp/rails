@@ -135,7 +135,7 @@ export type GeneratePresenceResult<T extends PresenceEntity> = {
 const presencePrefix = '-/p/';
 
 export function keyFromID(name: string, entity: PresenceEntity) {
-  const {clientID, id} = entity as {clientID: string; id?: string};
+  const {clientID, id} = entity;
   if (id !== undefined) {
     return `${presencePrefix}${clientID}/${name}/id/${id}`;
   }
@@ -334,7 +334,7 @@ export function generatePresence<T extends PresenceEntity>(
         parseKeyToIDLocal,
         firstKey,
         tx,
-        normalizeScanOptions(options) as ListOptionsWith<ListID<T>>,
+        normalizeScanOptions(options),
       ),
     listClientIDs: (tx, options?) =>
       listClientIDsImpl(
@@ -342,7 +342,7 @@ export function generatePresence<T extends PresenceEntity>(
         parseKeyToIDLocal,
         firstKey,
         tx,
-        normalizeScanOptions(options) as ListOptionsWith<ListID<T>>,
+        normalizeScanOptions(options),
       ),
     listEntries: (tx, options?) =>
       listEntriesImpl(
