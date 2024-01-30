@@ -8,7 +8,9 @@ export type Entity = {
   id: string;
 };
 
-export type Update<Entity, T> = Entity & Partial<T>;
+export type Update<T> = Entity & Partial<T>;
+
+type UpdateWith<Entity, T> = Entity & Partial<T>;
 
 /**
  * A function that can parse a JSON value into a specific type.
@@ -83,7 +85,7 @@ export type GenerateResult<T extends Entity> = {
   /** Write `value` only if no previous version of this value exists. */
   init: (tx: WriteTransaction, value: T) => Promise<boolean>;
   /** Update existing value with new fields. */
-  update: (tx: WriteTransaction, value: Update<Entity, T>) => Promise<void>;
+  update: (tx: WriteTransaction, value: Update<T>) => Promise<void>;
   /** Delete any existing value or do nothing if none exist. */
   delete: (tx: WriteTransaction, id: string) => Promise<void>;
   /** Return true if specified value exists, false otherwise. */
@@ -118,7 +120,7 @@ export function generate<T extends Entity>(
   const keyToID = (key: string) => id(prefix, key);
   const idFromEntity: IDFromEntityFunc<Entity, string> = (_tx, entity) =>
     entity.id;
-  const firstKey = () => prefix;
+  const firstKey = () => key(prefix, '');
   const parseInternal: ParseInternal<T> = (_, val) => maybeParse(parse, val);
   const set: GenerateResult<T>['set'] = (tx, value) =>
     setImpl(keyFromEntity, parseInternal, tx, value);
@@ -131,6 +133,7 @@ export function generate<T extends Entity>(
       updateImpl(
         keyFromEntity,
         idFromEntity,
+        parseInternal,
         parseInternal,
         tx,
         update,
@@ -246,20 +249,21 @@ export async function updateImpl<
 >(
   keyFromEntity: KeyFromEntityFunc<Entity>,
   idFromEntity: IDFromEntityFunc<Entity, ID>,
-  parse: ParseInternal<T>,
+  parseExisting: ParseInternal<Entity>,
+  parseNew: ParseInternal<Entity>,
   tx: WriteTransaction,
-  update: Update<Entity, T>,
+  update: UpdateWith<Entity, T>,
   logger: OptionalLogger,
 ) {
   const k = keyFromEntity(tx, update);
-  const prev = await getInternal(parse, tx, k);
+  const prev = await getInternal(parseExisting, tx, k);
   if (prev === undefined) {
     const id = idFromEntity(tx, update);
     logger.debug?.(`no such entity ${JSON.stringify(id)}, skipping update`);
     return;
   }
   const next = {...prev, ...update};
-  const parsed = parse(tx, next);
+  const parsed = parseNew(tx, next);
   await tx.set(k, parsed);
 }
 
@@ -278,12 +282,12 @@ export type ListOptions = {
   limit?: number;
 };
 
-async function* scan<ID, LookupID>(
+export async function* scan<ID, LookupID>(
   keyFromLookupID: KeyFromLookupIDFunc<LookupID>,
   keyToID: KeyToIDFunc<ID>,
   firstKey: FirstKeyFunc,
   tx: ReadTransaction,
-  options?: ListOptionsWithLookupID<LookupID>,
+  options?: ListOptionsWith<LookupID>,
 ): AsyncIterable<Readonly<[ID, ReadonlyJSONValue]>> {
   const {startAtID, limit} = options ?? {};
   const fk = firstKey();
@@ -303,7 +307,7 @@ async function* scan<ID, LookupID>(
   }
 }
 
-export type ListOptionsWithLookupID<ID> = {
+export type ListOptionsWith<ID> = {
   startAtID?: ID;
   limit?: number;
 };
@@ -314,7 +318,7 @@ export async function listImpl<T extends ReadonlyJSONObject, ID>(
   firstKey: FirstKeyFunc,
   parse: Parse<T> | undefined,
   tx: ReadTransaction,
-  options?: ListOptionsWithLookupID<ID>,
+  options?: ListOptionsWith<ID>,
 ) {
   const result = [];
   for await (const [, v] of scan(keyFromID, keyToID, firstKey, tx, options)) {
@@ -328,7 +332,7 @@ export async function listIDsImpl<ID>(
   keyToID: KeyToIDFunc<ID>,
   firstKey: FirstKeyFunc,
   tx: ReadTransaction,
-  options?: ListOptionsWithLookupID<ID>,
+  options?: ListOptionsWith<ID>,
 ): Promise<ID[]> {
   const result: ID[] = [];
   for await (const [k] of scan(keyFromID, keyToID, firstKey, tx, options)) {
@@ -347,7 +351,7 @@ export async function listEntriesImpl<
   firstKey: FirstKeyFunc,
   parse: Parse<T> | undefined,
   tx: ReadTransaction,
-  options?: ListOptionsWithLookupID<LookupID>,
+  options?: ListOptionsWith<LookupID>,
 ): Promise<[ID, T][]> {
   const result: [ID, T][] = [];
   for await (const [k, v] of scan(keyFromID, keyToID, firstKey, tx, options)) {

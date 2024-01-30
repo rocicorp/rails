@@ -445,6 +445,13 @@ suite('update', () => {
       expected: {id, str: 'baz', optStr: 'bar'},
       expectError: undefined,
     },
+    {
+      name: 'valid-update, no str',
+      prev: {id, str: 'foo', optStr: 'bar'},
+      update: {id},
+      expected: {id, str: 'foo', optStr: 'bar'},
+      expectError: undefined,
+    },
   ];
 
   for (const f of factories) {
@@ -525,6 +532,7 @@ suite('list', () => {
     name: string;
     prefix: string;
     schema: ZodTypeAny;
+    stored: Record<string, ReadonlyJSONValue>;
     options?: ListOptions | undefined;
     expected?: ReadonlyJSONValue[] | undefined;
     expectError?: ReadonlyJSONValue | undefined;
@@ -535,6 +543,12 @@ suite('list', () => {
       name: 'all',
       prefix: 'e1',
       schema: e1,
+      stored: {
+        'e1-not-an-entity': 'not an entity',
+        'e1/foo': {id: 'foo', str: 'foostr'},
+        'e1/bar': {id: 'bar', str: 'barstr'},
+        'e1/baz': {id: 'baz', str: 'bazstr'},
+      },
       expected: [
         {id: 'bar', str: 'barstr'},
         {id: 'baz', str: 'bazstr'},
@@ -546,6 +560,12 @@ suite('list', () => {
       name: 'keystart',
       prefix: 'e1',
       schema: e1,
+      stored: {
+        'a': 'not an entity',
+        'e1/foo': {id: 'foo', str: 'foostr'},
+        'e1/bar': {id: 'bar', str: 'barstr'},
+        'e1/baz': {id: 'baz', str: 'bazstr'},
+      },
       options: {
         startAtID: 'f',
       },
@@ -556,6 +576,12 @@ suite('list', () => {
       name: 'keystart+limit',
       prefix: 'e1',
       schema: e1,
+      stored: {
+        'e1/foo': {id: 'foo', str: 'foostr'},
+        'e1/bar': {id: 'bar', str: 'barstr'},
+        'e1/baz': {id: 'baz', str: 'bazstr'},
+        'e11': 'not an entity',
+      },
       options: {
         startAtID: 'bas',
         limit: 1,
@@ -570,18 +596,9 @@ suite('list', () => {
       test(c.name, async () => {
         const r = f(mutators);
 
-        await r.mutate.directWrite({
-          key: `e1/foo`,
-          val: {id: 'foo', str: 'foostr'},
-        });
-        await r.mutate.directWrite({
-          key: `e1/bar`,
-          val: {id: 'bar', str: 'barstr'},
-        });
-        await r.mutate.directWrite({
-          key: `e1/baz`,
-          val: {id: 'baz', str: 'bazstr'},
-        });
+        for (const [key, val] of Object.entries(c.stored)) {
+          await r.mutate.directWrite({key, val});
+        }
 
         let error = undefined;
         let actual = undefined;

@@ -1,10 +1,11 @@
 export {
   generatePresence,
   type GeneratePresenceResult,
-  type ListOptionsForPresence,
-  type OptionalIDs,
+  type OptionalClientID,
   type PresenceEntity,
   type PresenceID,
+  type ListOptions as PresenceListOptions,
+  type Update as PresenceUpdate,
 } from './generate-presence.js';
 export {
   generate,
@@ -12,7 +13,6 @@ export {
   type Entity,
   type GenerateResult,
   type ListOptions,
-  type ListOptionsWithLookupID,
   type Parse,
   type ReadTransaction,
   type ScanOptions,

@@ -14,8 +14,10 @@
     "lint": "eslint --ext .ts,.tsx,.js,.jsx src/",
     "build": "tsc",
     "prepack": "npm run check-format && npm run lint && npm run test && npm run build",
-    "test": "vitest run --browser.provider=playwright --browser.name=chromium --browser.headless",
-    "test:watch": "vitest watch --browser.provider=playwright --browser.name=chromium --browser.headless"
+    "test": "vitest run",
+    "test:watch": "vitest watch",
+    "test-types": "vitest run --typecheck.only --no-browser.enabled",
+    "test-types:watch": "vitest watch --typecheck.only --no-browser.enabled"
   },
   "author": "",
   "license": "Apache-2.0",
@@ -30,12 +32,12 @@
     "@web/test-runner": "^0.18.0",
     "@web/test-runner-playwright": "^0.11.0",
     "nanoid": "^5.0.4",
-    "replicache": "14.0.3",
+    "replicache": "14.1.0",
     "typescript": "^5.3.3",
     "zod": "^3.22.4",
-    "@vitest/browser": "^1.2.1",
+    "@vitest/browser": "1.2.2",
     "playwright": "^1.41.1",
-    "vitest": "^1.2.1"
+    "vitest": "1.2.2"
   },
   "files": [
     "out/",
