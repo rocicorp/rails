@@ -32,12 +32,12 @@
     "@web/test-runner": "^0.18.0",
     "@web/test-runner-playwright": "^0.11.0",
     "nanoid": "^5.0.4",
-    "replicache": "14.0.3",
+    "replicache": "14.1.0",
     "typescript": "^5.3.3",
     "zod": "^3.22.4",
-    "@vitest/browser": "^1.2.1",
+    "@vitest/browser": "1.2.2",
     "playwright": "^1.41.1",
-    "vitest": "^1.2.1"
+    "vitest": "1.2.2"
   },
   "files": [
     "out/",
