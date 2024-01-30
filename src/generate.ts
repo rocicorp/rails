@@ -120,7 +120,7 @@ export function generate<T extends Entity>(
   const keyToID = (key: string) => id(prefix, key);
   const idFromEntity: IDFromEntityFunc<Entity, string> = (_tx, entity) =>
     entity.id;
-  const firstKey = () => prefix;
+  const firstKey = () => key(prefix, '');
   const parseInternal: ParseInternal<T> = (_, val) => maybeParse(parse, val);
   const set: GenerateResult<T>['set'] = (tx, value) =>
     setImpl(keyFromEntity, parseInternal, tx, value);
