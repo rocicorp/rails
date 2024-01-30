@@ -6,8 +6,8 @@ import {MutatorDefs, Replicache, TEST_LICENSE_KEY} from 'replicache';
 import {expect, suite, test} from 'vitest';
 import {ZodError, z} from 'zod';
 import {
-  ListOptions,
   PresenceEntity,
+  PresenceListOptions,
   generatePresence,
   keyFromID,
   normalizeScanOptions,
@@ -1405,7 +1405,10 @@ suite('list', () => {
     name: string;
     collectionName: 'entryNoID' | 'entryID';
     stored: Record<string, ReadonlyJSONValue>;
-    param: ListOptions<EntryID> | ListOptions<EntryNoID> | undefined;
+    param:
+      | PresenceListOptions<EntryID>
+      | PresenceListOptions<EntryNoID>
+      | undefined;
     expectedValues: ReadonlyJSONValue[] | undefined;
     expectedError?: ReadonlyJSONValue;
   };
@@ -1628,7 +1631,10 @@ suite('listIDs', () => {
     name: string;
     collectionName: 'entryNoID' | 'entryID';
     stored: Record<string, ReadonlyJSONValue>;
-    param: ListOptions<EntryID> | ListOptions<EntryNoID> | undefined;
+    param:
+      | PresenceListOptions<EntryID>
+      | PresenceListOptions<EntryNoID>
+      | undefined;
     expectedValues: ReadonlyJSONValue[] | undefined;
     expectedError?: ReadonlyJSONValue;
   };
@@ -1843,7 +1849,10 @@ suite('listClientIDs', () => {
     name: string;
     collectionName: 'entryNoID' | 'entryID';
     stored: Record<string, ReadonlyJSONValue>;
-    param: ListOptions<EntryID> | ListOptions<EntryNoID> | undefined;
+    param:
+      | PresenceListOptions<EntryID>
+      | PresenceListOptions<EntryNoID>
+      | undefined;
     expectedValues: ReadonlyJSONValue[] | undefined;
     expectedError?: ReadonlyJSONValue;
   };
@@ -2025,7 +2034,10 @@ suite('listEntries', () => {
     name: string;
     collectionName: 'entryNoID' | 'entryID';
     stored: Record<string, ReadonlyJSONValue>;
-    param: ListOptions<EntryID> | ListOptions<EntryNoID> | undefined;
+    param:
+      | PresenceListOptions<EntryID>
+      | PresenceListOptions<EntryNoID>
+      | undefined;
     expectedValues: ReadonlyJSONValue[] | undefined;
     expectedError?: ReadonlyJSONValue;
   };

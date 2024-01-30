@@ -73,12 +73,12 @@ export type OptionalClientID<T extends PresenceEntity> = {
   clientID?: string | undefined;
 } & Omit<T, 'clientID'>;
 
-export type ListOptions<T extends PresenceEntity> = {
+export type PresenceListOptions<T extends PresenceEntity> = {
   startAtID?: StartAtID<T>;
   limit?: number;
 };
 
-export type Update<T extends PresenceEntity> =
+export type PresenceUpdate<T extends PresenceEntity> =
   IsIDMissing<T> extends false ? Pick<T, 'id'> & Partial<T> : Partial<T>;
 
 export type GeneratePresenceResult<T extends PresenceEntity> = {
@@ -92,7 +92,7 @@ export type GeneratePresenceResult<T extends PresenceEntity> = {
   /** Write `value` only if no previous version of this value exists. */
   init: (tx: WriteTransaction, value: OptionalClientID<T>) => Promise<boolean>;
   /** Update existing value with new fields. */
-  update: (tx: WriteTransaction, value: Update<T>) => Promise<void>;
+  update: (tx: WriteTransaction, value: PresenceUpdate<T>) => Promise<void>;
   /** Delete any existing value or do nothing if none exist. */
   delete: (tx: WriteTransaction, id?: PresenceID<T>) => Promise<void>;
   /** Return true if specified value exists, false otherwise. */
@@ -102,30 +102,30 @@ export type GeneratePresenceResult<T extends PresenceEntity> = {
   /** Get value by ID, or throw if none exists. */
   mustGet: (tx: ReadTransaction, id?: PresenceID<T>) => Promise<T>;
   /** List values matching criteria. */
-  list: (tx: ReadTransaction, options?: ListOptions<T>) => Promise<T[]>;
+  list: (tx: ReadTransaction, options?: PresenceListOptions<T>) => Promise<T[]>;
 
   /**
-   * List ids matching criteria. Here the id is `{clientID: string}` if the
+   * List IDs matching criteria. The returned ID is `{clientID: string}` if the
    * entry has no `id` field, otherwise it is `{clientID: string, id: string}`.
    */
   listIDs: (
     tx: ReadTransaction,
-    options?: ListOptions<T>,
+    options?: PresenceListOptions<T>,
   ) => Promise<ListID<T>[]>;
 
   /**
-   * List clientIDs matching criteria. Unlike listIDs this returns an array of strings
-   * consisting of the clientIDs
+   * List `clientID`s matching criteria. Unlike `listIDs` this returns an array
+   * of strings consisting of the `clientID`s.
    */
   listClientIDs: (
     tx: ReadTransaction,
-    options?: ListOptions<T>,
+    options?: PresenceListOptions<T>,
   ) => Promise<string[]>;
 
   /** List [id, value] entries matching criteria. */
   listEntries: (
     tx: ReadTransaction,
-    options?: ListOptions<T>,
+    options?: PresenceListOptions<T>,
   ) => Promise<[ListID<T>, T][]>;
 };
 
@@ -197,8 +197,8 @@ function normalizePresenceID<T extends PresenceEntity>(
 
 function normalizeForUpdate<T extends PresenceEntity>(
   tx: {clientID: string},
-  v: Update<T>,
-): Update<T> & {clientID: string} {
+  v: PresenceUpdate<T>,
+): PresenceUpdate<T> & {clientID: string} {
   return normalizeForSet(tx, v);
 }
 
@@ -222,7 +222,7 @@ function normalizeForSet<
 }
 
 export function normalizeScanOptions<T extends PresenceEntity>(
-  options?: ListOptions<T>,
+  options?: PresenceListOptions<T>,
 ): ListOptionsWith<ListID<T>> | undefined {
   if (!options) {
     return options;

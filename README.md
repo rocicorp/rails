@@ -185,12 +185,11 @@ type PresenceEntity = {
 ### Generate Presence State Helpers
 
 The function `generatePresence` is similar to the `generate` function but it
-generates functions that are to be used with presences state.
+generates functions that are to be used with presence state.
 
 ```ts
 type Cursor {
   clientID: string;
-  id: '',
   x: number;
   y: number;
 };
@@ -202,26 +201,36 @@ const {
 } = generatePresence<Cursor>('cursor');
 ```
 
+For presence entities there are two common cases:
+
+1. The entity does not have an `id` field. Then there can only be one entity per
+   client. This case is useful for keeping track of things like the cursor
+   position.
+2. The entity has an `id` field. Then there can be multiple entities per client.
+   This case is useful for keeping track of things like multiple selection or
+   multiple cursors (aka multi touch).
+
 ### Lookup Presence State
 
-Both the clientID and the id are significant when reading presence state. However,
-for convenience, you can omit the `clientID` and it will default to the current
-client ID. You can also omit the `id` and it will default to `''`.
+The `clientID` field (and `id` if used) is significant when reading presence
+state. However, for convenience, you can omit the `clientID` and it will default
+to the `clientID` of current client. You may not omit the `id` if your entity
+type requires an `id` field. When reading presence state you may also omit the
+lookup argument completely.
 
 ### Mutating Presence State
 
 When writing you may only change the presence state entities for the current
-client. If you pass in a `clientID` that is different from the current client ID
-a runtime error will be thrown.
+client. If you pass in a `clientID` that is different from the `clientID` of the
+current client a runtime error will be thrown.
 
-When writing you may also omit the `clientID` and the `id` and they will default
-to the current client ID and `''` respectively.
+When writing you may also omit the `clientID` it will default to the `clientID`
+of the current client.
 
 ```ts
 await setCursor(tx, {x: 10, y: 20});
-expect(await getCursor(tx, {})).toEqual({
+expect(await getCursor(tx)).toEqual({
   clientID: tx.clientID,
-  id: '',
   x: 10,
   y: 20,
 });
@@ -229,43 +238,49 @@ expect(await getCursor(tx, {})).toEqual({
 
 ## Reference for Presence State
 
-### `set: (tx: WriteTransaction, value: OptionalIDs<T>) => Promise<void>`
+### `set: (tx: WriteTransaction, value: OptionalClientID<T>) => Promise<void>`
 
 Write `value`, overwriting any previous version of same value.
 
-### `init: (tx: WriteTransaction, value: OptionalIDs<T>) => Promise<boolean>`
+### `init: (tx: WriteTransaction, value: OptionalClientID<T>) => Promise<boolean>`
 
 Write `value` only if no previous version of this value exists.
 
-### `update: (tx: WriteTransaction, value: Update<LookupID, T>) => Promise<void>`
+### `update: (tx: WriteTransaction, value: PresenceUpdate<T>) => Promise<void>`
 
 Update existing value with new fields.
 
-### `delete: (tx: WriteTransaction, id?: LookupID) => Promise<void>`
+### `delete: (tx: WriteTransaction, id?: PresenceID<T>) => Promise<void>`
 
 Delete any existing value or do nothing if none exist.
 
-### `has: (tx: ReadTransaction, id?: LookupID) => Promise<boolean>`
+### `has: (tx: ReadTransaction, id?: PresenceID<T>) => Promise<boolean>`
 
 Return true if specified value exists, false otherwise.
 
-### `get: (tx: ReadTransaction, id?: LookupID) => Promise<T | undefined>`
+### `get: (tx: ReadTransaction, id?: PresenceID<T>) => Promise<T | undefined>`
 
 Get value by ID, or return undefined if none exists.
 
-### `mustGet: (tx: ReadTransaction, id?: LookupID) => Promise<T>`
+### `mustGet: (tx: ReadTransaction, id?: PresenceID<T>) => Promise<T>`
 
 Get value by ID, or throw if none exists.
 
-### `list: (tx: ReadTransaction, options?: ListOptionsForPresence) => Promise<T[]>`
+### `list: (tx: ReadTransaction, options?: PresenceListOptions<T>) => Promise<T[]>`
 
 List values matching criteria.
 
-### `listIDs: (tx: ReadTransaction, options?: ListOptionsForPresence) => Promise<PresenceEntity[]>`
+### `listIDs: (tx: ReadTransaction, options?: PresenceListOptions<T>) => Promise<ListID<T>[]>`
 
-List ids matching criteria.
+List IDs matching criteria. The returned ID is `{clientID: string}` if the entry
+has no `id` field, otherwise it is `{clientID: string, id: string}`.
 
-### `listEntries: (tx: ReadTransaction, options?: ListOptionsForPresence) => Promise<[PresenceEntity, T][]>`
+### `listClientIDs: (tx: ReadTransaction, options?: PresenceListOptions<T>) => Promise<string[]>`
+
+List `clientID`s matching criteria. Unlike `listIDs` this returns an array of
+strings consisting of the `clientID`s.
+
+### `listEntries: (tx: ReadTransaction, options?: PresenceListOptions<T>) => Promise<[ListID<T>, T][]>`
 
 List [id, value] entries matching criteria.
 
