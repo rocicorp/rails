@@ -3,7 +3,6 @@ export type MaterializeOptions = {
   limit?: number;
   name?: string;
 };
-export type EffectOptions = MaterializeOptions;
 
 /**
  * A stream of "difference events" or "change events" to the database.
@@ -24,5 +23,5 @@ export interface IDifferenceStream<T> {
   filter<S extends T>(f: (x: T) => x is S): IDifferenceStream<S>;
   filter(f: (x: T) => boolean): IDifferenceStream<T>;
   linearCount(): IDifferenceStream<number>;
-  effect(f: (i: T) => void, options: EffectOptions): IDifferenceStream<T>;
+  effect(f: (i: T) => void): IDifferenceStream<T>;
 }
