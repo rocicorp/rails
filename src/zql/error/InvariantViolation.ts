@@ -5,3 +5,11 @@ export function invariant(p: boolean, msg: string) {
     throw new InvariantViolation(msg);
   }
 }
+
+export function nullthrows<T>(x: T | null, msg?: string): T {
+  if (x === null) {
+    throw new InvariantViolation(msg);
+  }
+
+  return x;
+}
