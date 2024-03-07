@@ -23,12 +23,12 @@ test('query types', () => {
   expectTypeOf(q.select).toBeCallableWith('str', 'optStr');
 
   expectTypeOf(
-    q.select('id', 'str').prepare().materialize().asJS(),
+    q.select('id', 'str').prepare().materialize().value,
   ).toMatchTypeOf<readonly {id: string; str: string}[]>();
-  expectTypeOf(q.select('id').prepare().materialize().asJS()).toMatchTypeOf<
+  expectTypeOf(q.select('id').prepare().materialize().value).toMatchTypeOf<
     readonly {id: string}[]
   >();
-  expectTypeOf(q.select('optStr').prepare().materialize().asJS()).toMatchTypeOf<
+  expectTypeOf(q.select('optStr').prepare().materialize().value).toMatchTypeOf<
     readonly {optStr?: string}[]
   >();
 
@@ -40,8 +40,7 @@ test('query types', () => {
       .limit(1)
       .asc('id')
       .prepare()
-      .materialize()
-      .asJS(),
+      .materialize().value,
   ).toMatchTypeOf<readonly {id: string; str: string}[]>();
 
   expectTypeOf(q.where).toBeCallableWith('id', '=', 'foo');
@@ -54,9 +53,7 @@ test('query types', () => {
   // @ts-expect-error - comparing with the wrong data type for the value is an error
   q.where('id', '=', 1);
 
-  expectTypeOf(
-    q.count().prepare().materialize().asJS(),
-  ).toMatchTypeOf<number>();
+  expectTypeOf(q.count().prepare().materialize().value).toMatchTypeOf<number>();
 });
 
 const e1 = z.object({
