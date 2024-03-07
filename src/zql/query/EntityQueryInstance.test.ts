@@ -125,6 +125,7 @@ test('ast: where', () => {
 
   expect({...q._ast, alias: 0}).toEqual({
     alias: 0,
+    table: 'e1',
     where: [
       {
         field: 'id',
@@ -142,6 +143,7 @@ test('ast: where', () => {
 
   expect({...q._ast, alias: 0}).toEqual({
     alias: 0,
+    table: 'e1',
     where: [
       {
         field: 'id',
@@ -168,6 +170,7 @@ test('ast: limit', () => {
   const q = new QueryInstance<{fields: E1}>('e1');
   expect({...q.limit(10)._ast, alias: 0}).toEqual({
     alias: 0,
+    table: 'e1',
     limit: 10,
   });
 });
@@ -183,14 +186,17 @@ test('ast: asc/desc', () => {
   // order methods update the ast
   expect({...q.asc('id')._ast, alias: 0}).toEqual({
     alias: 0,
+    table: 'e1',
     orderBy: [['id'], 'asc'],
   });
   expect({...q.desc('id')._ast, alias: 0}).toEqual({
     alias: 0,
+    table: 'e1',
     orderBy: [['id'], 'desc'],
   });
   expect({...q.asc('id', 'a', 'b', 'c', 'd')._ast, alias: 0}).toEqual({
     alias: 0,
+    table: 'e1',
     orderBy: [['id', 'a', 'b', 'c', 'd'], 'asc'],
   });
 });

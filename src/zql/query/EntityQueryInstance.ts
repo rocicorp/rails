@@ -2,12 +2,11 @@
 import {Misuse} from '../error/Misuse.js';
 import {EntitySchema} from '../schema/EntitySchema.js';
 import {
-  MakeHumanReadable,
   QueryInstanceType,
-  IStatement,
   Selectable,
   SelectedFields,
 } from './EntityQueryType.js';
+import {Statement} from './Statement.js';
 import {AST, Operator, Primitive} from './ZqlAst.js';
 
 let aliasCount = 0;
@@ -115,14 +114,5 @@ export class QueryInstance<S extends EntitySchema, TReturn = []>
   prepare() {
     // TODO: build the IVM pipeline
     return new Statement<TReturn>();
-  }
-}
-
-class Statement<TReturn> implements IStatement<TReturn> {
-  constructor() {}
-
-  run(): MakeHumanReadable<TReturn> {
-    // TODO run the query!
-    return {} as TReturn;
   }
 }
