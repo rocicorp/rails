@@ -1,4 +1,11 @@
+import {DifferenceStream} from '../graph/DifferenceStream.js';
 import {Version} from '../types.js';
+
+export interface ISource<T> {
+  readonly stream: DifferenceStream<T>;
+  add(value: T): this;
+  delete(value: T): this;
+}
 
 export interface ISourceInternal {
   // Add values to queues

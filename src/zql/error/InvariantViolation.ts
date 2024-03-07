@@ -6,8 +6,8 @@ export function invariant(p: boolean, msg: string) {
   }
 }
 
-export function nullthrows<T>(x: T | null, msg?: string): T {
-  if (x === null) {
+export function nullthrows<T>(x: T | null | undefined, msg?: string): T {
+  if (x === null || x === undefined) {
     throw new InvariantViolation(msg);
   }
 

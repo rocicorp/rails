@@ -24,8 +24,8 @@ export type AST = {
   readonly after?: Primitive;
 };
 
-type Conjunction = 'AND' | 'OR' | 'NOT' | 'EXISTS';
-type ConditionList = (Conjunction | Condition)[];
+type Conjunction = 'AND' | 'OR' | 'NOT'; //| 'EXISTS';
+export type ConditionList = (Conjunction | Condition)[];
 type Condition =
   | ConditionList
   | {

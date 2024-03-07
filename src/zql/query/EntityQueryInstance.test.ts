@@ -12,7 +12,7 @@ test('query types', () => {
 
   type E1 = z.infer<typeof e1>;
 
-  const q = new QueryInstance<{fields: E1}>();
+  const q = new QueryInstance<{fields: E1}>('e1');
 
   // @ts-expect-error - selecting fields that do not exist in the schema is a type error
   q.select('does-not-exist');
@@ -72,7 +72,7 @@ const dummyObject: E1 = {
 };
 
 test('ast: select', () => {
-  const q = new QueryInstance<{fields: E1}>();
+  const q = new QueryInstance<{fields: E1}>('e1');
 
   // each individual field is selectable on its own
   Object.keys(dummyObject).forEach(k => {
@@ -105,20 +105,20 @@ test('ast: select', () => {
 test('ast: count', () => {
   // Cannot select fields in addition to a count.
   // A query is one or the other: count query or selection query.
-  expect(() => new QueryInstance<{fields: E1}>().select('id').count()).toThrow(
-    Misuse,
-  );
-  expect(() => new QueryInstance<{fields: E1}>().count().select('id')).toThrow(
-    Misuse,
-  );
+  expect(() =>
+    new QueryInstance<{fields: E1}>('e1').select('id').count(),
+  ).toThrow(Misuse);
+  expect(() =>
+    new QueryInstance<{fields: E1}>('e1').count().select('id'),
+  ).toThrow(Misuse);
 
   // selection set is the literal `count`, not an array of fields
-  const q = new QueryInstance<{fields: E1}>().count();
+  const q = new QueryInstance<{fields: E1}>('e1').count();
   expect(q._ast.select).toEqual('count');
 });
 
 test('ast: where', () => {
-  let q = new QueryInstance<{fields: E1}>();
+  let q = new QueryInstance<{fields: E1}>('e1');
 
   // where is applied
   q = q.where('id', '=', 'a');
@@ -165,7 +165,7 @@ test('ast: where', () => {
 });
 
 test('ast: limit', () => {
-  const q = new QueryInstance<{fields: E1}>();
+  const q = new QueryInstance<{fields: E1}>('e1');
   expect({...q.limit(10)._ast, alias: 0}).toEqual({
     alias: 0,
     limit: 10,
@@ -174,7 +174,7 @@ test('ast: limit', () => {
 
 test('ast: asc/desc', () => {
   // can only order once
-  const q = new QueryInstance<{fields: E1}>();
+  const q = new QueryInstance<{fields: E1}>('e1');
   expect(() => q.asc('id').desc('id')).toThrow(Misuse);
   expect(() => q.asc('id').asc('id')).toThrow(Misuse);
   expect(() => q.desc('id').desc('id')).toThrow(Misuse);
@@ -196,7 +196,7 @@ test('ast: asc/desc', () => {
 });
 
 test('ast: independent of method call order', () => {
-  const base = new QueryInstance<{fields: E1}>();
+  const base = new QueryInstance<{fields: E1}>('e1');
 
   const calls = {
     select(q: typeof base) {

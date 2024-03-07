@@ -15,12 +15,15 @@ let aliasCount = 0;
 export class QueryInstance<S extends EntitySchema, TReturn = []>
   implements QueryInstanceType<S, TReturn>
 {
-  #ast: AST;
+  readonly #ast: AST;
+  readonly #name: string;
 
-  constructor(ast?: AST) {
+  constructor(tableName: string, ast?: AST) {
     this.#ast = ast ?? {
+      table: tableName,
       alias: aliasCount++,
     };
+    this.#name = tableName;
   }
 
   select<Fields extends Selectable<S>[]>(...x: Fields) {
@@ -30,10 +33,13 @@ export class QueryInstance<S extends EntitySchema, TReturn = []>
       );
     }
 
-    return new QueryInstance<S, SelectedFields<S['fields'], Fields>[]>({
-      ...this.#ast,
-      select: [...new Set([...(this.#ast.select || []), ...x])] as any,
-    });
+    return new QueryInstance<S, SelectedFields<S['fields'], Fields>[]>(
+      this.#name,
+      {
+        ...this.#ast,
+        select: [...new Set([...(this.#ast.select || []), ...x])] as any,
+      },
+    );
   }
 
   where<K extends keyof S['fields']>(
@@ -41,7 +47,7 @@ export class QueryInstance<S extends EntitySchema, TReturn = []>
     op: Operator,
     value: S['fields'][K],
   ) {
-    return new QueryInstance<S, TReturn>({
+    return new QueryInstance<S, TReturn>(this.#name, {
       ...this.#ast,
       where: [
         ...(this.#ast.where !== undefined
@@ -64,7 +70,7 @@ export class QueryInstance<S extends EntitySchema, TReturn = []>
       throw new Misuse('Limit already set');
     }
 
-    return new QueryInstance<S, TReturn>({...this.#ast, limit: n});
+    return new QueryInstance<S, TReturn>(this.#name, {...this.#ast, limit: n});
   }
 
   asc(...x: (keyof S['fields'])[]) {
@@ -72,7 +78,7 @@ export class QueryInstance<S extends EntitySchema, TReturn = []>
       throw new Misuse('OrderBy already set');
     }
 
-    return new QueryInstance<S, TReturn>({
+    return new QueryInstance<S, TReturn>(this.#name, {
       ...this.#ast,
       orderBy: [x as string[], 'asc'],
     });
@@ -83,7 +89,7 @@ export class QueryInstance<S extends EntitySchema, TReturn = []>
       throw new Misuse('OrderBy already set');
     }
 
-    return new QueryInstance<S, TReturn>({
+    return new QueryInstance<S, TReturn>(this.#name, {
       ...this.#ast,
       orderBy: [x as string[], 'desc'],
     });
@@ -95,7 +101,7 @@ export class QueryInstance<S extends EntitySchema, TReturn = []>
         'Selection set already set. Will not change to a count query.',
       );
     }
-    return new QueryInstance<S, number>({
+    return new QueryInstance<S, number>(this.#name, {
       ...this.#ast,
       select: 'count',
     });
