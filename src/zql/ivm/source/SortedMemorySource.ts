@@ -1,6 +1,7 @@
 /**
- * Ingests data.
- * Keeps it in sorted order in-memory.
+ * A source that remembers what values it contains.
  *
- * Exposes a difference stream for deriving computations.
+ * This allows pipelines that are created after a source already
+ * exists to be able to receive historical data.
+ *
  */

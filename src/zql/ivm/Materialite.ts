@@ -1,4 +1,5 @@
 import {ISourceInternal} from './source/ISource.js';
+import {StatelessSource} from './source/StatelessSource.js';
 import {Version} from './types.js';
 
 export type MaterialiteForSourceInternal = {
@@ -28,6 +29,10 @@ export class Materialite {
         }
       },
     };
+  }
+
+  newStatelessSource<T>() {
+    return new StatelessSource<T>(this.#internal);
   }
 
   /**
