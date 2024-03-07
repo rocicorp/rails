@@ -32,14 +32,19 @@ export class DifferenceStreamReader<T = unknown> {
     this.#operator = operator;
   }
 
-  notify(v: Version) {
+  run(v: Version) {
     this.#lastSeenVersion = v;
     nullthrows(this.#operator, 'reader is missing operator').run(v);
   }
 
+  notify(v: Version) {
+    invariant(v === this.#lastSeenVersion, 'notify called out of order');
+    nullthrows(this.#operator, 'reader is missing operator').notify(v);
+  }
+
   notifyCommitted(v: Version) {
-    // If we did not process this version in this oeprator
-    // then we should not pass notifications down this path.
+    // If we did not process this version
+    // then we should not pass commit notifications down this path.
     if (v !== this.#lastSeenVersion) {
       return;
     }

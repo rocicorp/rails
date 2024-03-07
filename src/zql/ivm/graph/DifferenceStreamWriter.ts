@@ -43,6 +43,9 @@ abstract class AbstractDifferenceStreamWriter<T> {
    */
   notify(version: Version) {
     for (const r of this.readers) {
+      r.run(version);
+    }
+    for (const r of this.readers) {
       r.notify(version);
     }
   }

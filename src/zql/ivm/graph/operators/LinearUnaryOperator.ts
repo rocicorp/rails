@@ -14,7 +14,6 @@ export class LinearUnaryOperator<I, O> extends UnaryOperator<I, O> {
       for (const collection of this.inputMessages(v)) {
         this._output.queueData([v, f(collection)]);
       }
-      this._output.notify(v);
     };
     super(input, output, inner);
   }

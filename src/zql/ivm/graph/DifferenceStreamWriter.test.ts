@@ -11,6 +11,7 @@ test('notify readers', () => {
       run() {
         notifications[i] = true;
       },
+      notify() {},
       notifyCommitted() {},
     });
   });
@@ -28,6 +29,7 @@ test('notify committed readers', () => {
   readers.forEach((r, i) => {
     r.setOperator({
       run() {},
+      notify() {},
       notifyCommitted() {
         notifications[i] = true;
       },
