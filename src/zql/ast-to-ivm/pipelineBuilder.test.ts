@@ -1,7 +1,7 @@
 import {expect, test} from 'vitest';
 import {Materialite} from '../ivm/Materialite.js';
 import {z} from 'zod';
-import {QueryInstance} from '../query/EntityQueryInstance.js';
+import {EntityQuery} from '../query/EntityQuery.js';
 import {buildPipeline} from './pipelineBuilder.js';
 import {makeTestContext} from '../query/context/contextProvider.js';
 
@@ -16,7 +16,7 @@ type E1 = z.infer<typeof e1>;
 
 const context = makeTestContext();
 test('A simple select', () => {
-  const q = new QueryInstance<{fields: E1}>(context, 'e1');
+  const q = new EntityQuery<{fields: E1}>(context, 'e1');
   const m = new Materialite();
   let s = m.newStatelessSource();
   let pipeline = buildPipeline(
@@ -55,7 +55,7 @@ test('A simple select', () => {
 });
 
 test('Count', () => {
-  const q = new QueryInstance<{fields: E1}>(context, 'e1');
+  const q = new EntityQuery<{fields: E1}>(context, 'e1');
   const m = new Materialite();
   const s = m.newStatelessSource();
   const pipeline = buildPipeline(() => s.stream, q.count()._ast);
@@ -74,7 +74,7 @@ test('Count', () => {
 });
 
 test('Where', () => {
-  const q = new QueryInstance<{fields: E1}>(context, 'e1');
+  const q = new EntityQuery<{fields: E1}>(context, 'e1');
   const m = new Materialite();
   const s = m.newStatelessSource();
   const pipeline = buildPipeline(

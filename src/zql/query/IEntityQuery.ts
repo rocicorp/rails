@@ -15,23 +15,23 @@ export type MakeHumanReadable<T> = {} & {
   readonly [P in keyof T]: T[P] extends string ? T[P] : MakeHumanReadable<T[P]>;
 };
 
-export interface QueryInstanceType<TSchema extends EntitySchema, TReturn = []> {
+export interface IEntityQuery<TSchema extends EntitySchema, TReturn = []> {
   readonly select: <Fields extends Selectable<TSchema>[]>(
     ...x: Fields
-  ) => QueryInstanceType<TSchema, SelectedFields<TSchema['fields'], Fields>[]>;
-  readonly count: () => QueryInstanceType<TSchema, number>;
+  ) => IEntityQuery<TSchema, SelectedFields<TSchema['fields'], Fields>[]>;
+  readonly count: () => IEntityQuery<TSchema, number>;
   readonly where: <K extends keyof TSchema['fields']>(
     f: K,
     op: Operator,
     value: TSchema['fields'][K],
-  ) => QueryInstanceType<TSchema, TReturn>;
-  readonly limit: (n: number) => QueryInstanceType<TSchema, TReturn>;
+  ) => IEntityQuery<TSchema, TReturn>;
+  readonly limit: (n: number) => IEntityQuery<TSchema, TReturn>;
   readonly asc: (
     ...x: (keyof TSchema['fields'])[]
-  ) => QueryInstanceType<TSchema, TReturn>;
+  ) => IEntityQuery<TSchema, TReturn>;
   readonly desc: (
     ...x: (keyof TSchema['fields'])[]
-  ) => QueryInstanceType<TSchema, TReturn>;
+  ) => IEntityQuery<TSchema, TReturn>;
   // eslint-disable-next-line @typescript-eslint/naming-convention
   readonly _ast: AST;
 

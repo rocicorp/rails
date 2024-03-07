@@ -2,7 +2,7 @@ import {buildPipeline} from '../ast-to-ivm/pipelineBuilder.js';
 import {IView} from '../ivm/view/IView.js';
 import {PersistentTreeView} from '../ivm/view/PersistentTreeView.js';
 import {EntitySchema} from '../schema/EntitySchema.js';
-import {MakeHumanReadable, QueryInstanceType} from './EntityQueryType.js';
+import {MakeHumanReadable, IEntityQuery} from './IEntityQuery.js';
 import {Context} from './context/contextProvider.js';
 
 export interface IStatement<TReturn> {
@@ -17,7 +17,7 @@ export class Statement<TSchema extends EntitySchema, TReturn>
   readonly #ast;
   #materialization: IView<MakeHumanReadable<TReturn>> | null = null;
 
-  constructor(c: Context, q: QueryInstanceType<TSchema, TReturn>) {
+  constructor(c: Context, q: IEntityQuery<TSchema, TReturn>) {
     this.#pipeline = buildPipeline(
       sourceName => c.getSource(sourceName).stream,
       q._ast,

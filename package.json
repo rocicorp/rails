@@ -23,21 +23,21 @@
   "license": "Apache-2.0",
   "devDependencies": {
     "@rocicorp/eslint-config": "^0.5.1",
-    "@rocicorp/prettier-config": "^0.2.0",
     "@rocicorp/logger": "^5.2.1",
+    "@rocicorp/prettier-config": "^0.2.0",
     "@rocicorp/reflect": "^0.39.202401100534",
+    "@vitest/browser": "1.2.2",
     "@web/dev-server": "^0.4.1",
     "@web/dev-server-esbuild": "^1.0.1",
     "@web/dev-server-import-maps": "^0.2.0",
     "@web/test-runner": "^0.18.0",
     "@web/test-runner-playwright": "^0.11.0",
     "nanoid": "^5.0.4",
+    "playwright": "^1.41.1",
     "replicache": "14.1.0",
     "typescript": "^5.3.3",
-    "zod": "^3.22.4",
-    "@vitest/browser": "1.2.2",
-    "playwright": "^1.41.1",
-    "vitest": "1.2.2"
+    "vitest": "1.2.2",
+    "zod": "^3.22.4"
   },
   "files": [
     "out/",
@@ -46,5 +46,8 @@
   "eslintConfig": {
     "extends": "@rocicorp/eslint-config"
   },
-  "prettier": "@rocicorp/prettier-config"
+  "prettier": "@rocicorp/prettier-config",
+  "dependencies": {
+    "@vlcn.io/ds-and-algos": "^3.0.2"
+  }
 }

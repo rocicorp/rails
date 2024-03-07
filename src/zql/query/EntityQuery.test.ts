@@ -1,6 +1,6 @@
 import {expect, expectTypeOf, test} from 'vitest';
 import {z} from 'zod';
-import {QueryInstance} from './EntityQueryInstance.js';
+import {EntityQuery} from './EntityQuery.js';
 import {Misuse} from '../error/Misuse.js';
 import {makeTestContext} from './context/contextProvider.js';
 
@@ -14,7 +14,7 @@ test('query types', () => {
 
   type E1 = z.infer<typeof e1>;
 
-  const q = new QueryInstance<{fields: E1}>(context, 'e1');
+  const q = new EntityQuery<{fields: E1}>(context, 'e1');
 
   // @ts-expect-error - selecting fields that do not exist in the schema is a type error
   q.select('does-not-exist');
@@ -77,7 +77,7 @@ const dummyObject: E1 = {
 };
 
 test('ast: select', () => {
-  const q = new QueryInstance<{fields: E1}>(context, 'e1');
+  const q = new EntityQuery<{fields: E1}>(context, 'e1');
 
   // each individual field is selectable on its own
   Object.keys(dummyObject).forEach(k => {
@@ -111,19 +111,19 @@ test('ast: count', () => {
   // Cannot select fields in addition to a count.
   // A query is one or the other: count query or selection query.
   expect(() =>
-    new QueryInstance<{fields: E1}>(context, 'e1').select('id').count(),
+    new EntityQuery<{fields: E1}>(context, 'e1').select('id').count(),
   ).toThrow(Misuse);
   expect(() =>
-    new QueryInstance<{fields: E1}>(context, 'e1').count().select('id'),
+    new EntityQuery<{fields: E1}>(context, 'e1').count().select('id'),
   ).toThrow(Misuse);
 
   // selection set is the literal `count`, not an array of fields
-  const q = new QueryInstance<{fields: E1}>(context, 'e1').count();
+  const q = new EntityQuery<{fields: E1}>(context, 'e1').count();
   expect(q._ast.select).toEqual('count');
 });
 
 test('ast: where', () => {
-  let q = new QueryInstance<{fields: E1}>(context, 'e1');
+  let q = new EntityQuery<{fields: E1}>(context, 'e1');
 
   // where is applied
   q = q.where('id', '=', 'a');
@@ -172,7 +172,7 @@ test('ast: where', () => {
 });
 
 test('ast: limit', () => {
-  const q = new QueryInstance<{fields: E1}>(context, 'e1');
+  const q = new EntityQuery<{fields: E1}>(context, 'e1');
   expect({...q.limit(10)._ast, alias: 0}).toEqual({
     alias: 0,
     table: 'e1',
@@ -182,7 +182,7 @@ test('ast: limit', () => {
 
 test('ast: asc/desc', () => {
   // can only order once
-  const q = new QueryInstance<{fields: E1}>(context, 'e1');
+  const q = new EntityQuery<{fields: E1}>(context, 'e1');
   expect(() => q.asc('id').desc('id')).toThrow(Misuse);
   expect(() => q.asc('id').asc('id')).toThrow(Misuse);
   expect(() => q.desc('id').desc('id')).toThrow(Misuse);
@@ -207,7 +207,7 @@ test('ast: asc/desc', () => {
 });
 
 test('ast: independent of method call order', () => {
-  const base = new QueryInstance<{fields: E1}>(context, 'e1');
+  const base = new EntityQuery<{fields: E1}>(context, 'e1');
 
   const calls = {
     select(q: typeof base) {
