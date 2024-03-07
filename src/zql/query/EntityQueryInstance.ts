@@ -6,8 +6,9 @@ import {
   Selectable,
   SelectedFields,
 } from './EntityQueryType.js';
-import {Statement} from './Statement.js';
+import {IStatement, Statement} from './Statement.js';
 import {AST, Operator, Primitive} from './ZqlAst.js';
+import {Context} from './context/contextProvider.js';
 
 let aliasCount = 0;
 
@@ -16,13 +17,15 @@ export class QueryInstance<S extends EntitySchema, TReturn = []>
 {
   readonly #ast: AST;
   readonly #name: string;
+  readonly #context: Context;
 
-  constructor(tableName: string, ast?: AST) {
+  constructor(context: Context, tableName: string, ast?: AST) {
     this.#ast = ast ?? {
       table: tableName,
       alias: aliasCount++,
     };
     this.#name = tableName;
+    this.#context = context;
   }
 
   select<Fields extends Selectable<S>[]>(...x: Fields) {
@@ -33,6 +36,7 @@ export class QueryInstance<S extends EntitySchema, TReturn = []>
     }
 
     return new QueryInstance<S, SelectedFields<S['fields'], Fields>[]>(
+      this.#context,
       this.#name,
       {
         ...this.#ast,
@@ -46,7 +50,7 @@ export class QueryInstance<S extends EntitySchema, TReturn = []>
     op: Operator,
     value: S['fields'][K],
   ) {
-    return new QueryInstance<S, TReturn>(this.#name, {
+    return new QueryInstance<S, TReturn>(this.#context, this.#name, {
       ...this.#ast,
       where: [
         ...(this.#ast.where !== undefined
@@ -69,7 +73,10 @@ export class QueryInstance<S extends EntitySchema, TReturn = []>
       throw new Misuse('Limit already set');
     }
 
-    return new QueryInstance<S, TReturn>(this.#name, {...this.#ast, limit: n});
+    return new QueryInstance<S, TReturn>(this.#context, this.#name, {
+      ...this.#ast,
+      limit: n,
+    });
   }
 
   asc(...x: (keyof S['fields'])[]) {
@@ -77,7 +84,7 @@ export class QueryInstance<S extends EntitySchema, TReturn = []>
       throw new Misuse('OrderBy already set');
     }
 
-    return new QueryInstance<S, TReturn>(this.#name, {
+    return new QueryInstance<S, TReturn>(this.#context, this.#name, {
       ...this.#ast,
       orderBy: [x as string[], 'asc'],
     });
@@ -88,7 +95,7 @@ export class QueryInstance<S extends EntitySchema, TReturn = []>
       throw new Misuse('OrderBy already set');
     }
 
-    return new QueryInstance<S, TReturn>(this.#name, {
+    return new QueryInstance<S, TReturn>(this.#context, this.#name, {
       ...this.#ast,
       orderBy: [x as string[], 'desc'],
     });
@@ -100,7 +107,7 @@ export class QueryInstance<S extends EntitySchema, TReturn = []>
         'Selection set already set. Will not change to a count query.',
       );
     }
-    return new QueryInstance<S, number>(this.#name, {
+    return new QueryInstance<S, number>(this.#context, this.#name, {
       ...this.#ast,
       select: 'count',
     });
@@ -111,8 +118,8 @@ export class QueryInstance<S extends EntitySchema, TReturn = []>
     return this.#ast;
   }
 
-  prepare() {
+  prepare(): IStatement<TReturn> {
     // TODO: build the IVM pipeline
-    return new Statement<TReturn>();
+    return new Statement<S, TReturn>(this.#context, this);
   }
 }

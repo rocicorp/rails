@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/ban-types */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {EntitySchema} from '../schema/EntitySchema.js';
-import {Operator} from './ZqlAst.js';
+import {IStatement} from './Statement.js';
+import {AST, Operator} from './ZqlAst.js';
 
 export type SelectedFields<T, Fields extends Selectable<any>[]> = Pick<
   T,
@@ -31,10 +32,10 @@ export interface QueryInstanceType<TSchema extends EntitySchema, TReturn = []> {
   readonly desc: (
     ...x: (keyof TSchema['fields'])[]
   ) => QueryInstanceType<TSchema, TReturn>;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  readonly _ast: AST;
 
+  // TODO: we can probably skip the `prepare` step and just have `materialize`
+  // Although we'd need the prepare step in order to get a stmt to change bindings.
   readonly prepare: () => IStatement<TReturn>;
-}
-
-export interface IStatement<TReturn> {
-  run: () => MakeHumanReadable<TReturn>;
 }

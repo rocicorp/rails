@@ -19,3 +19,4 @@ Query preparation allows us to:
 Still need:
 
 - IvmDb abstraction to manage registered sources and maintain them in-memory
+- Destruction
