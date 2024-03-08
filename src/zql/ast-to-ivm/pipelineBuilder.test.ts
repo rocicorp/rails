@@ -18,7 +18,7 @@ const context = makeTestContext();
 test('A simple select', () => {
   const q = new EntityQuery<{fields: E1}>(context, 'e1');
   const m = new Materialite();
-  let s = m.newStatelessSource();
+  let s = m.newStatelessSource<E1>();
   let pipeline = buildPipeline(
     () => s.stream,
     q.select('id', 'a', 'b', 'c', 'd')._ast,
@@ -31,8 +31,8 @@ test('A simple select', () => {
 
   const expected = [
     {id: 'a', a: 1, b: 1n, c: '', d: true},
-    {id: 'b', a: 2, b: 2n, c: null, d: false},
-  ];
+    {id: 'b', a: 2, b: 2n, d: false},
+  ] as const;
 
   s.add(expected[0]);
   s.add(expected[1]);

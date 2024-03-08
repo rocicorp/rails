@@ -1,6 +1,6 @@
 import {buildPipeline, orderingProp} from '../ast-to-ivm/pipelineBuilder.js';
 import {IView} from '../ivm/view/IView.js';
-import {PersistentTreeView} from '../ivm/view/PersistentTreeView.js';
+import {PersistentTreeView} from '../ivm/view/TreeView.js';
 import {EntitySchema} from '../schema/EntitySchema.js';
 import {MakeHumanReadable, IEntityQuery} from './IEntityQuery.js';
 import {Context} from './context/contextProvider.js';

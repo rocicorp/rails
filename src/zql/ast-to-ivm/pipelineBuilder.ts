@@ -1,4 +1,3 @@
-import {Entity} from '../../generate.js';
 import {nullthrows} from '../error/InvariantViolation.js';
 import {DifferenceStream} from '../ivm/graph/DifferenceStream.js';
 import {AST, Condition, ConditionList, Operator} from '../query/ZqlAst.js';
@@ -6,9 +5,7 @@ import {AST, Condition, ConditionList, Operator} from '../query/ZqlAst.js';
 export const orderingProp = Symbol();
 
 export function buildPipeline(
-  sourceStreamProvider: <T extends Entity>(
-    sourceName: string,
-  ) => DifferenceStream<T>,
+  sourceStreamProvider: (sourceName: string) => DifferenceStream<unknown>,
   ast: AST,
 ) {
   // filters first
@@ -28,8 +25,7 @@ export function buildPipeline(
     if (ast.select === 'count') {
       ret = stream.linearCount();
     } else {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ret = applySelect(stream, ast.select as any, ast.orderBy as any);
+      ret = applySelect(stream, ast.select, ast.orderBy);
     }
   } else {
     throw new Error('No select clause');
@@ -40,25 +36,34 @@ export function buildPipeline(
   return ret;
 }
 
-function applySelect<T extends Entity>(
-  stream: DifferenceStream<T>,
-  select: (keyof T)[],
-  orderBy: [(keyof T)[], 'asc' | 'desc'] | undefined,
+function applySelect(
+  stream: DifferenceStream<unknown>,
+  select: string[],
+  orderBy: [string[], 'asc' | 'desc'] | undefined,
 ) {
+  let pushId = false;
+  if (!orderBy || !orderBy[0].includes('id')) {
+    pushId = true;
+  }
   return stream.map(x => {
-    const ret: Partial<Record<keyof T, unknown>> = {};
+    const ret: Partial<Record<string, unknown>> = {};
     for (const field of select) {
-      ret[field] = x[field];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ret[field] = (x as any)[field];
     }
 
     const orderingValues: unknown[] = [];
     if (orderBy !== undefined) {
       for (const field of orderBy[0]) {
-        orderingValues.push(x[field]);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        orderingValues.push((x as any)[field]);
       }
-    } else {
-      orderingValues.push(x.id);
     }
+    if (pushId) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      orderingValues.push((x as any).id);
+    }
+
     Object.defineProperty(ret, orderingProp, {
       enumerable: false,
       writable: false,
@@ -70,10 +75,7 @@ function applySelect<T extends Entity>(
   });
 }
 
-function applyWhere<T extends Entity>(
-  stream: DifferenceStream<T>,
-  where: ConditionList,
-) {
+function applyWhere(stream: DifferenceStream<unknown>, where: ConditionList) {
   let ret = stream;
   /*
   We'll handle `OR` and parentheticals like so:
@@ -106,8 +108,8 @@ function applyWhere<T extends Entity>(
   return ret;
 }
 
-function applyCondition<T extends Entity>(
-  stream: DifferenceStream<T>,
+function applyCondition(
+  stream: DifferenceStream<unknown>,
   condition: Condition,
 ) {
   const operator = getOperator(condition.op);
