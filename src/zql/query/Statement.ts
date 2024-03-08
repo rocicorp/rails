@@ -115,5 +115,5 @@ function descComparator<T extends {[orderingProp]: Primitive[]}>(
   l: T,
   r: T,
 ): number {
-  return ascComparator(r, l) * -1;
+  return ascComparator(r, l);
 }
