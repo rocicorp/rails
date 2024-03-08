@@ -58,22 +58,55 @@ test('sorted materialization', () => {
     n: 1,
   });
 
-  // expect(ascView.value).toEqual([{id: 'a'}, {id: 'b'}, {id: 'c'}]);
-  // expect(descView.value).toEqual([{id: 'c'}, {id: 'b'}, {id: 'a'}]);
   expect(ascView.value).toEqual([{id: 'c'}, {id: 'b'}, {id: 'a'}]);
   expect(descView.value).toEqual([{id: 'a'}, {id: 'b'}, {id: 'c'}]);
 });
 
-test('limited materialization', () => {});
+test('sorting is stable via suffixing the primary key to the order', () => {
+  const context = makeTestContext();
+  type E1 = z.infer<typeof e1>;
+  const q = new EntityQuery<{fields: E1}>(context, 'e1');
 
-test('desc', () => {});
+  const ascView = q.select('id').asc('n').prepare().materialize();
+  const descView = q.select('id').desc('n').prepare().materialize();
 
-test('count', () => {});
+  context.getSource<E1>('e1').add({
+    id: 'a',
+    n: 1,
+  });
+  context.getSource<E1>('e1').add({
+    id: 'b',
+    n: 1,
+  });
+  context.getSource<E1>('e1').add({
+    id: 'c',
+    n: 1,
+  });
+  expect(ascView.value).toEqual([{id: 'a'}, {id: 'b'}, {id: 'c'}]);
+  expect(descView.value).toEqual([{id: 'c'}, {id: 'b'}, {id: 'a'}]);
+});
+
+test('can materialize with a LIMIT', () => {
+  expect(true).toBe(false);
+});
+test('materialization pulls historical data from sources with memory', () => {
+  expect(true).toBe(false);
+});
+
+// TODO: after X
+// The type of `after` must match the ordering type.
+
+test('count', () => {
+  expect(true).toBe(false);
+});
 
 // default ordering
 // ordering on fields
 // de-dupe via id
-// asc/desc
 
-test('onDifference', () => {});
-test('destroy', () => {});
+test('onDifference', () => {
+  expect(true).toBe(false);
+});
+test('destroy', () => {
+  expect(true).toBe(false);
+});
