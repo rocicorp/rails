@@ -1,9 +1,14 @@
+import {Entity} from '../../generate.js';
 import {nullthrows} from '../error/InvariantViolation.js';
 import {DifferenceStream} from '../ivm/graph/DifferenceStream.js';
 import {AST, Condition, ConditionList, Operator} from '../query/ZqlAst.js';
 
+export const orderingProp = Symbol();
+
 export function buildPipeline(
-  sourceStreamProvider: (sourceName: string) => DifferenceStream<unknown>,
+  sourceStreamProvider: <T extends Entity>(
+    sourceName: string,
+  ) => DifferenceStream<T>,
   ast: AST,
 ) {
   // filters first
@@ -18,32 +23,57 @@ export function buildPipeline(
     stream = applyWhere(stream, ast.where);
   }
 
+  let ret: DifferenceStream<unknown>;
   if (ast.select) {
     if (ast.select === 'count') {
-      stream = stream.linearCount();
+      ret = stream.linearCount();
     } else {
-      stream = applySelect(stream, ast.select);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ret = applySelect(stream, ast.select as any, ast.orderBy as any);
     }
+  } else {
+    throw new Error('No select clause');
   }
 
   // Note: the stream is technically attached at this point.
   // We could detach it until the user actually runs (or subscribes to) the statement as a tiny optimization.
-  return stream;
+  return ret;
 }
 
-function applySelect(stream: DifferenceStream<unknown>, select: string[]) {
+function applySelect<T extends Entity>(
+  stream: DifferenceStream<T>,
+  select: (keyof T)[],
+  orderBy: [(keyof T)[], 'asc' | 'desc'] | undefined,
+) {
   return stream.map(x => {
-    const ret: Record<string, unknown> = {};
+    const ret: Partial<Record<keyof T, unknown>> = {};
     for (const field of select) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ret[field] = (x as any)[field];
+      ret[field] = x[field];
     }
+
+    const orderingValues: unknown[] = [];
+    if (orderBy !== undefined) {
+      for (const field of orderBy[0]) {
+        orderingValues.push(x[field]);
+      }
+    } else {
+      orderingValues.push(x.id);
+    }
+    Object.defineProperty(ret, orderingProp, {
+      enumerable: false,
+      writable: false,
+      configurable: false,
+      value: orderingValues,
+    });
 
     return ret;
   });
 }
 
-function applyWhere(stream: DifferenceStream<unknown>, where: ConditionList) {
+function applyWhere<T extends Entity>(
+  stream: DifferenceStream<T>,
+  where: ConditionList,
+) {
   let ret = stream;
   /*
   We'll handle `OR` and parentheticals like so:
@@ -76,8 +106,8 @@ function applyWhere(stream: DifferenceStream<unknown>, where: ConditionList) {
   return ret;
 }
 
-function applyCondition(
-  stream: DifferenceStream<unknown>,
+function applyCondition<T extends Entity>(
+  stream: DifferenceStream<T>,
   condition: Condition,
 ) {
   const operator = getOperator(condition.op);

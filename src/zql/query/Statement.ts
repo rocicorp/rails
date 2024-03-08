@@ -1,13 +1,13 @@
-import {Comparator} from '@vlcn.io/ds-and-algos/types';
-import {buildPipeline} from '../ast-to-ivm/pipelineBuilder.js';
+import {buildPipeline, orderingProp} from '../ast-to-ivm/pipelineBuilder.js';
 import {IView} from '../ivm/view/IView.js';
 import {PersistentTreeView} from '../ivm/view/PersistentTreeView.js';
 import {EntitySchema} from '../schema/EntitySchema.js';
 import {MakeHumanReadable, IEntityQuery} from './IEntityQuery.js';
 import {Context} from './context/contextProvider.js';
-import {Entity} from '../../generate.js';
 import {DifferenceStream} from '../ivm/graph/DifferenceStream.js';
 import {ValueView} from '../ivm/view/PrimitiveView.js';
+import {Primitive} from './ZqlAst.js';
+import {Entity} from '../../generate.js';
 
 export interface IStatement<TReturn> {
   materialize: () => IView<MakeHumanReadable<TReturn>>;
@@ -23,11 +23,13 @@ export class Statement<TSchema extends EntitySchema, TReturn>
   #materialization: IView<TReturn> | null = null;
 
   constructor(c: Context, q: IEntityQuery<TSchema, TReturn>) {
+    this.#ast = q._ast;
     this.#pipeline = buildPipeline(
-      sourceName => c.getSource(sourceName).stream,
+      <T extends Entity>(sourceName: string) =>
+        c.getSource(sourceName, this.#ast.orderBy)
+          .stream as DifferenceStream<T>,
       q._ast,
     );
-    this.#ast = q._ast;
     this.#context = c;
   }
 
@@ -62,8 +64,8 @@ export class Statement<TSchema extends EntitySchema, TReturn>
           this.#pipeline as DifferenceStream<
             TReturn extends [] ? TReturn[number] : never
           >,
-          makeComparator(this.#ast.orderBy),
-          this.#ast.orderBy === undefined,
+          this.#ast.orderBy?.[1] === 'asc' ? ascComparator : descComparator,
+          true, // TODO: since we're going to control everything we can make this so.
           this.#ast.limit,
         );
       }
@@ -80,24 +82,38 @@ export class Statement<TSchema extends EntitySchema, TReturn>
   }
 }
 
-// Fk... this is an problem.
-// The selection set may not include the columns ordered by
-// but we apply ordering as the final step in the pipeline.
-// Either:
-// 1. Force-select order-by fields
-// 2. Add data to the events to include the ordering fields
-// ?
-// We can't order-by before the view since the view must know how to order as it will receive single rows
-// to be placed into the view in the correct position.
-function makeComparator<T>(
-  _ordering?: [string[], 'asc' | 'desc'],
-): Comparator<T> {
-  // if (ordering === undefined) {
-  //   return idComparator;
-  // }
-  return idComparator as Comparator<T>;
+function ascComparator<T extends {[orderingProp]: Primitive[]}>(
+  l: T,
+  r: T,
+): number {
+  const leftVals = l[orderingProp];
+  const rightVals = r[orderingProp];
+
+  for (let i = 0; i < leftVals.length; i++) {
+    const leftVal = leftVals[i];
+    const rightVal = rightVals[i];
+    if (leftVal === rightVal) {
+      return 0;
+    }
+    if (leftVal === null) {
+      return -1;
+    }
+    if (rightVal === null) {
+      return 1;
+    }
+    if (leftVal < rightVal) {
+      return -1;
+    } else if (leftVal > rightVal) {
+      return 1;
+    }
+  }
+
+  return 0;
 }
 
-function idComparator(a: Entity, b: Entity) {
-  return a.id.localeCompare(b.id);
+function descComparator<T extends {[orderingProp]: Primitive[]}>(
+  l: T,
+  r: T,
+): number {
+  return ascComparator(r, l) * -1;
 }
