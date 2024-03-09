@@ -5,7 +5,7 @@ directly, an outline follows.
 
 Interfaces below are introduced from the most abstract to the least.
 
-## Sources
+# Sources
 
 Sources are how we get data into an IVM pipeline. They roughly have the same
 interface as a collection:
@@ -22,7 +22,7 @@ The `stream` property of a source is used to build incremental computations agai
 As items are added and removed from the source, any computations applied to
 `stream` will be incrementally maintained.
 
-### Replicache Integration
+## Replicache Integration
 
 Replicache Rails collections are exposed as sources. `add` and `remove` are invoked by `experimentalWatch` for a given collection.
 
@@ -35,7 +35,7 @@ There are a few variants of sources.
 - ordered
 - unordered
 
-### Usage
+## Usage
 
 > Note that one generally wouldn't use a source directly. `Rails` would register sources as users create / generate collections. `ZQL` would consume those sources when queries are run or subscribed to.
 
@@ -49,7 +49,7 @@ s.stream
 
 See `StatelessSource.test.ts` for more examples.
 
-## Stream
+# Stream
 
 A stream represents a progression of updates made to a source over time. In the code, streams are called "DifferenceStreams" for this reason.
 
@@ -61,14 +61,14 @@ A stream represents a progression of updates made to a source over time. In the 
 - map (select / projection, function application)
 - count
 
-### ZQL Integration
+## ZQL Integration
 
 A `ZQL` query is compiled into a pipeline of operators that take the difference streams from one or more `Sources` as input.
 
-### Usage
+## Usage
 
 See `DifferenceStream.test.ts`
 
-## Operator, DifferenceStream[Reader/Writer], Multiset
+# Operator, DifferenceStream[Reader/Writer], Multiset
 
 These are low enough down the abstraction ladder than even direct users bypassing ZQL will likely not need to deal with these directly.

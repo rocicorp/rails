@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {EntitySchema} from '../schema/EntitySchema.js';
 import {IStatement} from './Statement.js';
-import {AST, Operator} from './ZqlAst.js';
+import {AST, Operator} from '../ast/ZqlAst.js';
 
 export type SelectedFields<T, Fields extends Selectable<any>[]> = Pick<
   T,

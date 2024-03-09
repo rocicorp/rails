@@ -3,8 +3,8 @@ import {Misuse} from '../error/Misuse.js';
 import {EntitySchema} from '../schema/EntitySchema.js';
 import {IEntityQuery, Selectable, SelectedFields} from './IEntityQuery.js';
 import {IStatement, Statement} from './Statement.js';
-import {AST, Operator, Primitive} from './ZqlAst.js';
-import {Context} from './context/contextProvider.js';
+import {AST, Operator, Primitive} from '../ast/ZqlAst.js';
+import {Context} from '../context/context.js';
 
 let aliasCount = 0;
 

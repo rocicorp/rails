@@ -3,6 +3,27 @@ import {Version} from '../../types.js';
 import {DifferenceStreamReader} from '../DifferenceStreamReader.js';
 import {DifferenceStreamWriter} from '../DifferenceStreamWriter.js';
 
+/**
+ * We have to run the graph breadth-first to ensure
+ * that operators with multiple inputs have all of their inputs
+ * ready before they are run.
+ *
+ * To do this, we split running of an operator into `run` and `notify` phases.
+ *
+ * `run` runs the operators and enqueues its output to the next level of
+ * the graph.
+ *
+ * `notify` notifies the next level of the graph.
+ *
+ * Operators will pull from their queues in the `notify` phase.
+ * If an operator with many inputs is notified, it will ignore subsequent notifications
+ * for the same round (version).
+ *
+ * Version is incremented once per transaction.
+ *
+ * A single MultiSet is sent per transaction and contains all the values
+ * accumulated in that transaction.
+ */
 export interface IOperator {
   run(version: Version): void;
   notify(v: Version): void;

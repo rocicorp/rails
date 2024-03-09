@@ -20,3 +20,12 @@ Still need:
 
 - IvmDb abstraction to manage registered sources and maintain them in-memory
 - Destruction
+
+---
+
+Remove context.
+
+Have the Materialite instance itself take a source provider.
+Materialite instance will create the IVMDB which is used to maintain sources that are re-created in new orders and temporary indices.
+
+- Test whether operators are sending empty events.

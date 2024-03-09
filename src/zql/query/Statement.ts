@@ -3,10 +3,10 @@ import {IView} from '../ivm/view/IView.js';
 import {PersistentTreeView} from '../ivm/view/TreeView.js';
 import {EntitySchema} from '../schema/EntitySchema.js';
 import {MakeHumanReadable, IEntityQuery} from './IEntityQuery.js';
-import {Context} from './context/contextProvider.js';
+import {Context} from '../context/context.js';
 import {DifferenceStream} from '../ivm/graph/DifferenceStream.js';
 import {ValueView} from '../ivm/view/PrimitiveView.js';
-import {Primitive} from './ZqlAst.js';
+import {Primitive} from '../ast/ZqlAst.js';
 import {Entity} from '../../generate.js';
 
 export interface IStatement<TReturn> {

@@ -3,7 +3,7 @@ import {Materialite} from '../ivm/Materialite.js';
 import {z} from 'zod';
 import {EntityQuery} from '../query/EntityQuery.js';
 import {buildPipeline} from './pipelineBuilder.js';
-import {makeTestContext} from '../query/context/contextProvider.js';
+import {makeTestContext} from '../context/context.js';
 
 const e1 = z.object({
   id: z.string(),

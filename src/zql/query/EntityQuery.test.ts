@@ -2,7 +2,7 @@ import {expect, expectTypeOf, test} from 'vitest';
 import {z} from 'zod';
 import {EntityQuery} from './EntityQuery.js';
 import {Misuse} from '../error/Misuse.js';
-import {makeTestContext} from './context/contextProvider.js';
+import {makeTestContext} from '../context/context.js';
 
 const context = makeTestContext();
 test('query types', () => {

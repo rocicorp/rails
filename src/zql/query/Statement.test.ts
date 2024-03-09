@@ -1,5 +1,5 @@
 import {expect, test} from 'vitest';
-import {makeTestContext} from './context/contextProvider.js';
+import {makeTestContext} from '../context/context.js';
 import {z} from 'zod';
 import {EntityQuery} from './EntityQuery.js';
 
