@@ -36,7 +36,7 @@ export function buildPipeline(
   return ret;
 }
 
-function applySelect(
+export function applySelect(
   stream: DifferenceStream<unknown>,
   select: string[],
   orderBy: [string[], 'asc' | 'desc'] | undefined,

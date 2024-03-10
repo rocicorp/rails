@@ -8,6 +8,7 @@ import {DifferenceStream} from '../ivm/graph/DifferenceStream.js';
 import {ValueView} from '../ivm/view/PrimitiveView.js';
 import {Primitive} from '../ast/ZqlAst.js';
 import {Entity} from '../../generate.js';
+import {invariant} from '../error/InvariantViolation.js';
 
 export interface IStatement<TReturn> {
   materialize: () => IView<MakeHumanReadable<TReturn>>;
@@ -20,7 +21,9 @@ export class Statement<TSchema extends EntitySchema, TReturn>
   readonly #pipeline;
   readonly #ast;
   readonly #context;
-  #materialization: IView<TReturn> | null = null;
+  #materialization: IView<
+    TReturn extends [] ? TReturn[number] : TReturn
+  > | null = null;
 
   constructor(c: Context, q: IEntityQuery<TSchema, TReturn>) {
     this.#ast = q._ast;
@@ -55,10 +58,10 @@ export class Statement<TSchema extends EntitySchema, TReturn>
           this.#context.materialite,
           this.#pipeline as DifferenceStream<number>,
           0,
-        ) as unknown as IView<TReturn>;
+        ) as unknown as IView<TReturn extends [] ? TReturn[number] : TReturn>;
       } else {
         this.#materialization = new PersistentTreeView<
-          TReturn extends [] ? TReturn : never
+          TReturn extends [] ? TReturn[number] : never
         >(
           this.#context.materialite,
           this.#pipeline as DifferenceStream<
@@ -67,7 +70,7 @@ export class Statement<TSchema extends EntitySchema, TReturn>
           this.#ast.orderBy?.[1] === 'asc' ? ascComparator : descComparator,
           true, // TODO: since we're going to control everything we can make this so.
           this.#ast.limit,
-        );
+        ) as unknown as IView<TReturn extends [] ? TReturn[number] : TReturn>;
       }
     }
 
@@ -82,18 +85,23 @@ export class Statement<TSchema extends EntitySchema, TReturn>
   }
 }
 
-function ascComparator<T extends {[orderingProp]: Primitive[]}>(
+export function ascComparator<T extends {[orderingProp]: Primitive[]}>(
   l: T,
   r: T,
 ): number {
   const leftVals = l[orderingProp];
   const rightVals = r[orderingProp];
 
+  invariant(
+    leftVals.length === rightVals.length,
+    'orderingProp lengths must match',
+  );
+
   for (let i = 0; i < leftVals.length; i++) {
     const leftVal = leftVals[i];
     const rightVal = rightVals[i];
     if (leftVal === rightVal) {
-      return 0;
+      continue;
     }
     if (leftVal === null) {
       return -1;
@@ -111,7 +119,7 @@ function ascComparator<T extends {[orderingProp]: Primitive[]}>(
   return 0;
 }
 
-function descComparator<T extends {[orderingProp]: Primitive[]}>(
+export function descComparator<T extends {[orderingProp]: Primitive[]}>(
   l: T,
   r: T,
 ): number {

@@ -32,6 +32,7 @@
     "@web/dev-server-import-maps": "^0.2.0",
     "@web/test-runner": "^0.18.0",
     "@web/test-runner-playwright": "^0.11.0",
+    "fast-check": "^3.16.0",
     "nanoid": "^5.0.4",
     "playwright": "^1.41.1",
     "replicache": "14.1.0",

@@ -4,7 +4,6 @@ import {DifferenceStreamWriter} from './DifferenceStreamWriter.js';
 import {IDifferenceStream} from './IDifferenceStream.js';
 import {LinearCountOperator} from './operators/CountOperator.js';
 import {DifferenceEffectOperator} from './operators/DifferenceEffectOperator.js';
-import {EffectOperator} from './operators/EffectOperator.js';
 import {FilterOperator} from './operators/FilterOperator.js';
 import {MapOperator} from './operators/MapOperator.js';
 
@@ -51,16 +50,6 @@ export class DifferenceStream<T> implements IDifferenceStream<T> {
   }
 
   /**
-   * Run some sort of side-effect against values in the stream.
-   * e.g., I/O & logging
-   */
-  effect(f: (i: T) => void) {
-    const ret = this.newStream<T>();
-    new EffectOperator(this.#writer.newReader(), ret.#writer, f);
-    return ret;
-  }
-
-  /**
    * Runs a side-effect for all events in the stream.
    * If `mult < 0` that means the value V was retracted `mult` times.
    * If `mult > 0` that means the value V was added `mult` times.
@@ -68,7 +57,7 @@ export class DifferenceStream<T> implements IDifferenceStream<T> {
    * @param f
    * @returns
    */
-  differenceEffect(f: (i: T, mult: number) => void) {
+  effect(f: (i: T, mult: number) => void) {
     const ret = this.newStream<T>();
     new DifferenceEffectOperator(this.#writer.newReader(), ret.#writer, f);
     return ret;

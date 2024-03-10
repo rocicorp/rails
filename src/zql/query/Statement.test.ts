@@ -2,6 +2,8 @@ import {expect, test} from 'vitest';
 import {makeTestContext} from '../context/context.js';
 import {z} from 'zod';
 import {EntityQuery} from './EntityQuery.js';
+import {ascComparator} from './Statement.js';
+import {orderingProp} from '../ast-to-ivm/pipelineBuilder.js';
 
 const e1 = z.object({
   id: z.string(),
@@ -86,27 +88,27 @@ test('sorting is stable via suffixing the primary key to the order', () => {
   expect(descView.value).toEqual([{id: 'c'}, {id: 'b'}, {id: 'a'}]);
 });
 
-test('can materialize with a LIMIT', () => {
-  expect(true).toBe(false);
-});
-test('materialization pulls historical data from sources with memory', () => {
-  expect(true).toBe(false);
-});
+test('ascComparator', () => {
+  function make<T extends Array<unknown>>(x: T) {
+    return {[orderingProp]: x};
+  }
+  expect(ascComparator(make([1, 2]), make([2, 3]))).toBeLessThan(0);
+  expect(ascComparator(make([1, 'a']), make([1, 'b']))).toBeLessThan(0);
+  expect(ascComparator(make([1, 'a']), make([1, 'a']))).toBe(0);
+  expect(ascComparator(make([1, 'b']), make([1, 'a']))).toBeGreaterThan(0);
+  expect(ascComparator(make([1, 2]), make([1, 3]))).toBeLessThan(0);
+  expect(ascComparator(make([1, 2]), make([1, 2]))).toBe(0);
+  expect(ascComparator(make([1, 3]), make([1, 2]))).toBeGreaterThan(0);
+  // no imbalance allowed
+  expect(() => ascComparator(make([1, 2]), make([1, 2, 3]))).toThrow();
+  expect(() => ascComparator(make([1, 2, 3]), make([1, 2]))).toThrow();
 
-// TODO: after X
-// The type of `after` must match the ordering type.
+  expect(ascComparator(make([1]), make([2]))).toBeLessThan(0);
+  expect(ascComparator(make([1]), make([1]))).toBe(0);
+  expect(ascComparator(make([2]), make([1]))).toBeGreaterThan(0);
+  expect(ascComparator(make(['a']), make(['b']))).toBeLessThan(0);
+  expect(ascComparator(make(['a']), make(['a']))).toBe(0);
+  expect(ascComparator(make(['b']), make(['a']))).toBeGreaterThan(0);
 
-test('count', () => {
-  expect(true).toBe(false);
-});
-
-// default ordering
-// ordering on fields
-// de-dupe via id
-
-test('onDifference', () => {
-  expect(true).toBe(false);
-});
-test('destroy', () => {
-  expect(true).toBe(false);
+  expect(ascComparator(make([null]), make([null]))).toBe(0);
 });

@@ -6,7 +6,7 @@ test('add', () => {
   const s = m.newStatelessSource();
 
   let runs = 0;
-  s.stream.differenceEffect(() => {
+  s.stream.effect(() => {
     runs++;
   });
   s.add(1);
@@ -21,7 +21,7 @@ test('remove', () => {
   const s = m.newStatelessSource();
 
   let runs = 0;
-  s.stream.differenceEffect(() => {
+  s.stream.effect(() => {
     runs++;
   });
   // A stateless source does not track what it actually contains
@@ -38,7 +38,7 @@ test('rollback', () => {
   const s = m.newStatelessSource();
 
   let runs = 0;
-  s.stream.differenceEffect(() => {
+  s.stream.effect(() => {
     runs++;
   });
   try {
@@ -58,7 +58,7 @@ test('effects are not notified until transaction commit', () => {
   const s = m.newStatelessSource();
 
   let runs = 0;
-  s.stream.differenceEffect(() => {
+  s.stream.effect(() => {
     runs++;
   });
   m.tx(() => {

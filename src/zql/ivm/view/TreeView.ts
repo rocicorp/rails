@@ -17,25 +17,25 @@ import {Treap} from '@vlcn.io/ds-and-algos/Treap';
  * of the tree.
  */
 let id = 0;
-class AbstractTreeView<CT extends []> extends View<CT[number], CT> {
-  #data: ITree<CT[number]>;
+class AbstractTreeView<T> extends View<T, T[]> {
+  #data: ITree<T>;
 
   // TODO: If we're providing JS slices... can't we just use a mutable tree?
   // The JS slices will be immutable.
-  #jsSlice: CT = [] as CT;
+  #jsSlice: T[] = [];
 
   #limit?: number;
-  #min?: CT[number];
-  #max?: CT[number];
+  #min?: T;
+  #max?: T;
   readonly #isInSourceOrder;
   readonly id = id++;
   readonly #comparator;
 
   constructor(
     materialite: Materialite,
-    stream: DifferenceStream<CT[number]>,
-    comparator: Comparator<CT[number]>,
-    tree: ITree<CT[number]>,
+    stream: DifferenceStream<T>,
+    comparator: Comparator<T>,
+    tree: ITree<T>,
     isInSourceOrder: boolean,
     limit?: number,
     name: string = '',
@@ -54,8 +54,8 @@ class AbstractTreeView<CT extends []> extends View<CT[number], CT> {
     }
   }
 
-  #addAll: (data: ITree<CT[number]>, value: CT[number]) => ITree<CT[number]>;
-  #removeAll: (data: ITree<CT[number]>, value: CT[number]) => ITree<CT[number]>;
+  #addAll: (data: ITree<T>, value: T) => ITree<T>;
+  #removeAll: (data: ITree<T>, value: T) => ITree<T>;
 
   /**
    * Re-materialize the view but with a new limit.
@@ -98,7 +98,7 @@ class AbstractTreeView<CT extends []> extends View<CT[number], CT> {
   //   return newView;
   // }
 
-  get value(): CT {
+  get value(): T[] {
     return this.#jsSlice;
   }
 
@@ -117,19 +117,16 @@ class AbstractTreeView<CT extends []> extends View<CT[number], CT> {
     } else {
       // idk.. would be more efficient for users to just use the
       // treap directly.
-      this.#jsSlice = this.#data.toArray() as CT;
+      this.#jsSlice = this.#data.toArray();
     }
   }
 
-  #sink(
-    c: Multiset<CT[number]>,
-    data: ITree<CT[number]>,
-  ): [boolean, ITree<CT[number]>] {
+  #sink(c: Multiset<T>, data: ITree<T>): [boolean, ITree<T>] {
     let changed = false;
     const iterator = c.entries[Symbol.iterator]();
     let next;
 
-    const process = (value: CT[number], mult: number) => {
+    const process = (value: T, mult: number) => {
       if (mult > 0) {
         changed = true;
         data = this.#addAll(data, value);
@@ -178,7 +175,7 @@ class AbstractTreeView<CT extends []> extends View<CT[number], CT> {
 
   // TODO: if we're not in source order --
   // We should create a source in the order we need so we can always be in source order.
-  #limitedAddAll(data: ITree<CT[number]>, value: CT[number]) {
+  #limitedAddAll(data: ITree<T>, value: T) {
     const limit = this.#limit || 0;
     // Under limit? We can just add.
     if (data.size < limit) {
@@ -209,7 +206,7 @@ class AbstractTreeView<CT extends []> extends View<CT[number], CT> {
     return data;
   }
 
-  #limitedRemoveAll(data: ITree<CT[number]>, value: CT[number]) {
+  #limitedRemoveAll(data: ITree<T>, value: T) {
     // if we're outside the window, do not remove.
     const minComp = this.#min && this.#comparator(value, this.#min);
     const maxComp = this.#max && this.#comparator(value, this.#max);
@@ -240,7 +237,7 @@ class AbstractTreeView<CT extends []> extends View<CT[number], CT> {
     return data;
   }
 
-  #updateMinMax(value: CT[number]) {
+  #updateMinMax(value: T) {
     if (this.#min === undefined || this.#max === undefined) {
       this.#max = this.#min = value;
       return;
@@ -270,11 +267,11 @@ function removeAll<T>(data: ITree<T>, value: T) {
   return data;
 }
 
-export class PersistentTreeView<CT extends []> extends AbstractTreeView<CT> {
+export class PersistentTreeView<T> extends AbstractTreeView<T> {
   constructor(
     materialite: Materialite,
-    stream: DifferenceStream<CT[number]>,
-    comparator: Comparator<CT[number]>,
+    stream: DifferenceStream<T>,
+    comparator: Comparator<T>,
     isInSourceOrder: boolean,
     limit?: number,
     name: string = '',
@@ -291,11 +288,11 @@ export class PersistentTreeView<CT extends []> extends AbstractTreeView<CT> {
   }
 }
 
-export class MutableTreeView<CT extends []> extends AbstractTreeView<CT> {
+export class MutableTreeView<T> extends AbstractTreeView<T> {
   constructor(
     materialite: Materialite,
-    stream: DifferenceStream<CT[number]>,
-    comparator: Comparator<CT[number]>,
+    stream: DifferenceStream<T>,
+    comparator: Comparator<T>,
     isInSourceOrder: boolean,
     limit?: number,
     name: string = '',

@@ -29,7 +29,6 @@ export class ValueView<T> extends View<T, T | null> {
     }
 
     const lastCollection = collections[collections.length - 1]!;
-    // const lastValue = lastCollection.entries[lastCollection.entries.length - 1];
     let lastValue = undefined;
     for (const [value, mult] of lastCollection.entries) {
       if (mult > 0) {
@@ -43,7 +42,6 @@ export class ValueView<T> extends View<T, T | null> {
     const newData = lastValue as T;
     if (newData !== this.#data) {
       this.#data = newData;
-      // this.notify(newData, version);
     }
   }
 }

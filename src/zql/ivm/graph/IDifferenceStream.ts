@@ -23,5 +23,5 @@ export interface IDifferenceStream<T> {
   filter<S extends T>(f: (x: T) => x is S): IDifferenceStream<S>;
   filter(f: (x: T) => boolean): IDifferenceStream<T>;
   linearCount(): IDifferenceStream<number>;
-  effect(f: (i: T) => void): IDifferenceStream<T>;
+  effect(f: (i: T, m: number) => void): IDifferenceStream<T>;
 }

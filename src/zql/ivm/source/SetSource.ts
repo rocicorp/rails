@@ -13,7 +13,7 @@ import {Treap} from '@vlcn.io/ds-and-algos/Treap';
  * exists to be able to receive historical data.
  *
  */
-export abstract class MemorySource<T> {
+export abstract class SetSource<T> {
   #stream: DifferenceStream<T>;
   readonly #internal: ISourceInternal;
   protected readonly _materialite: MaterialiteForSourceInternal;
@@ -99,14 +99,10 @@ export abstract class MemorySource<T> {
     this.#listeners.clear();
   }
 
-  onChange(cb: (data: ITree<T>, v: Version) => void) {
+  // TODO: implement these correctly.
+  on(cb: (value: ITree<T>, version: Version) => void): () => void {
     this.#listeners.add(cb);
     return () => this.#listeners.delete(cb);
-  }
-
-  // TODO: implement these correctly.
-  on(fn: (value: ITree<T>, version: Version) => void): () => void {
-    return this.onChange(fn);
   }
 
   off(fn: (value: ITree<T>, version: Version) => void): void {
@@ -126,7 +122,7 @@ export abstract class MemorySource<T> {
   }
 }
 
-export class MutableMemorySource<T> extends MemorySource<T> {
+export class MutableSetSource<T> extends SetSource<T> {
   constructor(
     materialite: MaterialiteForSourceInternal,
     // TODO: comarator is really only on the selected set of fields that participate in the `order-by`
@@ -136,7 +132,7 @@ export class MutableMemorySource<T> extends MemorySource<T> {
   }
 
   withNewOrdering(comp: Comparator<T>): this {
-    const ret = new MutableMemorySource<T>(this._materialite, comp);
+    const ret = new MutableSetSource<T>(this._materialite, comp);
     this._materialite.materialite.tx(() => {
       for (const v of this.value) {
         ret.add(v);
