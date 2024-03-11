@@ -1,8 +1,8 @@
 import {expect, test} from 'vitest';
-import {Materialite} from '../ivm/Materialite.js';
+import {Materialite} from '../ivm/materialite.js';
 import {z} from 'zod';
-import {EntityQuery} from '../query/EntityQuery.js';
-import {buildPipeline} from './pipelineBuilder.js';
+import {EntityQuery} from '../query/entity-query.js';
+import {buildPipeline} from './pipeline-builder.js';
 import {makeTestContext} from '../context/context.js';
 
 const e1 = z.object({

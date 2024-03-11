@@ -1,6 +1,6 @@
-import {nullthrows} from '../error/InvariantViolation.js';
-import {DifferenceStream} from '../ivm/graph/DifferenceStream.js';
-import {AST, Condition, ConditionList, Operator} from '../ast/ZqlAst.js';
+import {nullthrows} from '../error/invariant-violation.js';
+import {DifferenceStream} from '../ivm/graph/difference-stream.js';
+import {AST, Condition, ConditionList, Operator} from '../ast/ast.js';
 
 export const orderingProp = Symbol();
 

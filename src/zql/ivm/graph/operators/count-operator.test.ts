@@ -1,8 +1,8 @@
 import {expect, test} from 'vitest';
-import {DifferenceStreamWriter} from '../DifferenceStreamWriter.js';
-import {LinearCountOperator} from './CountOperator.js';
-import {Multiset} from '../../Multiset.js';
-import {NoOp} from './Operator.js';
+import {DifferenceStreamWriter} from '../difference-stream-writer.js';
+import {LinearCountOperator} from './count-operator.js';
+import {Multiset} from '../../multiset.js';
+import {NoOp} from './operator.js';
 
 test('summing a difference stream', () => {
   const inputWriter = new DifferenceStreamWriter<number>();

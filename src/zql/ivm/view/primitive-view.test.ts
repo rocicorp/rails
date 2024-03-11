@@ -4,9 +4,9 @@ test:
 */
 
 import {expect, test} from 'vitest';
-import {Materialite} from '../Materialite.js';
+import {Materialite} from '../materialite.js';
 import fc from 'fast-check';
-import {ValueView} from './PrimitiveView.js';
+import {ValueView} from './primitive-view.js';
 
 const eventArray = fc.array(
   fc.oneof(

@@ -1,5 +1,5 @@
 import {expect, test} from 'vitest';
-import {Materialite} from '../Materialite.js';
+import {Materialite} from '../materialite.js';
 import fc from 'fast-check';
 
 const numberComparator = (l: number, r: number) => l - r;

@@ -1,7 +1,7 @@
 import {expect, test} from 'vitest';
-import {DifferenceStreamWriter} from '../DifferenceStreamWriter.js';
-import {DifferenceEffectOperator} from './DifferenceEffectOperator.js';
-import {Multiset} from '../../Multiset.js';
+import {DifferenceStreamWriter} from '../difference-stream-writer.js';
+import {DifferenceEffectOperator} from './difference-effect-operator.js';
+import {Multiset} from '../../multiset.js';
 
 test('calls effect with raw difference events', () => {
   const inputWriter = new DifferenceStreamWriter<number>();

@@ -1,5 +1,5 @@
 import {expect, test} from 'vitest';
-import {Multiset} from './Multiset.js';
+import {Multiset} from './multiset.js';
 
 type Ref<T> = {
   v: T;

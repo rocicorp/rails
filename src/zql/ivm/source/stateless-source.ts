@@ -1,7 +1,7 @@
-import {MaterialiteForSourceInternal} from '../Materialite.js';
-import {Entry, Multiset} from '../Multiset.js';
-import {DifferenceStream} from '../graph/DifferenceStream.js';
-import {SourceInternal} from './Source.js';
+import {MaterialiteForSourceInternal} from '../materialite.js';
+import {Entry, Multiset} from '../multiset.js';
+import {DifferenceStream} from '../graph/difference-stream.js';
+import {SourceInternal} from './source.js';
 import {Version} from '../types.js';
 
 /**

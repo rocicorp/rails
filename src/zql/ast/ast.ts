@@ -5,13 +5,13 @@
 // input to the query builder.
 export type Operator = '=' | '<' | '>' | '>=' | '<=' | 'IN' | 'LIKE' | 'ILIKE';
 
-export type Primitive = string | number | boolean | null | bigint;
+export type Primitive = string | number | boolean | null;
 // type Ref = `${string}.${string}`;
 export type AST = {
   readonly table?: string;
   readonly alias?: number;
   readonly select?: string[] | 'count';
-  // readonly subSelects?: {
+  // readonly subQueries?: {
   //   readonly alias: string;
   //   readonly query: AST;
   // }[];

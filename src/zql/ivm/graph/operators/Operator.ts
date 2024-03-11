@@ -1,7 +1,7 @@
-import {invariant} from '../../../error/InvariantViolation.js';
+import {invariant} from '../../../error/invariant-violation.js';
 import {Version} from '../../types.js';
-import {DifferenceStreamReader} from '../DifferenceStreamReader.js';
-import {DifferenceStreamWriter} from '../DifferenceStreamWriter.js';
+import {DifferenceStreamReader} from '../difference-stream-reader.js';
+import {DifferenceStreamWriter} from '../difference-stream-writer.js';
 
 /**
  * We have to run the graph breadth-first to ensure

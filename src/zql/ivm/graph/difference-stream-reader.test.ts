@@ -1,9 +1,9 @@
 import {expect, test} from 'vitest';
-import {DifferenceStreamReader} from './DifferenceStreamReader.js';
-import {Queue} from './Queue.js';
-import {NoOp} from './operators/Operator.js';
-import {InvariantViolation} from '../../error/InvariantViolation.js';
-import {Multiset} from '../Multiset.js';
+import {DifferenceStreamReader} from './difference-stream-reader.js';
+import {Queue} from './queue.js';
+import {NoOp} from './operators/operator.js';
+import {InvariantViolation} from '../../error/invariant-violation.js';
+import {Multiset} from '../multiset.js';
 
 test('cannot set two operators', () => {
   const r = new DifferenceStreamReader(new Queue());

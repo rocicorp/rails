@@ -1,9 +1,9 @@
 import {expect, test} from 'vitest';
 import {makeTestContext} from '../context/context.js';
 import {z} from 'zod';
-import {EntityQuery} from './EntityQuery.js';
-import {ascComparator} from './Statement.js';
-import {orderingProp} from '../ast-to-ivm/pipelineBuilder.js';
+import {EntityQuery} from './entity-query.js';
+import {ascComparator} from './statement.js';
+import {orderingProp} from '../ast-to-ivm/pipeline-builder.js';
 
 const e1 = z.object({
   id: z.string(),

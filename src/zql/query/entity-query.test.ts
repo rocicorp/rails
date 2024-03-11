@@ -1,7 +1,7 @@
 import {expect, expectTypeOf, test} from 'vitest';
 import {z} from 'zod';
-import {EntityQuery} from './EntityQuery.js';
-import {Misuse} from '../error/Misuse.js';
+import {EntityQuery} from './entity-query.js';
+import {Misuse} from '../error/misuse.js';
 import {makeTestContext} from '../context/context.js';
 
 const context = makeTestContext();

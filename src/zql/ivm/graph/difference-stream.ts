@@ -1,11 +1,11 @@
-import {Multiset} from '../Multiset.js';
+import {Multiset} from '../multiset.js';
 import {Version} from '../types.js';
-import {DifferenceStreamWriter} from './DifferenceStreamWriter.js';
-import {IDifferenceStream} from './IDifferenceStream.js';
-import {LinearCountOperator} from './operators/CountOperator.js';
-import {DifferenceEffectOperator} from './operators/DifferenceEffectOperator.js';
-import {FilterOperator} from './operators/FilterOperator.js';
-import {MapOperator} from './operators/MapOperator.js';
+import {DifferenceStreamWriter} from './difference-stream-writer.js';
+import {IDifferenceStream} from './idifference-stream.js';
+import {LinearCountOperator} from './operators/count-operator.js';
+import {DifferenceEffectOperator} from './operators/difference-effect-operator.js';
+import {FilterOperator} from './operators/filter-operator.js';
+import {MapOperator} from './operators/map-operator.js';
 
 /**
  * Used to build up a computation pipeline against a stream and then materialize it.

@@ -1,5 +1,5 @@
 import {test, expect} from 'vitest';
-import {Materialite} from '../Materialite.js';
+import {Materialite} from '../materialite.js';
 
 test('add', () => {
   const m = new Materialite();

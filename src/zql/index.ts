@@ -1,2 +1,2 @@
-export {EntityQuery} from './query/EntityQuery.js';
+export {EntityQuery} from './query/entity-query.js';
 export {Context} from './context/context.js';

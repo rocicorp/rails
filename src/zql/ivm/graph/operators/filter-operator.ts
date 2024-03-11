@@ -1,7 +1,7 @@
-import {Multiset} from '../../Multiset.js';
-import {DifferenceStreamReader} from '../DifferenceStreamReader.js';
-import {DifferenceStreamWriter} from '../DifferenceStreamWriter.js';
-import {LinearUnaryOperator} from './LinearUnaryOperator.js';
+import {Multiset} from '../../multiset.js';
+import {DifferenceStreamReader} from '../difference-stream-reader.js';
+import {DifferenceStreamWriter} from '../difference-stream-writer.js';
+import {LinearUnaryOperator} from './linear-unary-operator.js';
 
 export class FilterOperator<I> extends LinearUnaryOperator<I, I> {
   constructor(

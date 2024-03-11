@@ -1,5 +1,5 @@
-import {invariant} from '../../error/InvariantViolation.js';
-import {Multiset} from '../Multiset.js';
+import {invariant} from '../../error/invariant-violation.js';
+import {Multiset} from '../multiset.js';
 import {Version} from '../types.js';
 
 type Node<T> = {

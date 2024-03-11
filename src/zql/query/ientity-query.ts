@@ -1,9 +1,8 @@
-/* eslint-disable @typescript-eslint/ban-types */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import {EntitySchema} from '../schema/EntitySchema.js';
-import {IStatement} from './Statement.js';
-import {AST, Operator} from '../ast/ZqlAst.js';
+import {EntitySchema} from '../schema/entity-schema.js';
+import {IStatement} from './statement.js';
+import {AST, Operator} from '../ast/ast.js';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type SelectedFields<T, Fields extends Selectable<any>[]> = Pick<
   T,
   Fields[number] extends keyof T ? Fields[number] : never
@@ -11,6 +10,14 @@ export type SelectedFields<T, Fields extends Selectable<any>[]> = Pick<
 
 export type Selectable<T extends EntitySchema> = keyof T['fields'];
 
+/**
+ * Have you ever noticed that when you hover over Types in TypeScript, it shows
+ * Pick<Omit<T, K>, K>? Rather than the final object structure after picking and omitting?
+ * Or any time you use a type alias.
+ *
+ * MakeHumanReadable collapses the type aliases into their final form.
+ */
+// eslint-disable-next-line @typescript-eslint/ban-types
 export type MakeHumanReadable<T> = {} & {
   readonly [P in keyof T]: T[P] extends string ? T[P] : MakeHumanReadable<T[P]>;
 };

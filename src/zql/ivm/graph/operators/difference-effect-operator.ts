@@ -1,8 +1,8 @@
-import {Multiset} from '../../Multiset.js';
+import {Multiset} from '../../multiset.js';
 import {Version} from '../../types.js';
-import {DifferenceStreamReader} from '../DifferenceStreamReader.js';
-import {DifferenceStreamWriter} from '../DifferenceStreamWriter.js';
-import {UnaryOperator} from './UnaryOperator.js';
+import {DifferenceStreamReader} from '../difference-stream-reader.js';
+import {DifferenceStreamWriter} from '../difference-stream-writer.js';
+import {UnaryOperator} from './unary-operator.js';
 
 /**
  * Runs an effect _after_ a transaction has been committed.

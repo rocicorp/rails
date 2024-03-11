@@ -1,8 +1,8 @@
-import {Multiset} from '../../Multiset.js';
+import {Multiset} from '../../multiset.js';
 import {Version} from '../../types.js';
-import {DifferenceStreamReader} from '../DifferenceStreamReader.js';
-import {DifferenceStreamWriter} from '../DifferenceStreamWriter.js';
-import {Operator} from './Operator.js';
+import {DifferenceStreamReader} from '../difference-stream-reader.js';
+import {DifferenceStreamWriter} from '../difference-stream-writer.js';
+import {Operator} from './operator.js';
 
 export class UnaryOperator<I, O> extends Operator<O> {
   constructor(

@@ -1,5 +1,5 @@
 import {expect, test} from 'vitest';
-import {DifferenceStreamWriter} from './DifferenceStreamWriter.js';
+import {DifferenceStreamWriter} from './difference-stream-writer.js';
 
 test('notify readers', () => {
   const w = new DifferenceStreamWriter();

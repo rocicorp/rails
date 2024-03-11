@@ -1,5 +1,5 @@
-import {Materialite} from '../ivm/Materialite.js';
-import {Source} from '../ivm/source/Source.js';
+import {Materialite} from '../ivm/materialite.js';
+import {Source} from '../ivm/source/source.js';
 import {Entity} from '../../generate.js';
 
 export type Context = {

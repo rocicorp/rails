@@ -1,8 +1,8 @@
 import {expect, test} from 'vitest';
-import {MapOperator} from './MapOperator.js';
-import {DifferenceStreamWriter} from '../DifferenceStreamWriter.js';
-import {NoOp} from './Operator.js';
-import {Multiset} from '../../Multiset.js';
+import {MapOperator} from './map-operator.js';
+import {DifferenceStreamWriter} from '../difference-stream-writer.js';
+import {NoOp} from './operator.js';
+import {Multiset} from '../../multiset.js';
 
 test('lazy', () => {
   const inputWriter = new DifferenceStreamWriter<number>();

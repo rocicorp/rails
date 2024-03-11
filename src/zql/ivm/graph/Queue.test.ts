@@ -1,7 +1,7 @@
 import {expect, test} from 'vitest';
-import {Queue} from './Queue.js';
-import {Multiset} from '../Multiset.js';
-import {InvariantViolation} from '../../error/InvariantViolation.js';
+import {Queue} from './queue.js';
+import {Multiset} from '../multiset.js';
+import {InvariantViolation} from '../../error/invariant-violation.js';
 
 test('Rejects data from the past', () => {
   const q = new Queue();

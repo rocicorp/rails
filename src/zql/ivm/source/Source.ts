@@ -1,4 +1,4 @@
-import {DifferenceStream} from '../graph/DifferenceStream.js';
+import {DifferenceStream} from '../graph/difference-stream.js';
 import {Version} from '../types.js';
 
 export interface Source<T> {

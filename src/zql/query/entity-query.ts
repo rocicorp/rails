@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import {Misuse} from '../error/Misuse.js';
-import {EntitySchema} from '../schema/EntitySchema.js';
-import {IEntityQuery, Selectable, SelectedFields} from './IEntityQuery.js';
-import {IStatement, Statement} from './Statement.js';
-import {AST, Operator, Primitive} from '../ast/ZqlAst.js';
+import {Misuse} from '../error/misuse.js';
+import {EntitySchema} from '../schema/entity-schema.js';
+import {IEntityQuery, Selectable, SelectedFields} from './ientity-query.js';
+import {IStatement, Statement} from './statement.js';
+import {AST, Operator, Primitive} from '../ast/ast.js';
 import {Context} from '../context/context.js';
 
 let aliasCount = 0;

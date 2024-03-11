@@ -1,8 +1,8 @@
-import {invariant, nullthrows} from '../../error/InvariantViolation.js';
-import {Multiset} from '../Multiset.js';
+import {invariant, nullthrows} from '../../error/invariant-violation.js';
+import {Multiset} from '../multiset.js';
 import {Version} from '../types.js';
-import {Queue} from './Queue.js';
-import {IOperator} from './operators/Operator.js';
+import {Queue} from './queue.js';
+import {IOperator} from './operators/operator.js';
 
 /**
  * Represents the input to an operator.

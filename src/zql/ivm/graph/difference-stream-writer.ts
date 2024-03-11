@@ -1,7 +1,7 @@
-import {Multiset} from '../Multiset.js';
+import {Multiset} from '../multiset.js';
 import {Version} from '../types.js';
-import {DifferenceStreamReader} from './DifferenceStreamReader.js';
-import {Queue} from './Queue.js';
+import {DifferenceStreamReader} from './difference-stream-reader.js';
+import {Queue} from './queue.js';
 
 /**
  * Represents the output of an Operator.

@@ -1,8 +1,8 @@
 import {expect, test} from 'vitest';
-import {FilterOperator} from './FilterOperator.js';
-import {DifferenceStreamWriter} from '../DifferenceStreamWriter.js';
-import {Multiset} from '../../Multiset.js';
-import {NoOp} from './Operator.js';
+import {FilterOperator} from './filter-operator.js';
+import {DifferenceStreamWriter} from '../difference-stream-writer.js';
+import {Multiset} from '../../multiset.js';
+import {NoOp} from './operator.js';
 
 test('does not emit any rows that fail the filter', () => {
   const inputWriter = new DifferenceStreamWriter<number>();

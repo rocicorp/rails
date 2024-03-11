@@ -1,11 +1,11 @@
 import {expect, test} from 'vitest';
-import {Materialite} from '../Materialite.js';
-import {applySelect, orderingProp} from '../../ast-to-ivm/pipelineBuilder.js';
-import {MutableTreeView} from './TreeView.js';
-import {ascComparator, descComparator} from '../../query/Statement.js';
-import {DifferenceStream} from '../graph/DifferenceStream.js';
-import {Primitive} from '@vlcn.io/ds-and-algos/types';
+import {Materialite} from '../materialite.js';
+import {applySelect, orderingProp} from '../../ast-to-ivm/pipeline-builder.js';
+import {MutableTreeView} from './tree-view.js';
+import {ascComparator, descComparator} from '../../query/statement.js';
+import {DifferenceStream} from '../graph/difference-stream.js';
 import fc from 'fast-check';
+import {Primitive} from '../../ast/ast.js';
 
 const numberComparator = (l: number, r: number) => l - r;
 

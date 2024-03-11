@@ -1,8 +1,8 @@
 import {Comparator, ITree} from '@vlcn.io/ds-and-algos/types';
-import {MaterialiteForSourceInternal} from '../Materialite.js';
-import {DifferenceStream} from '../graph/DifferenceStream.js';
-import {SourceInternal, Source} from './Source.js';
-import {Entry, Multiset} from '../Multiset.js';
+import {MaterialiteForSourceInternal} from '../materialite.js';
+import {DifferenceStream} from '../graph/difference-stream.js';
+import {SourceInternal, Source} from './source.js';
+import {Entry, Multiset} from '../multiset.js';
 import {Version} from '../types.js';
 import {Treap} from '@vlcn.io/ds-and-algos/Treap';
 

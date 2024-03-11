@@ -1,7 +1,7 @@
-import {Materialite} from '../Materialite.js';
-import {DifferenceStream} from '../graph/DifferenceStream.js';
+import {Materialite} from '../materialite.js';
+import {DifferenceStream} from '../graph/difference-stream.js';
 import {Version} from '../types.js';
-import {View} from './View.js';
+import {View} from './view.js';
 
 /**
  * Represents the most recent value from a stream of primitives.

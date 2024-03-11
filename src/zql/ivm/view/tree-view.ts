@@ -1,9 +1,9 @@
 import {PersistentTreap} from '@vlcn.io/ds-and-algos/PersistentTreap';
-import {View} from './View.js';
-import {Materialite} from '../Materialite.js';
-import {DifferenceStream} from '../graph/DifferenceStream.js';
+import {View} from './view.js';
+import {Materialite} from '../materialite.js';
+import {DifferenceStream} from '../graph/difference-stream.js';
 import {Version} from '../types.js';
-import {Multiset} from '../Multiset.js';
+import {Multiset} from '../multiset.js';
 import {Comparator, ITree} from '@vlcn.io/ds-and-algos/types';
 import {Treap} from '@vlcn.io/ds-and-algos/Treap';
 

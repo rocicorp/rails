@@ -1,14 +1,14 @@
-import {buildPipeline, orderingProp} from '../ast-to-ivm/pipelineBuilder.js';
-import {IView} from '../ivm/view/IView.js';
-import {PersistentTreeView} from '../ivm/view/TreeView.js';
-import {EntitySchema} from '../schema/EntitySchema.js';
-import {MakeHumanReadable, IEntityQuery} from './IEntityQuery.js';
+import {buildPipeline, orderingProp} from '../ast-to-ivm/pipeline-builder.js';
+import {IView} from '../ivm/view/iview.js';
+import {PersistentTreeView} from '../ivm/view/tree-view.js';
+import {EntitySchema} from '../schema/entity-schema.js';
+import {MakeHumanReadable, IEntityQuery} from './ientity-query.js';
 import {Context} from '../context/context.js';
-import {DifferenceStream} from '../ivm/graph/DifferenceStream.js';
-import {ValueView} from '../ivm/view/PrimitiveView.js';
-import {Primitive} from '../ast/ZqlAst.js';
+import {DifferenceStream} from '../ivm/graph/difference-stream.js';
+import {ValueView} from '../ivm/view/primitive-view.js';
+import {Primitive} from '../ast/ast.js';
 import {Entity} from '../../generate.js';
-import {invariant} from '../error/InvariantViolation.js';
+import {invariant} from '../error/invariant-violation.js';
 
 export interface IStatement<TReturn> {
   materialize: () => IView<MakeHumanReadable<TReturn>>;

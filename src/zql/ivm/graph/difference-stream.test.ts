@@ -1,6 +1,6 @@
 import {expect, test} from 'vitest';
-import {DifferenceStream} from './DifferenceStream.js';
-import {Multiset} from '../Multiset.js';
+import {DifferenceStream} from './difference-stream.js';
+import {Multiset} from '../multiset.js';
 
 test('map', () => {
   const s = new DifferenceStream<number>();

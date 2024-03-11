@@ -1,7 +1,7 @@
-import {Materialite} from '../Materialite.js';
-import {DifferenceStream} from '../graph/DifferenceStream.js';
+import {Materialite} from '../materialite.js';
+import {DifferenceStream} from '../graph/difference-stream.js';
 import {Version} from '../types.js';
-import {IView} from './IView.js';
+import {IView} from './iview.js';
 
 export abstract class View<T, CT> implements IView<CT> {
   readonly #stream;
