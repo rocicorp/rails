@@ -9,6 +9,7 @@ import {ValueView} from '../ivm/view/primitive-view.js';
 import {Primitive} from '../ast/ast.js';
 import {Entity} from '../../generate.js';
 import {invariant} from '../error/asserts.js';
+import {compareEntityFields} from '../ivm/compare.js';
 
 export interface Statement<TReturn> {
   materialize: () => View<MakeHumanReadable<TReturn>>;
@@ -100,19 +101,9 @@ export function ascComparator<T extends {[orderingProp]: Primitive[]}>(
   for (let i = 0; i < leftVals.length; i++) {
     const leftVal = leftVals[i];
     const rightVal = rightVals[i];
-    if (leftVal === rightVal) {
-      continue;
-    }
-    if (leftVal === null) {
-      return -1;
-    }
-    if (rightVal === null) {
-      return 1;
-    }
-    if (leftVal < rightVal) {
-      return -1;
-    } else if (leftVal > rightVal) {
-      return 1;
+    const comp = compareEntityFields(leftVal, rightVal);
+    if (comp !== 0) {
+      return comp;
     }
   }
 

@@ -98,7 +98,6 @@ export abstract class SetSource<T> implements Source<T> {
     this.#listeners.clear();
   }
 
-  // TODO: implement these correctly.
   on(cb: (value: ITree<T>, version: Version) => void): () => void {
     this.#listeners.add(cb);
     return () => this.#listeners.delete(cb);
@@ -119,12 +118,15 @@ export abstract class SetSource<T> implements Source<T> {
     this._materialite.addDirtySource(this.#internal);
     return this;
   }
+
+  get(key: T): T | null {
+    return this.#tree.get(key);
+  }
 }
 
 export class MutableSetSource<T> extends SetSource<T> {
   constructor(
     materialite: MaterialiteForSourceInternal,
-    // TODO: comarator is really only on the selected set of fields that participate in the `order-by`
     comparator: Comparator<T>,
   ) {
     super(materialite, comparator, comparator => new Treap(comparator));
