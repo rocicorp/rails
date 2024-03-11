@@ -1,17 +1,17 @@
 import {Comparator} from '@vlcn.io/ds-and-algos/types';
-import {ISourceInternal} from './source/ISource.js';
+import {SourceInternal} from './source/Source.js';
 import {MutableSetSource} from './source/SetSource.js';
 import {StatelessSource} from './source/StatelessSource.js';
 import {Version} from './types.js';
 
 export type MaterialiteForSourceInternal = {
   readonly materialite: Materialite;
-  addDirtySource(source: ISourceInternal): void;
+  addDirtySource(source: SourceInternal): void;
 };
 
 export class Materialite {
   #version: Version;
-  #dirtySources: Set<ISourceInternal> = new Set();
+  #dirtySources: Set<SourceInternal> = new Set();
 
   #currentTx: Version | null = null;
   #internal: MaterialiteForSourceInternal;
@@ -22,7 +22,7 @@ export class Materialite {
     const self = this;
     this.#internal = {
       materialite: this,
-      addDirtySource(source: ISourceInternal) {
+      addDirtySource(source: SourceInternal) {
         self.#dirtySources.add(source);
         // auto-commit if not in a transaction
         if (self.#currentTx === null) {

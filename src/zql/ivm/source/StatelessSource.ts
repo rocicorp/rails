@@ -1,7 +1,7 @@
 import {MaterialiteForSourceInternal} from '../Materialite.js';
 import {Entry, Multiset} from '../Multiset.js';
 import {DifferenceStream} from '../graph/DifferenceStream.js';
-import {ISourceInternal} from './ISource.js';
+import {SourceInternal} from './Source.js';
 import {Version} from '../types.js';
 
 /**
@@ -9,7 +9,7 @@ import {Version} from '../types.js';
  */
 export class StatelessSource<T> {
   #stream: DifferenceStream<T>;
-  readonly #internal: ISourceInternal;
+  readonly #internal: SourceInternal;
   readonly #materialite: MaterialiteForSourceInternal;
 
   #pending: Entry<T>[] = [];

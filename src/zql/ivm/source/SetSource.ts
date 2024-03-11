@@ -1,7 +1,7 @@
 import {Comparator, ITree} from '@vlcn.io/ds-and-algos/types';
 import {MaterialiteForSourceInternal} from '../Materialite.js';
 import {DifferenceStream} from '../graph/DifferenceStream.js';
-import {ISourceInternal} from './ISource.js';
+import {SourceInternal, Source} from './Source.js';
 import {Entry, Multiset} from '../Multiset.js';
 import {Version} from '../types.js';
 import {Treap} from '@vlcn.io/ds-and-algos/Treap';
@@ -13,9 +13,9 @@ import {Treap} from '@vlcn.io/ds-and-algos/Treap';
  * exists to be able to receive historical data.
  *
  */
-export abstract class SetSource<T> {
+export abstract class SetSource<T> implements Source<T> {
   #stream: DifferenceStream<T>;
-  readonly #internal: ISourceInternal;
+  readonly #internal: SourceInternal;
   protected readonly _materialite: MaterialiteForSourceInternal;
   readonly #listeners = new Set<(data: ITree<T>, v: Version) => void>();
   #pending: Entry<T>[] = [];

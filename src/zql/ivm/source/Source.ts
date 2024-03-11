@@ -1,13 +1,13 @@
 import {DifferenceStream} from '../graph/DifferenceStream.js';
 import {Version} from '../types.js';
 
-export interface ISource<T> {
+export interface Source<T> {
   readonly stream: DifferenceStream<T>;
   add(value: T): this;
   delete(value: T): this;
 }
 
-export interface ISourceInternal {
+export interface SourceInternal {
   // Add values to queues
   onCommitPhase1(version: Version): void;
   // Drain queues and run the reactive graph
