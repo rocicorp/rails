@@ -8,7 +8,6 @@ export type Context = {
     name: string,
     ordering?: [string[], 'asc' | 'desc'],
   ) => Source<T>;
-  destroy: () => void;
 };
 
 export function makeTestContext(): Context {
@@ -20,24 +19,5 @@ export function makeTestContext(): Context {
     }
     return sources.get(name)! as Source<T>;
   };
-  return {materialite, getSource, destroy() {}};
+  return {materialite, getSource};
 }
-
-// const replicacheContexts = new Map<string, Context>();
-// export function getReplicacheContext(tx: ReadTransaction): Context {
-//   let existing = replicacheContexts.get(tx.clientID);
-//   if (!existing) {
-//     existing = {
-//       materialite: new Materialite(),
-//       getSource: (name, _ordering?: [string[], 'asc' | 'desc']) => {
-//         throw new Error(`Source not found: ${name}`);
-//       },
-//       destroy() {
-//         replicacheContexts.delete(tx.clientID);
-//       },
-//     };
-//     replicacheContexts.set(tx.clientID, existing);
-//   }
-
-//   return existing;
-// }

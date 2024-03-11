@@ -106,3 +106,37 @@ test('rollback', () => {
   source.add(2);
   expect([...source.value]).toEqual([2]);
 });
+
+test('withNewOrdering - we do not update the derived thing / withNewOrdering is not tied to the original. User must do that.', () => {
+  const m = new Materialite();
+  const source = m.newSetSource(numberComparator);
+  const derived = source.withNewOrdering((l, r) => r - l);
+
+  m.tx(() => {
+    source.add(1);
+    source.add(2);
+  });
+
+  expect([...source.value]).toEqual([1, 2]);
+  expect([...derived.value]).toEqual([]);
+});
+
+test('withNewOrdering - is correctly ordered', () => {
+  const m = new Materialite();
+
+  fc.assert(
+    fc.property(fc.uniqueArray(fc.integer()), arr => {
+      const source = m.newSetSource(numberComparator);
+      const derived = source.withNewOrdering((l, r) => r - l);
+      m.tx(() => {
+        arr.forEach(x => {
+          source.add(x);
+          derived.add(x);
+        });
+      });
+
+      expect([...source.value]).toEqual(arr.sort(numberComparator));
+      expect([...derived.value]).toEqual(arr.sort((l, r) => r - l));
+    }),
+  );
+});
