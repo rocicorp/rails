@@ -48,7 +48,7 @@ export abstract class SetSource<T> implements Source<T> {
             ) {
               // The tree doesn't allow dupes -- so this is a replace.
               self.#tree = self.#tree.add(nextMult > 0 ? nextVal : val);
-              i += 1;
+              ++i;
               continue;
             }
           }

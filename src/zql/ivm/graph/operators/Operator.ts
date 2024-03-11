@@ -39,17 +39,21 @@ export class NoOp implements IOperator {
 /**
  * A dataflow operator (node) that has many incoming edges (read handles) and one outgoing edge (write handle).
  */
-export class Operator<O> implements IOperator {
+export abstract class Operator<O> implements IOperator {
   readonly #fn;
   #lastRunVersion: Version = -1;
   #lastNotifyVersion: Version = -1;
+  protected readonly _inputs: DifferenceStreamReader[];
+  protected readonly _output: DifferenceStreamWriter<O>;
 
   constructor(
-    protected readonly _inputs: DifferenceStreamReader[],
-    protected readonly _output: DifferenceStreamWriter<O>,
+    inputs: DifferenceStreamReader[],
+    output: DifferenceStreamWriter<O>,
     fn: (v: Version) => void,
   ) {
     this.#fn = fn;
+    this._inputs = inputs;
+    this._output = output;
     for (const input of this._inputs) {
       input.setOperator(this);
     }

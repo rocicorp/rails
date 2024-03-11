@@ -42,4 +42,6 @@ for (let i = 0; i < 1000; ++i) {
 
 Would create 1k pipelines since we don't collapse over slots in stage 2.
 
+Slots represent binding positions. E.g., the `?` from a SQL statement: `SELECT * FROM foo WHERE x = ?` is a bind slot.
+
 ## Stage 3: Pipeline per Unique Unbound ZQL Query

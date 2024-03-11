@@ -1,6 +1,6 @@
 # ZQL - IVM
 
-The details of IVM are hidden behind ZQL but for those that want to use it
+The details of IVM (incremental view maintenance) are hidden behind ZQL but for those that want to use it
 directly, an outline follows.
 
 Interfaces below are introduced from the most abstract to the least.

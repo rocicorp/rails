@@ -41,10 +41,7 @@ export function applySelect(
   select: string[],
   orderBy: [string[], 'asc' | 'desc'] | undefined,
 ) {
-  let pushId = false;
-  if (!orderBy || !orderBy[0].includes('id')) {
-    pushId = true;
-  }
+  const pushID = !orderBy || !orderBy[0].includes('id');
   return stream.map(x => {
     const ret: Partial<Record<string, unknown>> = {};
     for (const field of select) {
@@ -59,7 +56,7 @@ export function applySelect(
         orderingValues.push((x as any)[field]);
       }
     }
-    if (pushId) {
+    if (pushID) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       orderingValues.push((x as any).id);
     }
