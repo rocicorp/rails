@@ -11,6 +11,7 @@ export default defineConfig({
         return false;
       }
     },
+    include: ['src/**/*.{test,spec}.?(c|m)[jt]s?(x)'],
     browser: {
       enabled: true,
       provider: 'playwright',
