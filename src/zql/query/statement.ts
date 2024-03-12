@@ -1,6 +1,6 @@
 import {buildPipeline, orderingProp} from '../ast-to-ivm/pipeline-builder.js';
 import {View} from '../ivm/view/view.js';
-import {PersistentTreeView} from '../ivm/view/tree-view.js';
+import {MutableTreeView} from '../ivm/view/tree-view.js';
 import {EntitySchema} from '../schema/entity-schema.js';
 import {MakeHumanReadable, EntityQuertType} from './entity-query-type.js';
 import {Context} from '../context/context.js';
@@ -37,19 +37,6 @@ export class StatementImpl<TSchema extends EntitySchema, TReturn>
     this.#context = c;
   }
 
-  // run(): MakeHumanReadable<TReturn> {
-  //   // TODO run the query!
-  //   // 1. materialize the view
-  //   // 2. if this is a 1-shot then we disconnect the view from updates?
-  //   //   Disconnect the pipeline too?
-  //   //
-  //   // Our other options is to leave the view materialized.
-  //   // Any future `run` would just immediately return.
-  //   //
-  //   // Nothing gets destroyed until the user `finalizes` the statement.
-  //   return {} as TReturn;
-  // }
-
   materialize(): View<MakeHumanReadable<TReturn>> {
     // TODO: invariants to throw if the statement is not completely bound before materialization.
     if (this.#materialization === null) {
@@ -61,7 +48,7 @@ export class StatementImpl<TSchema extends EntitySchema, TReturn>
           0,
         ) as unknown as View<TReturn extends [] ? TReturn[number] : TReturn>;
       } else {
-        this.#materialization = new PersistentTreeView<
+        this.#materialization = new MutableTreeView<
           TReturn extends [] ? TReturn[number] : never
         >(
           this.#context.materialite,
@@ -82,7 +69,7 @@ export class StatementImpl<TSchema extends EntitySchema, TReturn>
   onDifference() {}
 
   destroy() {
-    // destroy the entire pipeline by disconnecting it from the source.
+    this.#pipeline.destroy();
   }
 }
 

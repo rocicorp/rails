@@ -34,6 +34,7 @@ export abstract class AbstractView<T, CT> implements View<CT> {
       notifyCommitted: (v: Version) => {
         this._notifyCommitted(this.value, v);
       },
+      destroy() {},
     });
   }
 

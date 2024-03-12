@@ -3,6 +3,7 @@ import {Multiset} from '../multiset.js';
 import {Version} from '../types.js';
 import {Queue} from './queue.js';
 import {IOperator} from './operators/operator.js';
+import {DifferenceStreamWriter} from './difference-stream-writer.js';
 
 /**
  * Represents the input to an operator.
@@ -20,11 +21,15 @@ import {IOperator} from './operators/operator.js';
  */
 export class DifferenceStreamReader<T = unknown> {
   readonly #queue;
+  // upstream writer
+  readonly #upstream;
+  // downstream operator
   #operator: IOperator | null = null;
   #lastSeenVersion: Version = -1;
 
-  constructor(queue: Queue<T>) {
+  constructor(upstream: DifferenceStreamWriter<T>, queue: Queue<T>) {
     this.#queue = queue;
+    this.#upstream = upstream;
   }
 
   setOperator(operator: IOperator) {
@@ -69,5 +74,10 @@ export class DifferenceStreamReader<T = unknown> {
 
   isEmpty() {
     return this.#queue.isEmpty();
+  }
+
+  destroy() {
+    this.#upstream.removeReaderAndMaybeDestroy(this);
+    this.#queue.clear();
   }
 }

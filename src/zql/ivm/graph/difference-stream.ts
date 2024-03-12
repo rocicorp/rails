@@ -3,6 +3,7 @@ import {Version} from '../types.js';
 import {DifferenceStreamWriter} from './difference-stream-writer.js';
 import {IDifferenceStream} from './idifference-stream.js';
 import {LinearCountOperator} from './operators/count-operator.js';
+import {DebugOperator} from './operators/debug-operator.js';
 import {DifferenceEffectOperator} from './operators/difference-effect-operator.js';
 import {FilterOperator} from './operators/filter-operator.js';
 import {MapOperator} from './operators/map-operator.js';
@@ -57,6 +58,12 @@ export class DifferenceStream<T> implements IDifferenceStream<T> {
     return ret;
   }
 
+  debug(onMessage: (c: Multiset<T>) => void) {
+    const ret = this.newStream<T>();
+    new DebugOperator(this.#writer.newReader(), ret.#writer, onMessage);
+    return ret;
+  }
+
   queueData(data: [Version, Multiset<T>]) {
     this.#writer.queueData(data);
   }
@@ -71,5 +78,9 @@ export class DifferenceStream<T> implements IDifferenceStream<T> {
 
   newReader() {
     return this.#writer.newReader();
+  }
+
+  destroy() {
+    this.#writer.destroy();
   }
 }
