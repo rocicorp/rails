@@ -5,7 +5,7 @@ import {SourceInternal, Source} from './source.js';
 import {Entry, Multiset} from '../multiset.js';
 import {Version} from '../types.js';
 import {Treap} from '@vlcn.io/ds-and-algos/Treap';
-import {must} from '../../error/invariant-violation.js';
+import {must} from '../../error/asserts.js';
 
 /**
  * A source that remembers what values it contains.

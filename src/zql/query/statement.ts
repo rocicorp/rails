@@ -8,7 +8,7 @@ import {DifferenceStream} from '../ivm/graph/difference-stream.js';
 import {ValueView} from '../ivm/view/primitive-view.js';
 import {Primitive} from '../ast/ast.js';
 import {Entity} from '../../generate.js';
-import {invariant} from '../error/invariant-violation.js';
+import {invariant} from '../error/asserts.js';
 
 export interface IStatement<TReturn> {
   materialize: () => View<MakeHumanReadable<TReturn>>;

@@ -2,7 +2,7 @@ import {Materialite} from '../materialite.js';
 import {DifferenceStream} from '../graph/difference-stream.js';
 import {Version} from '../types.js';
 import {AbstractView} from './abstract-view.js';
-import {must} from '../../error/invariant-violation.js';
+import {must} from '../../error/asserts.js';
 
 /**
  * Represents the most recent value from a stream of primitives.

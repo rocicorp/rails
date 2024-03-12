@@ -1,4 +1,4 @@
-import {invariant, must} from '../../error/invariant-violation.js';
+import {invariant, must} from '../../error/asserts.js';
 import {Multiset} from '../multiset.js';
 import {Version} from '../types.js';
 import {Queue} from './queue.js';

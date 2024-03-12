@@ -1,4 +1,4 @@
-import {assert, must} from '../error/invariant-violation.js';
+import {assert, must} from '../error/asserts.js';
 import {DifferenceStream} from '../ivm/graph/difference-stream.js';
 import {AST, Condition, ConditionList, Operator} from '../ast/ast.js';
 

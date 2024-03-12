@@ -3,7 +3,7 @@ import {SourceInternal} from './source/source.js';
 import {MutableSetSource} from './source/set-source.js';
 import {StatelessSource} from './source/stateless-source.js';
 import {Version} from './types.js';
-import {must} from '../error/invariant-violation.js';
+import {must} from '../error/asserts.js';
 
 export type MaterialiteForSourceInternal = {
   readonly materialite: Materialite;

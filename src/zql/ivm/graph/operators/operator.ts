@@ -1,4 +1,4 @@
-import {invariant} from '../../../error/invariant-violation.js';
+import {invariant} from '../../../error/asserts.js';
 import {Version} from '../../types.js';
 import {DifferenceStreamReader} from '../difference-stream-reader.js';
 import {DifferenceStreamWriter} from '../difference-stream-writer.js';
