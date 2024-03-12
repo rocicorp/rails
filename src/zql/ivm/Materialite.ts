@@ -3,6 +3,7 @@ import {SourceInternal} from './source/source.js';
 import {MutableSetSource} from './source/set-source.js';
 import {StatelessSource} from './source/stateless-source.js';
 import {Version} from './types.js';
+import {must} from '../error/invariant-violation.js';
 
 export type MaterialiteForSourceInternal = {
   readonly materialite: Materialite;
@@ -18,16 +19,14 @@ export class Materialite {
 
   constructor() {
     this.#version = 0;
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
-    const self = this;
     this.#internal = {
       materialite: this,
-      addDirtySource(source: SourceInternal) {
-        self.#dirtySources.add(source);
+      addDirtySource: (source: SourceInternal) => {
+        this.#dirtySources.add(source);
         // auto-commit if not in a transaction
-        if (self.#currentTx === null) {
-          self.#currentTx = self.#version + 1;
-          self.#commit();
+        if (this.#currentTx === null) {
+          this.#currentTx = this.#version + 1;
+          this.#commit();
         }
       },
     };
@@ -89,7 +88,7 @@ export class Materialite {
   }
 
   #commit() {
-    this.#version = this.#currentTx!;
+    this.#version = must(this.#currentTx);
     this.#currentTx = null;
     for (const source of this.#dirtySources) {
       source.onCommitPhase1(this.#version);

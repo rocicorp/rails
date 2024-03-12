@@ -49,36 +49,26 @@ export class Multiset<T> {
   filter(f: (value: T) => boolean): Multiset<T> {
     return new Multiset(genFilter(this.entries, ([value, _]) => f(value)));
   }
-
-  toString() {
-    return this.entries.toString();
-  }
 }
 
 function genMap<T, U>(s: Iterable<T>, cb: (x: T) => U) {
-  function* gen() {
-    for (const x of s) {
-      yield cb(x);
-    }
-  }
   return {
     *[Symbol.iterator]() {
-      yield* gen();
+      for (const x of s) {
+        yield cb(x);
+      }
     },
   };
 }
 
 function genFilter<T>(s: Iterable<T>, cb: (x: T) => boolean) {
-  function* gen() {
-    for (const x of s) {
-      if (cb(x)) {
-        yield x;
-      }
-    }
-  }
   return {
     *[Symbol.iterator]() {
-      yield* gen();
+      for (const x of s) {
+        if (cb(x)) {
+          yield x;
+        }
+      }
     },
   };
 }

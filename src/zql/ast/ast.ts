@@ -8,22 +8,22 @@ export type Operator = '=' | '<' | '>' | '>=' | '<=' | 'IN' | 'LIKE' | 'ILIKE';
 export type Primitive = string | number | boolean | null;
 // type Ref = `${string}.${string}`;
 export type AST = {
-  readonly table?: string;
-  readonly alias?: number;
-  readonly select?: string[] | 'count';
+  readonly table?: string | undefined;
+  readonly alias?: number | undefined;
+  readonly select?: string[] | 'count' | undefined;
   // readonly subQueries?: {
   //   readonly alias: string;
   //   readonly query: AST;
   // }[];
-  readonly where?: ConditionList;
+  readonly where?: ConditionList | undefined;
   // readonly joins?: {
   //   readonly table: string;
   //   readonly as: string;
   //   readonly on: ConditionList;
   // }[];
-  readonly limit?: number;
+  readonly limit?: number | undefined;
   // readonly groupBy?: string[];
-  readonly orderBy?: [string[], 'asc' | 'desc'];
+  readonly orderBy?: [string[], 'asc' | 'desc'] | undefined;
   // readonly after?: Primitive;
 };
 

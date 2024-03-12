@@ -9,6 +9,7 @@ export abstract class View<T, CT> implements IView<CT> {
   protected readonly _reader;
   protected _notifiedListenersVersion = -1;
   readonly #listeners: Set<(s: CT, v: Version) => void> = new Set();
+  readonly name;
 
   abstract get value(): CT;
 
@@ -19,8 +20,9 @@ export abstract class View<T, CT> implements IView<CT> {
   constructor(
     materialite: Materialite,
     stream: DifferenceStream<T>,
-    readonly name: string = '',
+    name: string = '',
   ) {
+    this.name = name;
     this._materialite = materialite;
     this.#stream = stream;
     this._reader = this.#stream.newReader();

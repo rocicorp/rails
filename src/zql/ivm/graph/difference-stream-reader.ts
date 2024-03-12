@@ -1,4 +1,4 @@
-import {invariant, nullthrows} from '../../error/invariant-violation.js';
+import {invariant, must} from '../../error/invariant-violation.js';
 import {Multiset} from '../multiset.js';
 import {Version} from '../types.js';
 import {Queue} from './queue.js';
@@ -34,12 +34,12 @@ export class DifferenceStreamReader<T = unknown> {
 
   run(v: Version) {
     this.#lastSeenVersion = v;
-    nullthrows(this.#operator, 'reader is missing operator').run(v);
+    must(this.#operator, 'reader is missing operator').run(v);
   }
 
   notify(v: Version) {
     invariant(v === this.#lastSeenVersion, 'notify called out of order');
-    nullthrows(this.#operator, 'reader is missing operator').notify(v);
+    must(this.#operator, 'reader is missing operator').notify(v);
   }
 
   notifyCommitted(v: Version) {
@@ -48,7 +48,7 @@ export class DifferenceStreamReader<T = unknown> {
     if (v !== this.#lastSeenVersion) {
       return;
     }
-    nullthrows(this.#operator, 'reader is missing operator').notifyCommitted(v);
+    must(this.#operator, 'reader is missing operator').notifyCommitted(v);
   }
 
   drain(version: Version) {

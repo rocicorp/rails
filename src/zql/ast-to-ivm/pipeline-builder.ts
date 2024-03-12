@@ -1,4 +1,4 @@
-import {nullthrows} from '../error/invariant-violation.js';
+import {assert, must} from '../error/invariant-violation.js';
 import {DifferenceStream} from '../ivm/graph/difference-stream.js';
 import {AST, Condition, ConditionList, Operator} from '../ast/ast.js';
 
@@ -13,7 +13,7 @@ export function buildPipeline(
   // order is a param to materialization
   // as well as limit? How does limit work in materialite again?
   let stream = sourceStreamProvider(
-    nullthrows(ast.table, 'Table not specified in the AST'),
+    must(ast.table, 'Table not specified in the AST'),
   );
 
   if (ast.where) {
@@ -21,14 +21,11 @@ export function buildPipeline(
   }
 
   let ret: DifferenceStream<unknown>;
-  if (ast.select) {
-    if (ast.select === 'count') {
-      ret = stream.linearCount();
-    } else {
-      ret = applySelect(stream, ast.select, ast.orderBy);
-    }
+  assert(ast.select, 'No select clause');
+  if (ast.select === 'count') {
+    ret = stream.linearCount();
   } else {
-    throw new Error('No select clause');
+    ret = applySelect(stream, ast.select, ast.orderBy);
   }
 
   // Note: the stream is technically attached at this point.
@@ -45,20 +42,17 @@ export function applySelect(
   return stream.map(x => {
     const ret: Partial<Record<string, unknown>> = {};
     for (const field of select) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ret[field] = (x as any)[field];
+      ret[field] = (x as Record<string, unknown>)[field];
     }
 
     const orderingValues: unknown[] = [];
     if (orderBy !== undefined) {
       for (const field of orderBy[0]) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        orderingValues.push((x as any)[field]);
+        orderingValues.push((x as Record<string, unknown>)[field]);
       }
     }
     if (pushID) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      orderingValues.push((x as any).id);
+      orderingValues.push((x as Record<string, unknown>).id);
     }
 
     Object.defineProperty(ret, orderingProp, {
@@ -74,25 +68,23 @@ export function applySelect(
 
 function applyWhere(stream: DifferenceStream<unknown>, where: ConditionList) {
   let ret = stream;
-  /*
-  We'll handle `OR` and parentheticals like so:
-  OR: We'll create a new stream for the LHS and RHS of the OR then merge together.
-  Parentheticals: We'll create a new stream for the LHS and RHS of the operator involved in combining the parenthetical then merge together.
-  
-  Example:
-  (a = 1 AND b = 2) OR (c = 3 AND d = 4)
-  Becomes
-        s
-       / \
-     a=1 c=3
-     /     \
-     b=2   d=4
-      \    /
-        OR
-         |
-
-  So `ORs` cause a fork (two branches that need to be evaluated) and then that fork is combined.
-  */
+  // We'll handle `OR` and parentheticals like so:
+  // OR: We'll create a new stream for the LHS and RHS of the OR then merge together.
+  // Parentheticals: We'll create a new stream for the LHS and RHS of the operator involved in combining the parenthetical then merge together.
+  //
+  // Example:
+  // (a = 1 AND b = 2) OR (c = 3 AND d = 4)
+  // Becomes
+  //       s
+  //      / \
+  //    a=1 c=3
+  //    /     \
+  //    b=2   d=4
+  //     \    /
+  //       OR
+  //        |
+  //
+  // So `ORs` cause a fork (two branches that need to be evaluated) and then that fork is combined.
   for (let i = 0; i < where.length; i++) {
     const condition = where[i];
     if (condition === 'AND') {
