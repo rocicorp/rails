@@ -1,13 +1,13 @@
 import {Materialite} from '../materialite.js';
 import {DifferenceStream} from '../graph/difference-stream.js';
 import {Version} from '../types.js';
-import {View} from './view.js';
+import {AbstractView} from './abstract-view.js';
 import {must} from '../../error/invariant-violation.js';
 
 /**
  * Represents the most recent value from a stream of primitives.
  */
-export class ValueView<T> extends View<T, T | null> {
+export class ValueView<T> extends AbstractView<T, T | null> {
   #data: T | null;
 
   constructor(

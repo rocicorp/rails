@@ -1,5 +1,5 @@
 import {PersistentTreap} from '@vlcn.io/ds-and-algos/PersistentTreap';
-import {View} from './view.js';
+import {AbstractView} from './abstract-view.js';
 import {Materialite} from '../materialite.js';
 import {DifferenceStream} from '../graph/difference-stream.js';
 import {Version} from '../types.js';
@@ -17,7 +17,7 @@ import {Treap} from '@vlcn.io/ds-and-algos/Treap';
  * of the tree.
  */
 let id = 0;
-class AbstractTreeView<T> extends View<T, T[]> {
+class AbstractTreeView<T> extends AbstractView<T, T[]> {
   #data: ITree<T>;
 
   #jsSlice: T[] = [];

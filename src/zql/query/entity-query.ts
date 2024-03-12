@@ -1,6 +1,10 @@
 import {Misuse} from '../error/misuse.js';
 import {EntitySchema} from '../schema/entity-schema.js';
-import {IEntityQuery, Selectable, SelectedFields} from './ientity-query.js';
+import {
+  EntityQuertType,
+  Selectable,
+  SelectedFields,
+} from './entity-query-type.js';
 import {IStatement, Statement} from './statement.js';
 import {AST, Operator, Primitive} from '../ast/ast.js';
 import {Context} from '../context/context.js';
@@ -8,7 +12,7 @@ import {Context} from '../context/context.js';
 let aliasCount = 0;
 
 export class EntityQuery<S extends EntitySchema, TReturn = []>
-  implements IEntityQuery<S, TReturn>
+  implements EntityQuertType<S, TReturn>
 {
   readonly #ast: AST;
   readonly #name: string;

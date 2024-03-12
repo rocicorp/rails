@@ -8,13 +8,13 @@ export type Edge<Src extends EntitySchema, Dst extends EntitySchema> = {
 export type Edges = {
   [key: string]: Edge<EntitySchema, EntitySchema>;
 };
-export type Node = {
+export type Fields = {
   id: string;
 } & {
   [key: string]: unknown;
 };
 
 export interface EntitySchema {
-  readonly fields: Node;
+  readonly fields: Fields;
   readonly edges?: Edges;
 }

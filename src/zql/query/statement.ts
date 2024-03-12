@@ -1,8 +1,8 @@
 import {buildPipeline, orderingProp} from '../ast-to-ivm/pipeline-builder.js';
-import {IView} from '../ivm/view/iview.js';
+import {View} from '../ivm/view/view.js';
 import {PersistentTreeView} from '../ivm/view/tree-view.js';
 import {EntitySchema} from '../schema/entity-schema.js';
-import {MakeHumanReadable, IEntityQuery} from './ientity-query.js';
+import {MakeHumanReadable, EntityQuertType} from './entity-query-type.js';
 import {Context} from '../context/context.js';
 import {DifferenceStream} from '../ivm/graph/difference-stream.js';
 import {ValueView} from '../ivm/view/primitive-view.js';
@@ -11,7 +11,7 @@ import {Entity} from '../../generate.js';
 import {invariant} from '../error/invariant-violation.js';
 
 export interface IStatement<TReturn> {
-  materialize: () => IView<MakeHumanReadable<TReturn>>;
+  materialize: () => View<MakeHumanReadable<TReturn>>;
   destroy: () => void;
 }
 
@@ -21,11 +21,11 @@ export class Statement<TSchema extends EntitySchema, TReturn>
   readonly #pipeline;
   readonly #ast;
   readonly #context;
-  #materialization: IView<
+  #materialization: View<
     TReturn extends [] ? TReturn[number] : TReturn
   > | null = null;
 
-  constructor(c: Context, q: IEntityQuery<TSchema, TReturn>) {
+  constructor(c: Context, q: EntityQuertType<TSchema, TReturn>) {
     this.#ast = q._ast;
     this.#pipeline = buildPipeline(
       <T extends Entity>(sourceName: string) =>
@@ -49,7 +49,7 @@ export class Statement<TSchema extends EntitySchema, TReturn>
   //   return {} as TReturn;
   // }
 
-  materialize(): IView<MakeHumanReadable<TReturn>> {
+  materialize(): View<MakeHumanReadable<TReturn>> {
     // TODO: invariants to throw if the statement is not completely bound before materialization.
     if (this.#materialization === null) {
       if (this.#ast.select === 'count') {
@@ -58,7 +58,7 @@ export class Statement<TSchema extends EntitySchema, TReturn>
           this.#context.materialite,
           this.#pipeline as DifferenceStream<number>,
           0,
-        ) as unknown as IView<TReturn extends [] ? TReturn[number] : TReturn>;
+        ) as unknown as View<TReturn extends [] ? TReturn[number] : TReturn>;
       } else {
         this.#materialization = new PersistentTreeView<
           TReturn extends [] ? TReturn[number] : never
@@ -70,11 +70,11 @@ export class Statement<TSchema extends EntitySchema, TReturn>
           this.#ast.orderBy?.[1] === 'asc' ? ascComparator : descComparator,
           true, // TODO: since we're going to control everything we can make this so.
           this.#ast.limit,
-        ) as unknown as IView<TReturn extends [] ? TReturn[number] : TReturn>;
+        ) as unknown as View<TReturn extends [] ? TReturn[number] : TReturn>;
       }
     }
 
-    return this.#materialization as IView<MakeHumanReadable<TReturn>>;
+    return this.#materialization as View<MakeHumanReadable<TReturn>>;
   }
 
   // For savvy users that want to subscribe directly to diffs.
