@@ -53,8 +53,7 @@ export class DifferenceStreamReader<T = unknown> {
 
   drain(version: Version) {
     const ret: Multiset<T>[] = [];
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
+    for (;;) {
       const data = this.#queue.peek();
       if (data === null) {
         break;

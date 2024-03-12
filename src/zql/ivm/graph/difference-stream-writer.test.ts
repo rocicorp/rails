@@ -23,7 +23,7 @@ test('notify readers', () => {
 
 test('notify committed readers', () => {
   const w = new DifferenceStreamWriter();
-  const readers = Array.from({length: 3}).map(() => w.newReader());
+  const readers = Array.from({length: 3}, () => w.newReader());
   const notifications = readers.map(() => false);
 
   readers.forEach((r, i) => {

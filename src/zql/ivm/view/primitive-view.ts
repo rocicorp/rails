@@ -2,6 +2,7 @@ import {Materialite} from '../materialite.js';
 import {DifferenceStream} from '../graph/difference-stream.js';
 import {Version} from '../types.js';
 import {View} from './view.js';
+import {must} from '../../error/invariant-violation.js';
 
 /**
  * Represents the most recent value from a stream of primitives.
@@ -28,7 +29,7 @@ export class ValueView<T> extends View<T, T | null> {
       return;
     }
 
-    const lastCollection = collections[collections.length - 1]!;
+    const lastCollection = must(collections[collections.length - 1]);
     let lastValue = undefined;
     for (const [value, mult] of lastCollection.entries) {
       if (mult > 0) {

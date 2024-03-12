@@ -29,7 +29,6 @@ abstract class AbstractDifferenceStreamWriter<T> {
    * Prepares data to be sent but does not yet notify readers.
    *
    * Used so we can batch a set of mutations together before running a pipeline.
-   * @param data
    */
   queueData(data: [Version, Multiset<T>]) {
     for (const q of this.queues) {
@@ -39,7 +38,6 @@ abstract class AbstractDifferenceStreamWriter<T> {
 
   /**
    * Notifies readers. Called during transaction commit.
-   * @param version
    */
   notify(version: Version) {
     for (const r of this.readers) {
@@ -53,7 +51,6 @@ abstract class AbstractDifferenceStreamWriter<T> {
   /**
    * Notifies any observers that a transaction
    * has completed. Called immediately after transaction commit.
-   * @param v
    */
   notifyCommitted(v: Version) {
     for (const r of this.readers) {
@@ -64,7 +61,6 @@ abstract class AbstractDifferenceStreamWriter<T> {
   /**
    * Forks a new reader off of this writer.
    * Values sent to the writer will be copied off to this new reader.
-   * @returns
    */
   newReader(): DifferenceStreamReader<T> {
     const queue = new Queue<T>();

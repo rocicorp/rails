@@ -28,5 +28,5 @@ test('summing a difference stream', () => {
 
   const final = outputReader.drain(1);
   expect(final.length).toBe(1);
-  expect([...final[0].entries][0][0]).toBe(1);
+  expect([...final[0].entries]).toEqual([[1, 1]]);
 });

@@ -56,7 +56,7 @@ test('emits all rows that pass the filter (including deletes / retractions)', ()
 
   expect(items.length).toBe(1);
   const entries = [...items[0].entries];
-  expect(entries).toMatchObject([
+  expect(entries).toEqual([
     [1, 1],
     [2, 2],
     [1, -1],

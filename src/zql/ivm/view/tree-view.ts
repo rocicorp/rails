@@ -20,8 +20,6 @@ let id = 0;
 class AbstractTreeView<T> extends View<T, T[]> {
   #data: ITree<T>;
 
-  // TODO: If we're providing JS slices... can't we just use a mutable tree?
-  // The JS slices will be immutable.
   #jsSlice: T[] = [];
 
   #limit?: number;
@@ -56,47 +54,6 @@ class AbstractTreeView<T> extends View<T, T[]> {
 
   #addAll: (data: ITree<T>, value: T) => ITree<T>;
   #removeAll: (data: ITree<T>, value: T) => ITree<T>;
-
-  /**
-   * Re-materialize the view but with a new limit.
-   * All other params remain the same.
-   * Returns a new view.
-   * The view will ask the upstream for data _after_ the current view's max
-   */
-  // rematerialize(newLimit: number) {
-  //   const newView = new PersistentTreeView(
-  //     this.materialite,
-  //     this.stream,
-  //     this.comparator,
-  //     newLimit,
-  //   );
-  //   newView.#min = this.#min;
-  //   newView.#max = this.#max;
-  //   newView.#data = this.#data;
-
-  //   if (this.#max !== undefined) {
-  //     this.materialite.tx(() => {
-  //       newView.reader.pull({
-  //         expressions: [
-  //           {
-  //             _tag: 'after',
-  //             comparator: this.comparator,
-  //             cursor: this.#max,
-  //           },
-  //         ],
-  //       });
-  //     });
-  //   } else {
-  //     this.materialite.tx(() => {
-  //       newView.reader.pull({expressions: []});
-  //     });
-  //   }
-
-  //   // I assume this is reasonable behavior. If you're rematerializing a view you don't need the old thing?
-  //   this.destroy();
-
-  //   return newView;
-  // }
 
   get value(): T[] {
     return this.#jsSlice;
@@ -257,14 +214,12 @@ class AbstractTreeView<T> extends View<T, T[]> {
 
 function addAll<T>(data: ITree<T>, value: T) {
   // A treap can't have dupes so we can ignore `mult`
-  data = data.add(value);
-  return data;
+  return data.add(value);
 }
 
 function removeAll<T>(data: ITree<T>, value: T) {
   // A treap can't have dupes so we can ignore `mult`
-  data = data.delete(value);
-  return data;
+  return data.delete(value);
 }
 
 export class PersistentTreeView<T> extends AbstractTreeView<T> {

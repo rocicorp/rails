@@ -5,6 +5,7 @@ import {SourceInternal, Source} from './source.js';
 import {Entry, Multiset} from '../multiset.js';
 import {Version} from '../types.js';
 import {Treap} from '@vlcn.io/ds-and-algos/Treap';
+import {must} from '../../error/invariant-violation.js';
 
 /**
  * A source that remembers what values it contains.
@@ -37,10 +38,10 @@ export abstract class SetSource<T> implements Source<T> {
     this.#internal = {
       onCommitPhase1(version: Version) {
         for (let i = 0; i < self.#pending.length; i++) {
-          const [val, mult] = self.#pending[i]!;
+          const [val, mult] = must(self.#pending[i]);
           // small optimization to reduce operations for replace
           if (i + 1 < self.#pending.length) {
-            const [nextVal, nextMult] = self.#pending[i + 1]!;
+            const [nextVal, nextMult] = must(self.#pending[i + 1]);
             if (
               Math.abs(mult) === 1 &&
               mult === -nextMult &&

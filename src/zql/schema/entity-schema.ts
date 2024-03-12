@@ -1,8 +1,8 @@
-export type Edge<TSrc extends EntitySchema, TDst extends EntitySchema> = {
-  src: TSrc;
-  srcField: keyof TSrc['fields'];
-  dst: TDst;
-  dstField: keyof TDst['fields'];
+export type Edge<Src extends EntitySchema, Dst extends EntitySchema> = {
+  src: Src;
+  srcField: keyof Src['fields'];
+  dst: Dst;
+  dstField: keyof Dst['fields'];
 };
 
 export type Edges = {

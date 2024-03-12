@@ -37,10 +37,7 @@ test('always surfaces the value of the last non-delete event that was received',
       });
 
       expect(view.value).toEqual(
-        events
-          .slice()
-          .reverse()
-          .find(event => event.tag === 'add')?.value || 0,
+        events.toReversed().find(event => event.tag === 'add')?.value || 0,
       );
     }),
   );

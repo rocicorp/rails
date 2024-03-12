@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import {Misuse} from '../error/misuse.js';
 import {EntitySchema} from '../schema/entity-schema.js';
 import {IEntityQuery, Selectable, SelectedFields} from './ientity-query.js';
@@ -30,13 +29,17 @@ export class EntityQuery<S extends EntitySchema, TReturn = []>
         'A query can either return fields or a count, not both.',
       );
     }
+    const select = new Set(this.#ast.select);
+    for (const more of x) {
+      select.add(more as string);
+    }
 
     return new EntityQuery<S, SelectedFields<S['fields'], Fields>[]>(
       this.#context,
       this.#name,
       {
         ...this.#ast,
-        select: [...new Set([...(this.#ast.select || []), ...x])] as any,
+        select: [...select],
       },
     );
   }
