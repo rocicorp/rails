@@ -4,21 +4,31 @@ import {Queue} from './queue.js';
 import {NoOp} from './operators/operator.js';
 import {InvariantViolation} from '../../error/asserts.js';
 import {Multiset} from '../multiset.js';
+import {DifferenceStreamWriter} from './difference-stream-writer.js';
 
 test('cannot set two operators', () => {
-  const r = new DifferenceStreamReader(new Queue());
+  const r = new DifferenceStreamReader(
+    new DifferenceStreamWriter(),
+    new Queue(),
+  );
   r.setOperator(new NoOp());
   expect(() => r.setOperator(new NoOp())).toThrow(InvariantViolation);
 });
 
 test('calling notify without calling run throws', () => {
-  const r = new DifferenceStreamReader(new Queue());
+  const r = new DifferenceStreamReader(
+    new DifferenceStreamWriter(),
+    new Queue(),
+  );
   r.setOperator(new NoOp());
   expect(() => r.notify(1)).toThrow(InvariantViolation);
 });
 
 test('calling notify with a mismatched version throws', () => {
-  const r = new DifferenceStreamReader(new Queue());
+  const r = new DifferenceStreamReader(
+    new DifferenceStreamWriter(),
+    new Queue(),
+  );
   r.setOperator(new NoOp());
   r.run(1);
   expect(() => r.notify(2)).toThrow(InvariantViolation);
@@ -32,8 +42,12 @@ test('run runs the operator', () => {
     },
     notify() {},
     notifyCommitted() {},
+    destroy() {},
   };
-  const r = new DifferenceStreamReader(new Queue());
+  const r = new DifferenceStreamReader(
+    new DifferenceStreamWriter(),
+    new Queue(),
+  );
   r.setOperator(op);
   expect(ran).toBe(false);
   r.run(1);
@@ -48,8 +62,12 @@ test('notifyCommitted passes along to the operator', () => {
     notifyCommitted() {
       ran = true;
     },
+    destroy() {},
   };
-  const r = new DifferenceStreamReader(new Queue());
+  const r = new DifferenceStreamReader(
+    new DifferenceStreamWriter(),
+    new Queue(),
+  );
   r.setOperator(op);
   r.run(1);
   r.notify(1);
@@ -59,12 +77,18 @@ test('notifyCommitted passes along to the operator', () => {
 });
 
 test('notify throws if the operator is missing', () => {
-  const r = new DifferenceStreamReader(new Queue());
+  const r = new DifferenceStreamReader(
+    new DifferenceStreamWriter(),
+    new Queue(),
+  );
   expect(() => r.notify(1)).toThrow(InvariantViolation);
 });
 
 test('notifyCommited throws if the operator is missing', () => {
-  const r = new DifferenceStreamReader(new Queue());
+  const r = new DifferenceStreamReader(
+    new DifferenceStreamWriter(),
+    new Queue(),
+  );
   try {
     r.run(1);
     r.notify(1);
@@ -83,8 +107,12 @@ test('notifyCommitted does not notify on version mismatch', () => {
     notifyCommitted() {
       ran = true;
     },
+    destroy() {},
   };
-  const r = new DifferenceStreamReader(new Queue());
+  const r = new DifferenceStreamReader(
+    new DifferenceStreamWriter(),
+    new Queue(),
+  );
   r.setOperator(op);
   r.run(1);
   r.notify(1);
@@ -95,7 +123,7 @@ test('notifyCommitted does not notify on version mismatch', () => {
 
 test('drain', () => {
   const q = new Queue();
-  const r = new DifferenceStreamReader(q);
+  const r = new DifferenceStreamReader(new DifferenceStreamWriter(), q);
 
   // draining empty is not an error
   expect(r.drain(1)).toEqual([]);

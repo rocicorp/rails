@@ -112,3 +112,30 @@ test('ascComparator', () => {
 
   expect(ascComparator(make([null]), make([null]))).toBe(0);
 });
+
+test('destroying the statement stops updating the view', () => {
+  const context = makeTestContext();
+  const q = new EntityQuery<{fields: E1}>(context, 'e1');
+
+  const stmt = q.select('id', 'n').prepare();
+  const view = stmt.materialize();
+
+  let callCount = 0;
+  view.on(_ => {
+    ++callCount;
+  });
+
+  const items = [
+    {id: 'a', n: 1},
+    {id: 'b', n: 2},
+    {id: 'c', n: 3},
+  ] as const;
+
+  context.getSource('e1').add(items[0]);
+  expect(callCount).toBe(1);
+  stmt.destroy();
+  context.getSource('e1').add(items[1]);
+  context.getSource('e1').add(items[2]);
+  expect(callCount).toBe(1);
+  expect(view.value).toEqual([{id: 'a', n: 1}]);
+});

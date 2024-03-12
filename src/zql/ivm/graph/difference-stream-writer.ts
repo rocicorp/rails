@@ -1,6 +1,8 @@
+import {assert, invariant} from '../../error/asserts.js';
 import {Multiset} from '../multiset.js';
 import {Version} from '../types.js';
 import {DifferenceStreamReader} from './difference-stream-reader.js';
+import {IOperator} from './operators/operator.js';
 import {Queue} from './queue.js';
 
 /**
@@ -21,9 +23,17 @@ import {Queue} from './queue.js';
  * w = writer
  * r = reader
  */
-abstract class AbstractDifferenceStreamWriter<T> {
+export class DifferenceStreamWriter<T> {
   readonly queues: Queue<T>[] = [];
+  // downstream readers
   readonly readers: DifferenceStreamReader<T>[] = [];
+  // upstream operator
+  #operator: IOperator | null = null;
+
+  setOperator(operator: IOperator) {
+    invariant(this.#operator === null, 'Operator already set!');
+    this.#operator = operator;
+  }
 
   /**
    * Prepares data to be sent but does not yet notify readers.
@@ -65,12 +75,37 @@ abstract class AbstractDifferenceStreamWriter<T> {
   newReader(): DifferenceStreamReader<T> {
     const queue = new Queue<T>();
     this.queues.push(queue);
-    const reader = new DifferenceStreamReader(queue);
+    const reader = new DifferenceStreamReader(this, queue);
     this.readers.push(reader);
     return reader;
   }
-}
 
-export class DifferenceStreamWriter<
-  T,
-> extends AbstractDifferenceStreamWriter<T> {}
+  removeReader(reader: DifferenceStreamReader<T>) {
+    const idx = this.readers.indexOf(reader);
+    assert(idx !== -1, 'Reader not found');
+    this.readers.splice(idx, 1);
+    this.queues.splice(idx, 1);
+  }
+
+  /**
+   * Removes a reader from this writer.
+   * If this writer has no more readers, it will be destroyed
+   * and tell its upstream to destroy itself.
+   *
+   * If this writer has no readers then the operator
+   * that is upstream has no readers and can safely be destroyed.
+   */
+  removeReaderAndMaybeDestroy(reader: DifferenceStreamReader<T>) {
+    this.removeReader(reader);
+    if (this.readers.length === 0) {
+      this.destroy();
+    }
+  }
+
+  destroy() {
+    this.readers.length = 0;
+    // writers will not have a downstream operator
+    // if they are the leaf node in the graph
+    this.#operator?.destroy();
+  }
+}

@@ -13,6 +13,7 @@ test('notify readers', () => {
       },
       notify() {},
       notifyCommitted() {},
+      destroy() {},
     });
   });
 
@@ -33,6 +34,7 @@ test('notify committed readers', () => {
       notifyCommitted() {
         notifications[i] = true;
       },
+      destroy() {},
     });
   });
 

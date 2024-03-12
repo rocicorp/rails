@@ -28,12 +28,14 @@ export interface IOperator {
   run(version: Version): void;
   notify(v: Version): void;
   notifyCommitted(v: Version): void;
+  destroy(): void;
 }
 
 export class NoOp implements IOperator {
   run(_version: Version) {}
   notify(_v: Version) {}
   notifyCommitted(_v: Version): void {}
+  destroy() {}
 }
 
 /**
@@ -43,7 +45,9 @@ export abstract class Operator<O> implements IOperator {
   readonly #fn;
   #lastRunVersion: Version = -1;
   #lastNotifyVersion: Version = -1;
+  // upstream inputs
   protected readonly _inputs: DifferenceStreamReader[];
+  // downstream output
   protected readonly _output: DifferenceStreamWriter<O>;
 
   constructor(
@@ -57,6 +61,7 @@ export abstract class Operator<O> implements IOperator {
     for (const input of this._inputs) {
       input.setOperator(this);
     }
+    this._output.setOperator(this);
   }
 
   run(v: Version) {
@@ -76,5 +81,11 @@ export abstract class Operator<O> implements IOperator {
 
   notifyCommitted(v: Version) {
     this._output.notifyCommitted(v);
+  }
+
+  destroy() {
+    for (const input of this._inputs) {
+      input.destroy();
+    }
   }
 }
