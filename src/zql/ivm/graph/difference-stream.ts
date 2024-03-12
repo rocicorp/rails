@@ -14,11 +14,7 @@ import {MapOperator} from './operators/map-operator.js';
  * Encapsulates all the details of wiring together operators, readers, and writers.
  */
 export class DifferenceStream<T> implements IDifferenceStream<T> {
-  readonly #writer: DifferenceStreamWriter<T>;
-
-  constructor() {
-    this.#writer = new DifferenceStreamWriter<T>();
-  }
+  readonly #writer = new DifferenceStreamWriter<T>();
 
   newStream<X>(): DifferenceStream<X> {
     return new DifferenceStream();

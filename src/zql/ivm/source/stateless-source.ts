@@ -21,12 +21,12 @@ export class StatelessSource<T> {
     const self = this;
     this.#internal = {
       // add values to queues, add values to the set
-      onCommitPhase1(version: Version) {
+      onCommitEnqueue(version: Version) {
         self.#stream.queueData([version, new Multiset(self.#pending)]);
         self.#pending = [];
       },
       // release queues by telling the stream to send data
-      onCommitPhase2(version: Version) {
+      onCommitRun(version: Version) {
         self.#stream.notify(version);
       },
       // notify effects / listeners

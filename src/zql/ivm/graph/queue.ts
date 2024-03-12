@@ -1,4 +1,4 @@
-import {invariant} from '../../error/invariant-violation.js';
+import {invariant, must} from '../../error/invariant-violation.js';
 import {Multiset} from '../multiset.js';
 import {Version} from '../types.js';
 
@@ -29,7 +29,7 @@ export class Queue<T> {
     if (this.#head === null) {
       this.#head = node;
     } else {
-      this.#tail!.next = node;
+      must(this.#tail).next = node;
     }
     this.#tail = node;
   }

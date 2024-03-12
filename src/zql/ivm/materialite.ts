@@ -91,10 +91,10 @@ export class Materialite {
     this.#version = must(this.#currentTx);
     this.#currentTx = null;
     for (const source of this.#dirtySources) {
-      source.onCommitPhase1(this.#version);
+      source.onCommitEnqueue(this.#version);
     }
     for (const source of this.#dirtySources) {
-      source.onCommitPhase2(this.#version);
+      source.onCommitRun(this.#version);
     }
     for (const source of this.#dirtySources) {
       source.onCommitted(this.#version);

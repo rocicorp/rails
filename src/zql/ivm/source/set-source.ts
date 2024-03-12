@@ -36,7 +36,7 @@ export abstract class SetSource<T> implements Source<T> {
     // eslint-disable-next-line @typescript-eslint/no-this-alias
     const self = this;
     this.#internal = {
-      onCommitPhase1(version: Version) {
+      onCommitEnqueue(version: Version) {
         for (let i = 0; i < self.#pending.length; i++) {
           const [val, mult] = must(self.#pending[i]);
           // small optimization to reduce operations for replace
@@ -64,7 +64,7 @@ export abstract class SetSource<T> implements Source<T> {
         self.#pending = [];
       },
       // release queues by telling the stream to send data
-      onCommitPhase2(version: Version) {
+      onCommitRun(version: Version) {
         self.#stream.notify(version);
       },
       onCommitted(version: Version) {
