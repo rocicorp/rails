@@ -66,7 +66,6 @@ export abstract class View<T, CT> implements IView<CT> {
    * the view is destroyed.
    *
    * To opt out of this behavior, pass `autoCleanup: false`
-   * @param listener
    */
   off(listener: (s: CT, v: Version) => void) {
     this.#listeners.delete(listener);
@@ -74,7 +73,6 @@ export abstract class View<T, CT> implements IView<CT> {
 
   destroy() {
     this.#listeners.clear();
-    // TODO: this.#stream.removeReader(this._reader);
   }
 
   protected abstract _run(v: Version): void;

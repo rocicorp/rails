@@ -5,7 +5,6 @@ export interface IView<T> {
    * the signal is destroyed.
    *
    * To opt out of this behavior, pass `autoCleanup: false`
-   * @param listener
    */
   off(
     fn: (value: T, version: number) => void,

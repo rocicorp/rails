@@ -54,8 +54,6 @@ export class DifferenceStream<T> implements IDifferenceStream<T> {
    * If `mult < 0` that means the value V was retracted `mult` times.
    * If `mult > 0` that means the value V was added `mult` times.
    * `mult === 0` is a no-op and can be ignored. Generally shouldn't happen.
-   * @param f
-   * @returns
    */
   effect(f: (i: T, mult: number) => void) {
     const ret = this.newStream<T>();
