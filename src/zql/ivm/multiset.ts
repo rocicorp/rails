@@ -15,7 +15,7 @@ export type Multiplicity = number;
  * I.e., a caller of `map` doesn't have to map the entire set.
  *
  * This is useful for supporting `limit` clauses. Once we hit
- * out limit there's no need to continue our compute pipeline.
+ * our limit there's no need to continue our compute pipeline.
  *
  * Methods left out of the current iteration:
  * - equals (for recursive queries)
