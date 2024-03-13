@@ -1,8 +1,8 @@
+import {Statement} from './statement.js';
 import {AST, Operator, Primitive} from '../ast/ast.js';
 import {Context} from '../context/context.js';
 import {Misuse} from '../error/misuse.js';
 import {EntitySchema} from '../schema/entity-schema.js';
-import {Statement} from './statement.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type SelectedFields<T, Fields extends Selectable<any>[]> = Pick<

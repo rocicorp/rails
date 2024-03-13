@@ -25,7 +25,7 @@ export class Queue<T> {
 
   enqueue(data: QueueEntry<T>) {
     invariant(
-      data[0] > this.#lastSeenVersion,
+      data[0] >= this.#lastSeenVersion,
       'Received stale data along a graph edge.',
     );
 

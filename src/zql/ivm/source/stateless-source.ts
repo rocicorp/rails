@@ -46,6 +46,10 @@ export class StatelessSource<T> implements Source<T> {
     return this.#stream;
   }
 
+  seed(_: Iterable<T>): this {
+    return this;
+  }
+
   processMessage(
     message: Request,
     downstream: DifferenceStreamReader<T>,

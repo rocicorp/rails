@@ -6,7 +6,6 @@ import {InvariantViolation} from '../../error/asserts.js';
 test('Rejects data from the past', () => {
   const q = new Queue();
   q.enqueue([1, new Multiset([])]);
-  expect(() => q.enqueue([1, new Multiset([])])).toThrow(InvariantViolation);
   expect(() => q.enqueue([0, new Multiset([])])).toThrow(InvariantViolation);
   expect(() => q.enqueue([-1, new Multiset([])])).toThrow(InvariantViolation);
 });

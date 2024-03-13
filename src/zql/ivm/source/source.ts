@@ -8,6 +8,7 @@ export interface Source<T> {
   add(value: T): this;
   delete(value: T): this;
   processMessage(message: Request, downstream: DifferenceStreamReader<T>): void;
+  seed(values: Iterable<T>): this;
 }
 
 export interface SourceInternal {
