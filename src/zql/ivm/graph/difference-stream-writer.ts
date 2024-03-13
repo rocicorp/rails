@@ -3,7 +3,6 @@ import {Multiset} from '../multiset.js';
 import {Version} from '../types.js';
 import {DifferenceStreamReader} from './difference-stream-reader.js';
 import {IOperator} from './operators/operator.js';
-import {Queue} from './queue.js';
 
 /**
  * Represents the output of an Operator.
@@ -24,15 +23,12 @@ import {Queue} from './queue.js';
  * r = reader
  */
 export class DifferenceStreamWriter<T> {
-  readonly queues: Queue<T>[] = [];
-  // downstream readers
-  readonly readers: DifferenceStreamReader<T>[] = [];
-  // upstream operator
-  #operator: IOperator | null = null;
+  #upstreamOperator: IOperator | null = null;
+  readonly downstreamReaders: DifferenceStreamReader<T>[] = [];
 
   setOperator(operator: IOperator) {
-    invariant(this.#operator === null, 'Operator already set!');
-    this.#operator = operator;
+    invariant(this.#upstreamOperator === null, 'Operator already set!');
+    this.#upstreamOperator = operator;
   }
 
   /**
@@ -41,8 +37,8 @@ export class DifferenceStreamWriter<T> {
    * Used so we can batch a set of mutations together before running a pipeline.
    */
   queueData(data: [Version, Multiset<T>]) {
-    for (const q of this.queues) {
-      q.enqueue(data);
+    for (const r of this.downstreamReaders) {
+      r.enqueue(data);
     }
   }
 
@@ -50,10 +46,14 @@ export class DifferenceStreamWriter<T> {
    * Notifies readers. Called during transaction commit.
    */
   notify(version: Version) {
-    for (const r of this.readers) {
+    // Tell downstreams to run their operators
+    for (const r of this.downstreamReaders) {
       r.run(version);
     }
-    for (const r of this.readers) {
+    // After all operators have been run we can tell them
+    // to notify along their output edges which will
+    // cause the next level of writers & operators to run and notify.
+    for (const r of this.downstreamReaders) {
       r.notify(version);
     }
   }
@@ -63,28 +63,26 @@ export class DifferenceStreamWriter<T> {
    * has completed. Called immediately after transaction commit.
    */
   notifyCommitted(v: Version) {
-    for (const r of this.readers) {
+    for (const r of this.downstreamReaders) {
       r.notifyCommitted(v);
     }
   }
 
   /**
    * Forks a new reader off of this writer.
-   * Values sent to the writer will be copied off to this new reader.
+   * Values sent to the writer will be fanned out
+   * to this new reader.
    */
   newReader(): DifferenceStreamReader<T> {
-    const queue = new Queue<T>();
-    this.queues.push(queue);
-    const reader = new DifferenceStreamReader(this, queue);
-    this.readers.push(reader);
+    const reader = new DifferenceStreamReader(this);
+    this.downstreamReaders.push(reader);
     return reader;
   }
 
   removeReader(reader: DifferenceStreamReader<T>) {
-    const idx = this.readers.indexOf(reader);
+    const idx = this.downstreamReaders.indexOf(reader);
     assert(idx !== -1, 'Reader not found');
-    this.readers.splice(idx, 1);
-    this.queues.splice(idx, 1);
+    this.downstreamReaders.splice(idx, 1);
   }
 
   /**
@@ -97,15 +95,14 @@ export class DifferenceStreamWriter<T> {
    */
   removeReaderAndMaybeDestroy(reader: DifferenceStreamReader<T>) {
     this.removeReader(reader);
-    if (this.readers.length === 0) {
+    if (this.downstreamReaders.length === 0) {
       this.destroy();
     }
   }
 
   destroy() {
-    this.readers.length = 0;
-    // writers will not have a downstream operator
-    // if they are the leaf node in the graph
-    this.#operator?.destroy();
+    this.downstreamReaders.length = 0;
+    // The root differnce stream will not have an upstream operator
+    this.#upstreamOperator?.destroy();
   }
 }
