@@ -78,7 +78,7 @@ export class Statement<TReturn> implements IStatement<TReturn> {
   }
 
   // Note: should we provide a version that takes a callback?
-  // So it can resolve in the same event loop tick?
+  // So it can resolve in the same micro task?
   // since, in the common case, the data will always be available.
   exec() {
     if (this.#materialization === null) {

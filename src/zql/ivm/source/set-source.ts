@@ -9,7 +9,7 @@ import {Entry, Multiset} from '../multiset.js';
 import {Version} from '../types.js';
 import {Treap} from '@vlcn.io/ds-and-algos/Treap';
 import {must} from '../../error/asserts.js';
-import {Request, createPullResponseMessage} from '../graph/message.js';
+import {PullMsg, Request, createPullResponseMessage} from '../graph/message.js';
 import {DifferenceStreamReader} from '../graph/difference-stream-reader.js';
 
 /**
@@ -26,6 +26,8 @@ export abstract class SetSource<T> implements Source<T> {
   readonly #listeners = new Set<(data: ITree<T>, v: Version) => void>();
   #pending: Entry<T>[] = [];
   #tree: ITree<T>;
+  #seeded = false;
+  readonly #historyRequests = new Map<DifferenceStreamReader<T>, PullMsg>();
   readonly comparator: Comparator<T>;
 
   constructor(
@@ -84,7 +86,15 @@ export abstract class SetSource<T> implements Source<T> {
     };
   }
 
-  abstract withNewOrdering(comp: Comparator<T>): this;
+  withNewOrdering(comp: Comparator<T>): this {
+    const ret = this._withNewOrdering(comp);
+    if (this.#seeded) {
+      ret.seed(this.#tree);
+    }
+    return ret;
+  }
+
+  protected abstract _withNewOrdering(comp: Comparator<T>): this;
 
   get stream(): DifferenceStream<T> {
     return this.#stream;
@@ -124,6 +134,24 @@ export abstract class SetSource<T> implements Source<T> {
     return this;
   }
 
+  /**
+   * Seeds the source with historical data.
+   *
+   * Does not send historical data to downstreams
+   * unless they have asked for it.
+   */
+  seed(values: Iterable<T>): this {
+    for (const v of values) {
+      this.#tree = this.#tree.add(v);
+    }
+    this.#seeded = true;
+    for (const [downstream, message] of this.#historyRequests) {
+      this.#historyRequests.delete(downstream);
+      this.#sendHistoricalData(message, downstream);
+    }
+    return this;
+  }
+
   get(key: T): T | undefined {
     const ret = this.#tree.get(key);
     if (ret === null) {
@@ -138,26 +166,36 @@ export abstract class SetSource<T> implements Source<T> {
   ): void {
     switch (message.type) {
       case 'pull': {
-        // This is problematic under the current model of how we run the graph.
-        // As in, I don't think this'll work for operators with many inputs.
-        // So this presents another reason to move to optimistically running the graph
-        // as soon as data is enqueued and making the operators
-        // able to handle partial inputs. Something I thought avoiding would be simpler but turns out the opposite.
-        // The other reason is interactive transactions as discussed with Erik
-        // For interactive transactions we also can't wait until all inputs have been updated
-        // before running the graph.
-        const response = createPullResponseMessage(message);
-        downstream.enqueue([
-          this._materialite.getVersion(),
-          new Multiset(asEntries(this.#tree, message)),
-          response,
-        ]);
-        downstream.run(this._materialite.getVersion());
-        downstream.notify(this._materialite.getVersion());
-        downstream.notifyCommitted(this._materialite.getVersion());
+        this.#sendHistoricalData(message, downstream);
         break;
       }
     }
+  }
+
+  #sendHistoricalData(message: Request, downstream: DifferenceStreamReader<T>) {
+    if (!this.#seeded) {
+      // wait till we're seeded.
+      this.#historyRequests.set(downstream, message);
+      return;
+    }
+
+    const response = createPullResponseMessage(message);
+    // This is problematic under the current model of how we run the graph.
+    // As in, I don't think this'll work for operators with many inputs.
+    // So this presents another reason to move to optimistically running the graph
+    // as soon as data is enqueued and making the operators
+    // able to handle partial inputs. Something I thought avoiding would be simpler but turns out the opposite.
+    // The other reason is interactive transactions as discussed with Erik
+    // For interactive transactions we also can't wait until all inputs have been updated
+    // before running the graph.
+    downstream.enqueue([
+      this._materialite.getVersion(),
+      new Multiset(asEntries(this.#tree, message)),
+      response,
+    ]);
+    downstream.run(this._materialite.getVersion());
+    downstream.notify(this._materialite.getVersion());
+    downstream.notifyCommitted(this._materialite.getVersion());
   }
 }
 
@@ -169,14 +207,8 @@ export class MutableSetSource<T> extends SetSource<T> {
     super(materialite, comparator, comparator => new Treap(comparator));
   }
 
-  withNewOrdering(comp: Comparator<T>): this {
-    const ret = new MutableSetSource<T>(this._materialite, comp);
-    this._materialite.materialite.tx(() => {
-      for (const v of this.value) {
-        ret.add(v);
-      }
-    });
-    return ret as this;
+  protected _withNewOrdering(comp: Comparator<T>): this {
+    return new MutableSetSource<T>(this._materialite, comp) as this;
   }
 }
 

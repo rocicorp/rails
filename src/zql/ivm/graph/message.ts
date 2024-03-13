@@ -1,11 +1,13 @@
 export type Request = PullMsg;
 
-type PullMsg = {
+export type PullMsg = {
   id: number;
   type: 'pull';
 };
 
-export type Reply = {
+export type Reply = PullReplyMsg;
+
+export type PullReplyMsg = {
   replyingTo: number;
   type: 'pullResponse';
 };
