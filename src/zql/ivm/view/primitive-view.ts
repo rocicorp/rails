@@ -29,7 +29,7 @@ export class ValueView<T> extends AbstractView<T, T | null> {
       return;
     }
 
-    const lastCollection = must(collections[collections.length - 1]);
+    const lastCollection = must(collections[collections.length - 1])[1];
     let lastValue = undefined;
     for (const [value, mult] of lastCollection.entries) {
       if (mult > 0) {

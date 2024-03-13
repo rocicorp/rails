@@ -18,9 +18,9 @@ export class DifferenceEffectOperator<T> extends UnaryOperator<T, T> {
   ) {
     const inner = (version: Version) => {
       this.#collected = [];
-      for (const collection of this.inputMessages(version)) {
-        this.#collected.push(collection);
-        this._output.queueData([version, collection]);
+      for (const entry of this.inputMessages(version)) {
+        this.#collected.push(entry[1]);
+        this._output.queueData(entry);
       }
     };
     super(input, output, inner);

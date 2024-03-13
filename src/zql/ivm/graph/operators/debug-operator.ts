@@ -1,7 +1,7 @@
-import {Multiset} from '../../multiset.js';
 import {Version} from '../../types.js';
 import {DifferenceStreamReader} from '../difference-stream-reader.js';
 import {DifferenceStreamWriter} from '../difference-stream-writer.js';
+import {QueueEntry} from '../queue.js';
 import {UnaryOperator} from './unary-operator.js';
 
 /**
@@ -11,12 +11,12 @@ export class DebugOperator<T> extends UnaryOperator<T, T> {
   constructor(
     input: DifferenceStreamReader<T>,
     output: DifferenceStreamWriter<T>,
-    onMessage: (c: Multiset<T>) => void,
+    onMessage: (c: QueueEntry<T>) => void,
   ) {
     const inner = (version: Version) => {
-      for (const collection of this.inputMessages(version)) {
-        onMessage(collection);
-        this._output.queueData([version, collection]);
+      for (const entry of this.inputMessages(version)) {
+        onMessage(entry);
+        this._output.queueData(entry);
       }
     };
     super(input, output, inner);

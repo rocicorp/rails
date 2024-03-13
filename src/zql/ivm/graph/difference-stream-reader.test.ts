@@ -112,9 +112,12 @@ test('drain', () => {
   r.enqueue([1, s1]);
   r.enqueue([2, s2]);
   r.enqueue([3, s3]);
-  expect(r.drain(2)).toEqual([s1, s2]);
+  expect(r.drain(2)).toEqual([
+    [1, s1],
+    [2, s2],
+  ]);
 
   // drain leaves the queue empty if we're draining all versions in it
-  expect(r.drain(3)).toEqual([s3]);
+  expect(r.drain(3)).toEqual([[3, s3]]);
   expect(r.isEmpty()).toBe(true);
 });

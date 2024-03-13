@@ -1,9 +1,8 @@
 import {invariant, must} from '../../error/asserts.js';
-import {Multiset} from '../multiset.js';
 import {Version} from '../types.js';
+import {Queue, QueueEntry} from './queue.js';
 import {DifferenceStreamWriter} from './difference-stream-writer.js';
 import {Operator} from './operators/operator.js';
-import {Queue} from './queue.js';
 import {Request} from './message.js';
 
 /**
@@ -36,7 +35,7 @@ export class DifferenceStreamReader<T = unknown> {
     this.#downstreamOperator = operator;
   }
 
-  enqueue(data: [Version, Multiset<T>]) {
+  enqueue(data: QueueEntry<T>) {
     this.#queue.enqueue(data);
   }
 
@@ -63,7 +62,7 @@ export class DifferenceStreamReader<T = unknown> {
   }
 
   drain(version: Version) {
-    const ret: Multiset<T>[] = [];
+    const ret: QueueEntry<T>[] = [];
     for (;;) {
       const data = this.#queue.peek();
       if (data === null) {
@@ -72,7 +71,7 @@ export class DifferenceStreamReader<T = unknown> {
       if (data[0] > version) {
         break;
       }
-      ret.push(data[1]);
+      ret.push(data);
       this.#queue.dequeue();
     }
     return ret;

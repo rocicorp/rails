@@ -9,8 +9,8 @@ export class PassThroughOperator<I> extends UnaryOperator<I, I> {
     output: DifferenceStreamWriter<I>,
   ) {
     const inner = (v: Version) => {
-      for (const collection of this.inputMessages(v)) {
-        this._output.queueData([v, collection]);
+      for (const entry of this.inputMessages(v)) {
+        this._output.queueData(entry);
       }
     };
     super(input, output, inner);

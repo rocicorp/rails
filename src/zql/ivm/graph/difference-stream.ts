@@ -7,6 +7,7 @@ import {DebugOperator} from './operators/debug-operator.js';
 import {DifferenceEffectOperator} from './operators/difference-effect-operator.js';
 import {FilterOperator} from './operators/filter-operator.js';
 import {MapOperator} from './operators/map-operator.js';
+import {QueueEntry} from './queue.js';
 
 /**
  * Used to build up a computation pipeline against a stream and then materialize it.
@@ -69,7 +70,7 @@ export class DifferenceStream<T> implements IDifferenceStream<T> {
     return ret;
   }
 
-  debug(onMessage: (c: Multiset<T>) => void) {
+  debug(onMessage: (c: QueueEntry<T>) => void) {
     const ret = new DifferenceStream<T>();
     new DebugOperator(
       this.#upstreamWriter.newReader(),
