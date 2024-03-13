@@ -14,6 +14,7 @@ test('notify readers', () => {
       notify() {},
       notifyCommitted() {},
       destroy() {},
+      messageUpstream() {},
     });
   });
 
@@ -35,6 +36,7 @@ test('notify committed readers', () => {
         notifications[i] = true;
       },
       destroy() {},
+      messageUpstream() {},
     });
   });
 

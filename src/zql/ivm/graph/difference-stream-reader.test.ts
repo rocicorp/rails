@@ -33,6 +33,7 @@ test('run runs the operator', () => {
     notify() {},
     notifyCommitted() {},
     destroy() {},
+    messageUpstream() {},
   };
   const r = new DifferenceStreamReader(new DifferenceStreamWriter());
   r.setOperator(op);
@@ -50,6 +51,7 @@ test('notifyCommitted passes along to the operator', () => {
       ran = true;
     },
     destroy() {},
+    messageUpstream() {},
   };
   const r = new DifferenceStreamReader(new DifferenceStreamWriter());
   r.setOperator(op);
@@ -86,6 +88,7 @@ test('notifyCommitted does not notify on version mismatch', () => {
       ran = true;
     },
     destroy() {},
+    messageUpstream() {},
   };
   const r = new DifferenceStreamReader(new DifferenceStreamWriter());
   r.setOperator(op);
