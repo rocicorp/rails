@@ -1,4 +1,6 @@
-export type Request = {
+export type Request = PullMsg;
+
+type PullMsg = {
   id: number;
   type: 'pull';
 };
@@ -31,9 +33,9 @@ export function createPullMessage(): Request {
   };
 }
 
-export function createPullResponseMessage(requestId: number): Reply {
+export function createPullResponseMessage(pullMsg: PullMsg): Reply {
   return {
-    replyingTo: requestId,
+    replyingTo: pullMsg.id,
     type: 'pullResponse',
   };
 }

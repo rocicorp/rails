@@ -4,6 +4,7 @@ import {Queue, QueueEntry} from './queue.js';
 import {DifferenceStreamWriter} from './difference-stream-writer.js';
 import {Operator} from './operators/operator.js';
 import {Request} from './message.js';
+import {Multiset} from '../multiset.js';
 
 /**
  * Represents the input to an operator.
@@ -20,13 +21,13 @@ import {Request} from './message.js';
  *  o  o  o
  */
 export class DifferenceStreamReader<T = unknown> {
-  readonly #queue;
+  protected readonly _queue;
   readonly #upstreamWriter;
   #downstreamOperator: Operator | null = null;
   #lastSeenVersion: Version = -1;
 
   constructor(upstream: DifferenceStreamWriter<T>) {
-    this.#queue = new Queue<T>();
+    this._queue = new Queue<T>();
     this.#upstreamWriter = upstream;
   }
 
@@ -36,7 +37,7 @@ export class DifferenceStreamReader<T = unknown> {
   }
 
   enqueue(data: QueueEntry<T>) {
-    this.#queue.enqueue(data);
+    this._queue.enqueue(data);
   }
 
   run(v: Version) {
@@ -64,7 +65,7 @@ export class DifferenceStreamReader<T = unknown> {
   drain(version: Version) {
     const ret: QueueEntry<T>[] = [];
     for (;;) {
-      const data = this.#queue.peek();
+      const data = this._queue.peek();
       if (data === null) {
         break;
       }
@@ -72,21 +73,32 @@ export class DifferenceStreamReader<T = unknown> {
         break;
       }
       ret.push(data);
-      this.#queue.dequeue();
+      this._queue.dequeue();
     }
     return ret;
   }
 
   isEmpty() {
-    return this.#queue.isEmpty();
+    return this._queue.isEmpty();
   }
 
   destroy() {
     this.#upstreamWriter.removeReaderAndMaybeDestroy(this);
-    this.#queue.clear();
+    this._queue.clear();
   }
 
   messageUpstream(message: Request) {
     this.#upstreamWriter.messageUpstream(message, this);
+  }
+}
+
+export class DifferenceStreamReaderFromRoot<
+  T,
+> extends DifferenceStreamReader<T> {
+  drain(version: Version) {
+    if (this._queue.isEmpty()) {
+      return [[version, new Multiset<T>([])]] as QueueEntry<T>[];
+    }
+    return super.drain(version);
   }
 }

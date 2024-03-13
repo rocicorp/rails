@@ -35,7 +35,6 @@ export abstract class AbstractView<T, CT> implements View<CT> {
       },
       notify(_v: Version) {},
       notifyCommitted: (v: Version) => {
-        console.log('set hydrated');
         this.#hydrated = true;
         this._notifyCommitted(this.value, v);
       },

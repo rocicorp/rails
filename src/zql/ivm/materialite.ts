@@ -7,6 +7,7 @@ import {must} from '../error/asserts.js';
 
 export type MaterialiteForSourceInternal = {
   readonly materialite: Materialite;
+  getVersion(): number;
   addDirtySource(source: SourceInternal): void;
 };
 
@@ -21,6 +22,7 @@ export class Materialite {
     this.#version = 0;
     this.#internal = {
       materialite: this,
+      getVersion: () => this.#version,
       addDirtySource: (source: SourceInternal) => {
         this.#dirtySources.add(source);
         // auto-commit if not in a transaction

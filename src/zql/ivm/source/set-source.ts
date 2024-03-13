@@ -1,11 +1,16 @@
 import {Comparator, ITree} from '@vlcn.io/ds-and-algos/types';
 import {MaterialiteForSourceInternal} from '../materialite.js';
-import {DifferenceStream} from '../graph/difference-stream.js';
+import {
+  DifferenceStream,
+  RootDifferenceStream,
+} from '../graph/difference-stream.js';
 import {SourceInternal, Source} from './source.js';
 import {Entry, Multiset} from '../multiset.js';
 import {Version} from '../types.js';
 import {Treap} from '@vlcn.io/ds-and-algos/Treap';
 import {must} from '../../error/asserts.js';
+import {Request, createPullResponseMessage} from '../graph/message.js';
+import {DifferenceStreamReader} from '../graph/difference-stream-reader.js';
 
 /**
  * A source that remembers what values it contains.
@@ -29,7 +34,7 @@ export abstract class SetSource<T> implements Source<T> {
     treapConstructor: (comparator: Comparator<T>) => ITree<T>,
   ) {
     this._materialite = materialite;
-    this.#stream = new DifferenceStream<T>();
+    this.#stream = new RootDifferenceStream<T>(this);
     this.#tree = treapConstructor(comparator);
     this.comparator = comparator;
 
@@ -126,6 +131,34 @@ export abstract class SetSource<T> implements Source<T> {
     }
     return ret;
   }
+
+  processMessage(
+    message: Request,
+    downstream: DifferenceStreamReader<T>,
+  ): void {
+    switch (message.type) {
+      case 'pull': {
+        // This is problematic under the current model of how we run the graph.
+        // As in, I don't think this'll work for operators with many inputs.
+        // So this presents another reason to move to optimistically running the graph
+        // as soon as data is enqueued and making the operators
+        // able to handle partial inputs. Something I thought avoiding would be simpler but turns out the opposite.
+        // The other reason is interactive transactions as discussed with Erik
+        // For interactive transactions we also can't wait until all inputs have been updated
+        // before running the graph.
+        const response = createPullResponseMessage(message);
+        downstream.enqueue([
+          this._materialite.getVersion(),
+          new Multiset(asEntries(this.#tree, message)),
+          response,
+        ]);
+        downstream.run(this._materialite.getVersion());
+        downstream.notify(this._materialite.getVersion());
+        downstream.notifyCommitted(this._materialite.getVersion());
+        break;
+      }
+    }
+  }
 }
 
 export class MutableSetSource<T> extends SetSource<T> {
@@ -144,5 +177,29 @@ export class MutableSetSource<T> extends SetSource<T> {
       }
     });
     return ret as this;
+  }
+}
+
+function asEntries<T>(m: ITree<T>, _message: Request): Iterable<Entry<T>> {
+  // message will contain hoisted expressions so we can do relevant
+  // index selection against the source.
+  // const after = hoisted.expressions.filter((e) => e._tag === "after")[0];
+  // if (after && after.comparator === comparator) {
+  //   return {
+  //     [Symbol.iterator]() {
+  //       return gen(m.iteratorAfter(after.cursor));
+  //     },
+  //   };
+  // }
+  return {
+    [Symbol.iterator]() {
+      return gen(m);
+    },
+  };
+}
+
+function* gen<T>(m: Iterable<T>) {
+  for (const v of m) {
+    yield [v, 1] as const;
   }
 }

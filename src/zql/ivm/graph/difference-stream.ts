@@ -1,6 +1,10 @@
 import {Multiset} from '../multiset.js';
+import {Source} from '../source/source.js';
 import {Version} from '../types.js';
-import {DifferenceStreamWriter} from './difference-stream-writer.js';
+import {
+  DifferenceStreamWriter,
+  RootDifferenceStreamWriter,
+} from './difference-stream-writer.js';
 import {IDifferenceStream} from './idifference-stream.js';
 import {LinearCountOperator} from './operators/count-operator.js';
 import {DebugOperator} from './operators/debug-operator.js';
@@ -16,7 +20,11 @@ import {QueueEntry} from './queue.js';
  * Encapsulates all the details of wiring together operators, readers, and writers.
  */
 export class DifferenceStream<T> implements IDifferenceStream<T> {
-  readonly #upstreamWriter = new DifferenceStreamWriter<T>();
+  readonly #upstreamWriter;
+
+  constructor(upstreamWriter?: DifferenceStreamWriter<T> | undefined) {
+    this.#upstreamWriter = upstreamWriter ?? new DifferenceStreamWriter<T>();
+  }
 
   map<O>(f: (value: T) => O): DifferenceStream<O> {
     const ret = new DifferenceStream<O>();
@@ -98,5 +106,15 @@ export class DifferenceStream<T> implements IDifferenceStream<T> {
 
   destroy() {
     this.#upstreamWriter.destroy();
+  }
+}
+
+export class RootDifferenceStream<T> extends DifferenceStream<T> {
+  constructor(source: Source<T>) {
+    super(new RootDifferenceStreamWriter<T>(source));
+  }
+
+  get stream() {
+    return this;
   }
 }
