@@ -21,30 +21,32 @@ import {DifferenceStreamWriter} from './difference-stream-writer.js';
  */
 export class DifferenceStreamReader<T = unknown> {
   readonly #queue;
-  // upstream writer
-  readonly #upstream;
-  // downstream operator
-  #operator: IOperator | null = null;
+  readonly #upstreamWriter;
+  #downstreamOperator: IOperator | null = null;
   #lastSeenVersion: Version = -1;
 
-  constructor(upstream: DifferenceStreamWriter<T>, queue: Queue<T>) {
-    this.#queue = queue;
-    this.#upstream = upstream;
+  constructor(upstream: DifferenceStreamWriter<T>) {
+    this.#queue = new Queue<T>();
+    this.#upstreamWriter = upstream;
   }
 
   setOperator(operator: IOperator) {
-    invariant(this.#operator === null, 'Operator already set!');
-    this.#operator = operator;
+    invariant(this.#downstreamOperator === null, 'Operator already set!');
+    this.#downstreamOperator = operator;
+  }
+
+  enqueue(data: [Version, Multiset<T>]) {
+    this.#queue.enqueue(data);
   }
 
   run(v: Version) {
     this.#lastSeenVersion = v;
-    must(this.#operator, 'reader is missing operator').run(v);
+    must(this.#downstreamOperator, 'reader is missing operator').run(v);
   }
 
   notify(v: Version) {
     invariant(v === this.#lastSeenVersion, 'notify called out of order');
-    must(this.#operator, 'reader is missing operator').notify(v);
+    must(this.#downstreamOperator, 'reader is missing operator').notify(v);
   }
 
   notifyCommitted(v: Version) {
@@ -53,7 +55,10 @@ export class DifferenceStreamReader<T = unknown> {
     if (v !== this.#lastSeenVersion) {
       return;
     }
-    must(this.#operator, 'reader is missing operator').notifyCommitted(v);
+    must(
+      this.#downstreamOperator,
+      'reader is missing operator',
+    ).notifyCommitted(v);
   }
 
   drain(version: Version) {
@@ -77,7 +82,7 @@ export class DifferenceStreamReader<T = unknown> {
   }
 
   destroy() {
-    this.#upstream.removeReaderAndMaybeDestroy(this);
+    this.#upstreamWriter.removeReaderAndMaybeDestroy(this);
     this.#queue.clear();
   }
 }

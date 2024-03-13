@@ -15,7 +15,7 @@ import {MapOperator} from './operators/map-operator.js';
  * Encapsulates all the details of wiring together operators, readers, and writers.
  */
 export class DifferenceStream<T> implements IDifferenceStream<T> {
-  readonly #writer = new DifferenceStreamWriter<T>();
+  readonly #upstreamWriter = new DifferenceStreamWriter<T>();
 
   newStream<X>(): DifferenceStream<X> {
     return new DifferenceStream();
@@ -23,7 +23,11 @@ export class DifferenceStream<T> implements IDifferenceStream<T> {
 
   map<O>(f: (value: T) => O): DifferenceStream<O> {
     const ret = this.newStream<O>();
-    new MapOperator<T, O>(this.#writer.newReader(), ret.#writer, f);
+    new MapOperator<T, O>(
+      this.#upstreamWriter.newReader(),
+      ret.#upstreamWriter,
+      f,
+    );
     return ret;
   }
 
@@ -31,7 +35,11 @@ export class DifferenceStream<T> implements IDifferenceStream<T> {
   filter(f: (x: T) => boolean): DifferenceStream<T>;
   filter<S extends T>(f: (x: T) => boolean): DifferenceStream<S> {
     const ret = this.newStream<S>();
-    new FilterOperator<T>(this.#writer.newReader(), ret.#writer, f);
+    new FilterOperator<T>(
+      this.#upstreamWriter.newReader(),
+      ret.#upstreamWriter,
+      f,
+    );
     return ret;
   }
 
@@ -42,7 +50,10 @@ export class DifferenceStream<T> implements IDifferenceStream<T> {
    */
   linearCount() {
     const ret = this.newStream<number>();
-    new LinearCountOperator(this.#writer.newReader(), ret.#writer);
+    new LinearCountOperator(
+      this.#upstreamWriter.newReader(),
+      ret.#upstreamWriter,
+    );
     return ret;
   }
 
@@ -54,33 +65,41 @@ export class DifferenceStream<T> implements IDifferenceStream<T> {
    */
   effect(f: (i: T, mult: number) => void) {
     const ret = this.newStream<T>();
-    new DifferenceEffectOperator(this.#writer.newReader(), ret.#writer, f);
+    new DifferenceEffectOperator(
+      this.#upstreamWriter.newReader(),
+      ret.#upstreamWriter,
+      f,
+    );
     return ret;
   }
 
   debug(onMessage: (c: Multiset<T>) => void) {
     const ret = this.newStream<T>();
-    new DebugOperator(this.#writer.newReader(), ret.#writer, onMessage);
+    new DebugOperator(
+      this.#upstreamWriter.newReader(),
+      ret.#upstreamWriter,
+      onMessage,
+    );
     return ret;
   }
 
   queueData(data: [Version, Multiset<T>]) {
-    this.#writer.queueData(data);
+    this.#upstreamWriter.queueData(data);
   }
 
   notify(v: Version) {
-    this.#writer.notify(v);
+    this.#upstreamWriter.notify(v);
   }
 
   notifyCommitted(v: Version) {
-    this.#writer.notifyCommitted(v);
+    this.#upstreamWriter.notifyCommitted(v);
   }
 
   newReader() {
-    return this.#writer.newReader();
+    return this.#upstreamWriter.newReader();
   }
 
   destroy() {
-    this.#writer.destroy();
+    this.#upstreamWriter.destroy();
   }
 }

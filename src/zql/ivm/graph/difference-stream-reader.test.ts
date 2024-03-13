@@ -1,34 +1,24 @@
 import {expect, test} from 'vitest';
 import {DifferenceStreamReader} from './difference-stream-reader.js';
-import {Queue} from './queue.js';
 import {NoOp} from './operators/operator.js';
 import {InvariantViolation} from '../../error/asserts.js';
 import {Multiset} from '../multiset.js';
 import {DifferenceStreamWriter} from './difference-stream-writer.js';
 
 test('cannot set two operators', () => {
-  const r = new DifferenceStreamReader(
-    new DifferenceStreamWriter(),
-    new Queue(),
-  );
+  const r = new DifferenceStreamReader(new DifferenceStreamWriter());
   r.setOperator(new NoOp());
   expect(() => r.setOperator(new NoOp())).toThrow(InvariantViolation);
 });
 
 test('calling notify without calling run throws', () => {
-  const r = new DifferenceStreamReader(
-    new DifferenceStreamWriter(),
-    new Queue(),
-  );
+  const r = new DifferenceStreamReader(new DifferenceStreamWriter());
   r.setOperator(new NoOp());
   expect(() => r.notify(1)).toThrow(InvariantViolation);
 });
 
 test('calling notify with a mismatched version throws', () => {
-  const r = new DifferenceStreamReader(
-    new DifferenceStreamWriter(),
-    new Queue(),
-  );
+  const r = new DifferenceStreamReader(new DifferenceStreamWriter());
   r.setOperator(new NoOp());
   r.run(1);
   expect(() => r.notify(2)).toThrow(InvariantViolation);
@@ -44,10 +34,7 @@ test('run runs the operator', () => {
     notifyCommitted() {},
     destroy() {},
   };
-  const r = new DifferenceStreamReader(
-    new DifferenceStreamWriter(),
-    new Queue(),
-  );
+  const r = new DifferenceStreamReader(new DifferenceStreamWriter());
   r.setOperator(op);
   expect(ran).toBe(false);
   r.run(1);
@@ -64,10 +51,7 @@ test('notifyCommitted passes along to the operator', () => {
     },
     destroy() {},
   };
-  const r = new DifferenceStreamReader(
-    new DifferenceStreamWriter(),
-    new Queue(),
-  );
+  const r = new DifferenceStreamReader(new DifferenceStreamWriter());
   r.setOperator(op);
   r.run(1);
   r.notify(1);
@@ -77,18 +61,12 @@ test('notifyCommitted passes along to the operator', () => {
 });
 
 test('notify throws if the operator is missing', () => {
-  const r = new DifferenceStreamReader(
-    new DifferenceStreamWriter(),
-    new Queue(),
-  );
+  const r = new DifferenceStreamReader(new DifferenceStreamWriter());
   expect(() => r.notify(1)).toThrow(InvariantViolation);
 });
 
 test('notifyCommited throws if the operator is missing', () => {
-  const r = new DifferenceStreamReader(
-    new DifferenceStreamWriter(),
-    new Queue(),
-  );
+  const r = new DifferenceStreamReader(new DifferenceStreamWriter());
   try {
     r.run(1);
     r.notify(1);
@@ -109,10 +87,7 @@ test('notifyCommitted does not notify on version mismatch', () => {
     },
     destroy() {},
   };
-  const r = new DifferenceStreamReader(
-    new DifferenceStreamWriter(),
-    new Queue(),
-  );
+  const r = new DifferenceStreamReader(new DifferenceStreamWriter());
   r.setOperator(op);
   r.run(1);
   r.notify(1);
@@ -122,8 +97,7 @@ test('notifyCommitted does not notify on version mismatch', () => {
 });
 
 test('drain', () => {
-  const q = new Queue();
-  const r = new DifferenceStreamReader(new DifferenceStreamWriter(), q);
+  const r = new DifferenceStreamReader(new DifferenceStreamWriter());
 
   // draining empty is not an error
   expect(r.drain(1)).toEqual([]);
@@ -132,13 +106,12 @@ test('drain', () => {
   const s1 = new Multiset([[1, 1]]);
   const s2 = new Multiset([[2, 1]]);
   const s3 = new Multiset([[3, 1]]);
-  q.enqueue([1, s1]);
-  q.enqueue([2, s2]);
-  q.enqueue([3, s3]);
+  r.enqueue([1, s1]);
+  r.enqueue([2, s2]);
+  r.enqueue([3, s3]);
   expect(r.drain(2)).toEqual([s1, s2]);
 
   // drain leaves the queue empty if we're draining all versions in it
   expect(r.drain(3)).toEqual([s3]);
-  expect(q.isEmpty()).toBe(true);
   expect(r.isEmpty()).toBe(true);
 });
