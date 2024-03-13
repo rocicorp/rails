@@ -2,7 +2,7 @@ import {AST, Operator, Primitive} from '../ast/ast.js';
 import {Context} from '../context/context.js';
 import {Misuse} from '../error/misuse.js';
 import {EntitySchema} from '../schema/entity-schema.js';
-import {Statement, StatementImpl} from './statement.js';
+import {Statement} from './statement.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type SelectedFields<T, Fields extends Selectable<any>[]> = Pick<
@@ -162,7 +162,6 @@ export class EntityQueryImpl<S extends EntitySchema, Return = []>
   }
 
   prepare(): Statement<Return> {
-    // TODO: build the IVM pipeline
-    return new StatementImpl<S, Return>(this.#context, this);
+    return new Statement<Return>(this.#context, this);
   }
 }

@@ -15,10 +15,10 @@ test('basic materialization', () => {
   const context = makeTestContext();
   const q = new EntityQueryImpl<{fields: E1}>(context, 'e1');
 
-  const view = q.select('id', 'n').where('n', '>', 100).prepare().materialize();
+  const stmt = q.select('id', 'n').where('n', '>', 100).prepare();
 
   let callCount = 0;
-  view.on(data => {
+  stmt.subscribe(data => {
     ++callCount;
     expect(data).toEqual(expected);
   });
@@ -44,8 +44,8 @@ test('sorted materialization', () => {
   const context = makeTestContext();
   type E1 = z.infer<typeof e1>;
   const q = new EntityQueryImpl<{fields: E1}>(context, 'e1');
-  const ascView = q.select('id').asc('n').prepare().materialize();
-  const descView = q.select('id').desc('n').prepare().materialize();
+  const ascView = q.select('id').asc('n').prepare().view();
+  const descView = q.select('id').desc('n').prepare().view();
 
   context.getSource<E1>('e1').add({
     id: 'a',
@@ -69,8 +69,8 @@ test('sorting is stable via suffixing the primary key to the order', () => {
   type E1 = z.infer<typeof e1>;
   const q = new EntityQueryImpl<{fields: E1}>(context, 'e1');
 
-  const ascView = q.select('id').asc('n').prepare().materialize();
-  const descView = q.select('id').desc('n').prepare().materialize();
+  const ascView = q.select('id').asc('n').prepare().view();
+  const descView = q.select('id').desc('n').prepare().view();
 
   context.getSource<E1>('e1').add({
     id: 'a',
@@ -113,15 +113,14 @@ test('ascComparator', () => {
   expect(ascComparator(make([null]), make([null]))).toBe(0);
 });
 
-test('destroying the statement stops updating the view', () => {
+test('destroying the statement stops updating the view', async () => {
   const context = makeTestContext();
   const q = new EntityQueryImpl<{fields: E1}>(context, 'e1');
 
   const stmt = q.select('id', 'n').prepare();
-  const view = stmt.materialize();
 
   let callCount = 0;
-  view.on(_ => {
+  stmt.subscribe(_ => {
     ++callCount;
   });
 
@@ -137,5 +136,10 @@ test('destroying the statement stops updating the view', () => {
   context.getSource('e1').add(items[1]);
   context.getSource('e1').add(items[2]);
   expect(callCount).toBe(1);
-  expect(view.value).toEqual([{id: 'a', n: 1}]);
+  expect(await stmt.exec()).toEqual([{id: 'a', n: 1}]);
 });
+
+//
+// test:
+// 1. non hydrated view and exec
+// 2. hydrated and exec

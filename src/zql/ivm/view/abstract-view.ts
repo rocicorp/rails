@@ -12,6 +12,7 @@ export abstract class AbstractView<T, CT> implements View<CT> {
   protected _notifiedListenersVersion = -1;
   readonly #listeners: Set<(s: CT, v: Version) => void> = new Set();
   readonly name;
+  #hydrated = false;
 
   abstract get value(): CT;
 
@@ -34,6 +35,8 @@ export abstract class AbstractView<T, CT> implements View<CT> {
       },
       notify(_v: Version) {},
       notifyCommitted: (v: Version) => {
+        console.log('set hydrated');
+        this.#hydrated = true;
         this._notifyCommitted(this.value, v);
       },
       destroy() {},
@@ -48,6 +51,10 @@ export abstract class AbstractView<T, CT> implements View<CT> {
 
   get stream() {
     return this.#stream;
+  }
+
+  get hydrated() {
+    return this.#hydrated;
   }
 
   pullHistoricalData() {
