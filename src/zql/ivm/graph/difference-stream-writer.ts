@@ -1,6 +1,10 @@
 import {assert, invariant, must} from '../../error/asserts.js';
+import {Source} from '../source/source.js';
 import {Version} from '../types.js';
-import {DifferenceStreamReader} from './difference-stream-reader.js';
+import {
+  DifferenceStreamReader,
+  DifferenceStreamReaderFromRoot,
+} from './difference-stream-reader.js';
 import {Request} from './message.js';
 import {Operator} from './operators/operator.js';
 import {QueueEntry} from './queue.js';
@@ -25,7 +29,7 @@ import {QueueEntry} from './queue.js';
  */
 export class DifferenceStreamWriter<T> {
   #upstreamOperator: Operator | null = null;
-  readonly #downstreamReaders: DifferenceStreamReader<T>[] = [];
+  protected readonly _downstreamReaders: DifferenceStreamReader<T>[] = [];
 
   readonly #pendingRecipients = new Map<number, DifferenceStreamReader<T>>();
   readonly #toNotify: DifferenceStreamReader<T>[] = [];
@@ -62,7 +66,7 @@ export class DifferenceStreamWriter<T> {
       recipient.enqueue(data);
       this.#toNotify.push(recipient);
     } else {
-      for (const r of this.#downstreamReaders) {
+      for (const r of this._downstreamReaders) {
         r.enqueue(data);
         this.#toNotify.push(r);
       }
@@ -102,14 +106,14 @@ export class DifferenceStreamWriter<T> {
    */
   newReader(): DifferenceStreamReader<T> {
     const reader = new DifferenceStreamReader(this);
-    this.#downstreamReaders.push(reader);
+    this._downstreamReaders.push(reader);
     return reader;
   }
 
   removeReader(reader: DifferenceStreamReader<T>) {
-    const idx = this.#downstreamReaders.indexOf(reader);
+    const idx = this._downstreamReaders.indexOf(reader);
     assert(idx !== -1, 'Reader not found');
-    this.#downstreamReaders.splice(idx, 1);
+    this._downstreamReaders.splice(idx, 1);
   }
 
   /**
@@ -122,7 +126,7 @@ export class DifferenceStreamWriter<T> {
    */
   removeReaderAndMaybeDestroy(reader: DifferenceStreamReader<T>) {
     this.removeReader(reader);
-    if (this.#downstreamReaders.length === 0) {
+    if (this._downstreamReaders.length === 0) {
       this.destroy();
     }
   }
@@ -136,8 +140,30 @@ export class DifferenceStreamWriter<T> {
   }
 
   destroy() {
-    this.#downstreamReaders.length = 0;
+    this._downstreamReaders.length = 0;
     // The root differnce stream will not have an upstream operator
     this.#upstreamOperator?.destroy();
+  }
+}
+
+export class RootDifferenceStreamWriter<T> extends DifferenceStreamWriter<T> {
+  readonly #source;
+  constructor(source: Source<unknown>) {
+    super();
+    this.#source = source;
+  }
+
+  messageUpstream(
+    message: Request,
+    downstreamSender: DifferenceStreamReader<T>,
+  ) {
+    this.#source.processMessage(message, downstreamSender);
+  }
+
+  newReader() {
+    const reader: DifferenceStreamReader<T> =
+      new DifferenceStreamReaderFromRoot(this);
+    this._downstreamReaders.push(reader);
+    return reader;
   }
 }

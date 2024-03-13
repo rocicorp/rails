@@ -1,10 +1,13 @@
+import {DifferenceStreamReader} from '../graph/difference-stream-reader.js';
 import {DifferenceStream} from '../graph/difference-stream.js';
 import {Version} from '../types.js';
+import {Request} from '../graph/message.js';
 
 export interface Source<T> {
   readonly stream: DifferenceStream<T>;
   add(value: T): this;
   delete(value: T): this;
+  processMessage(message: Request, downstream: DifferenceStreamReader<T>): void;
 }
 
 export interface SourceInternal {

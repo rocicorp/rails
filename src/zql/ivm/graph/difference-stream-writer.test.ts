@@ -73,11 +73,11 @@ test('replying to a message only notifies along the requesting path', () => {
 
   expect(notifications).toEqual([false, false, false]);
 
-  w.queueData([1, new Multiset([]), createPullResponseMessage(msg.id)]);
+  w.queueData([1, new Multiset([]), createPullResponseMessage(msg)]);
   w.notify(1);
   expect(notifications).toEqual([false, true, false]);
 
   expect(() =>
-    w.queueData([2, new Multiset([]), createPullResponseMessage(msg.id)]),
+    w.queueData([2, new Multiset([]), createPullResponseMessage(msg)]),
   ).toThrow('No recipient');
 });

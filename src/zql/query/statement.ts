@@ -86,7 +86,6 @@ export class Statement<TReturn> implements IStatement<TReturn> {
     }
 
     if (this.#materialization?.hydrated) {
-      console.log('we be hydrated!');
       return Promise.resolve(this.#materialization.value) as Promise<
         MakeHumanReadable<TReturn>
       >;
