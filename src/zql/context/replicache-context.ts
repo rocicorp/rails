@@ -3,8 +3,9 @@ import {Materialite} from '../ivm/materialite.js';
 import {Entity} from '../../generate.js';
 import {Source} from '../ivm/source/source.js';
 import {MutableSetSource} from '../ivm/source/set-source.js';
-import {InvariantViolation} from '../error/invariant-violation.js';
+import {assert, invariant} from '../error/asserts.js';
 import {compareEntityFields} from '../ivm/compare.js';
+import {Ordering} from '../ast/ast.js';
 
 export function makeReplicacheContext(rep: Replicache) {
   const materialite = new Materialite();
@@ -46,7 +47,7 @@ class ReplicacheSourceStore {
     this.#materialite = materialite;
   }
 
-  getSource(name: string, ordering?: [string[], 'asc' | 'desc']) {
+  getSource(name: string, ordering?: Ordering) {
     let source = this.#sources.get(name);
     if (source === undefined) {
       source = new ReplicacheSource(this.#rep, this.#materialite, name);
@@ -75,7 +76,7 @@ class ReplicacheSource {
   #onReplicacheDiff = (changes: ExperimentalNoIndexDiff) => {
     this.#materialite.tx(() => {
       for (const diff of changes) {
-        if ('oldValue' in diff) {
+        if (diff.op === 'del' || diff.op === 'change') {
           // This lookup of old was due to seeing `oldValue` values that did not match
           // what was stored on the client when working on Repliear.
           // `oldValue` not matching what is on the client is problematic
@@ -85,17 +86,13 @@ class ReplicacheSource {
           // and the `oldValue` provided has a different `modified_time` we'll fail to remove
           // the correct value from the derived source.
           const old = this.#canonicalSource.get(diff.oldValue as Entity);
-          if (old === null) {
-            throw new InvariantViolation(
-              'oldValue not found in canonical source',
-            );
-          }
+          assert(old, 'oldValue not found in canonical source');
           this.#canonicalSource.delete(old);
           for (const derived of this.#sources.values()) {
             derived.delete(old);
           }
         }
-        if ('newValue' in diff) {
+        if (diff.op === 'add' || diff.op === 'change') {
           this.#canonicalSource.add(diff.newValue as Entity);
           for (const derived of this.#sources.values()) {
             derived.add(diff.newValue as Entity);
@@ -134,11 +131,12 @@ const canonicalComparator = (l: Entity, r: Entity) =>
 function makeComparator(key: string[]) {
   return <T extends Entity>(l: T, r: T) => {
     for (const k of key) {
-      if (!(k in l) || !(k in r)) {
-        throw new InvariantViolation(`Key ${k} not found in entities`);
-      }
       const lVal = l[k as unknown as keyof T];
       const rVal = r[k as unknown as keyof T];
+      invariant(
+        lVal !== undefined && rVal !== undefined,
+        `Key ${k} not found in entities`,
+      );
       const comp = compareEntityFields(lVal, rVal);
       if (comp !== 0) {
         return comp;

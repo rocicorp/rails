@@ -1,4 +1,4 @@
-import {InvariantViolation} from '../error/invariant-violation.js';
+import {unreachable} from '../error/asserts.js';
 
 export function compareEntityFields<T>(lVal: T, rVal: T) {
   if (lVal === rVal) {
@@ -17,5 +17,5 @@ export function compareEntityFields<T>(lVal: T, rVal: T) {
     return 1;
   }
 
-  throw new InvariantViolation('Unreachable');
+  unreachable();
 }

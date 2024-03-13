@@ -1,9 +1,10 @@
+export class InvariantViolation extends Error {}
+
 export function assert(b: unknown, msg = 'Assertion failed'): asserts b {
   if (!b) {
     throw new InvariantViolation(msg);
   }
 }
-export class InvariantViolation extends Error {}
 
 export function invariant(p: boolean, msg: string) {
   if (!p) {
@@ -17,4 +18,8 @@ export function must<T>(v: T | undefined | null, msg?: string): T {
     throw new InvariantViolation(msg ?? `Unexpected ${v} value`);
   }
   return v;
+}
+
+export function unreachable(): never {
+  throw new InvariantViolation('Unreachable');
 }
