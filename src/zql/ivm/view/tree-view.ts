@@ -64,8 +64,8 @@ class AbstractTreeView<T> extends AbstractView<T, T[]> {
     let changed = false;
 
     let newData = this.#data;
-    for (const c of collections) {
-      [changed, newData] = this.#sink(c, newData) || changed;
+    for (const entry of collections) {
+      [changed, newData] = this.#sink(entry[1], newData) || changed;
     }
     this.#data = newData;
 

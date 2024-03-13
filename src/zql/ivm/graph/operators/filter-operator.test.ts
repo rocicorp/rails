@@ -28,7 +28,7 @@ test('does not emit any rows that fail the filter', () => {
   const items = outReader.drain(1);
 
   expect(items.length).toBe(1);
-  expect([...items[0].entries].length).toBe(0);
+  expect([...items[0][1].entries].length).toBe(0);
 });
 
 test('emits all rows that pass the filter (including deletes / retractions)', () => {
@@ -55,7 +55,7 @@ test('emits all rows that pass the filter (including deletes / retractions)', ()
   const items = outReader.drain(1);
 
   expect(items.length).toBe(1);
-  const entries = [...items[0].entries];
+  const entries = [...items[0][1].entries];
   expect(entries).toEqual([
     [1, 1],
     [2, 2],
@@ -95,6 +95,6 @@ test('test that filter is lazy / the filter is not actually run until we pull on
 
   const items = outReader.drain(1);
   // consume all the rows
-  [...items[0].entries];
+  [...items[0][1].entries];
   expect(called).toBe(true);
 });

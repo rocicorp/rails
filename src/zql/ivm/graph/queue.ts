@@ -1,9 +1,14 @@
 import {invariant, must} from '../../error/asserts.js';
 import {Multiset} from '../multiset.js';
 import {Version} from '../types.js';
+import {Reply} from './message.js';
+
+export type QueueEntry<T> =
+  | readonly [Version, Multiset<T>, Reply]
+  | readonly [Version, Multiset<T>];
 
 type Node<T> = {
-  data: readonly [Version, Multiset<T>];
+  data: QueueEntry<T>;
   next: Node<T> | null;
 };
 
@@ -18,7 +23,7 @@ export class Queue<T> {
   #head: Node<T> | null = null;
   #tail: Node<T> | null = null;
 
-  enqueue(data: readonly [Version, Multiset<T>]) {
+  enqueue(data: QueueEntry<T>) {
     invariant(
       data[0] > this.#lastSeenVersion,
       'Received stale data along a graph edge.',

@@ -1,9 +1,9 @@
-import {assert, invariant} from '../../error/asserts.js';
-import {Multiset} from '../multiset.js';
+import {assert, invariant, must} from '../../error/asserts.js';
 import {Version} from '../types.js';
 import {DifferenceStreamReader} from './difference-stream-reader.js';
 import {Request} from './message.js';
 import {Operator} from './operators/operator.js';
+import {QueueEntry} from './queue.js';
 
 /**
  * Represents the output of an Operator.
@@ -25,8 +25,10 @@ import {Operator} from './operators/operator.js';
  */
 export class DifferenceStreamWriter<T> {
   #upstreamOperator: Operator | null = null;
-  readonly downstreamReaders: DifferenceStreamReader<T>[] = [];
+  readonly #downstreamReaders: DifferenceStreamReader<T>[] = [];
+
   readonly #pendingRecipients = new Map<number, DifferenceStreamReader<T>>();
+  readonly #toNotify: DifferenceStreamReader<T>[] = [];
 
   setOperator(operator: Operator) {
     invariant(this.#upstreamOperator === null, 'Operator already set!');
@@ -37,10 +39,33 @@ export class DifferenceStreamWriter<T> {
    * Prepares data to be sent but does not yet notify readers.
    *
    * Used so we can batch a set of mutations together before running a pipeline.
+   *
+   * TODO: this whole
+   * `queue`, `notify`, `notifyCommitted` pattern will need to be re-done to
+   * allow for reading one's writes in a given transaction.
+   *
+   * 1. `queue` should immediately notify the downstream
+   * 2. the downstream should immediately compute if it is able
+   * 3. then notify its downstream(s)
    */
-  queueData(data: [Version, Multiset<T>]) {
-    for (const r of this.downstreamReaders) {
-      r.enqueue(data);
+  queueData(data: QueueEntry<T>) {
+    this.#toNotify.length = 0;
+    const msg = data[2];
+    if (msg) {
+      // only go down the path from which the message came.
+      // no need to visit other paths.
+      const recipient = must(
+        this.#pendingRecipients.get(msg.replyingTo),
+        'No recipient for received message',
+      );
+      this.#pendingRecipients.delete(msg.replyingTo);
+      recipient.enqueue(data);
+      this.#toNotify.push(recipient);
+    } else {
+      for (const r of this.#downstreamReaders) {
+        r.enqueue(data);
+        this.#toNotify.push(r);
+      }
     }
   }
 
@@ -49,13 +74,13 @@ export class DifferenceStreamWriter<T> {
    */
   notify(version: Version) {
     // Tell downstreams to run their operators
-    for (const r of this.downstreamReaders) {
+    for (const r of this.#toNotify) {
       r.run(version);
     }
     // After all operators have been run we can tell them
     // to notify along their output edges which will
     // cause the next level of writers & operators to run and notify.
-    for (const r of this.downstreamReaders) {
+    for (const r of this.#toNotify) {
       r.notify(version);
     }
   }
@@ -65,7 +90,7 @@ export class DifferenceStreamWriter<T> {
    * has completed. Called immediately after transaction commit.
    */
   notifyCommitted(v: Version) {
-    for (const r of this.downstreamReaders) {
+    for (const r of this.#toNotify) {
       r.notifyCommitted(v);
     }
   }
@@ -73,18 +98,18 @@ export class DifferenceStreamWriter<T> {
   /**
    * Forks a new reader off of this writer.
    * Values sent to the writer will be fanned out
-   * to this new reader.
+   * to all forked readers.
    */
   newReader(): DifferenceStreamReader<T> {
     const reader = new DifferenceStreamReader(this);
-    this.downstreamReaders.push(reader);
+    this.#downstreamReaders.push(reader);
     return reader;
   }
 
   removeReader(reader: DifferenceStreamReader<T>) {
-    const idx = this.downstreamReaders.indexOf(reader);
+    const idx = this.#downstreamReaders.indexOf(reader);
     assert(idx !== -1, 'Reader not found');
-    this.downstreamReaders.splice(idx, 1);
+    this.#downstreamReaders.splice(idx, 1);
   }
 
   /**
@@ -97,7 +122,7 @@ export class DifferenceStreamWriter<T> {
    */
   removeReaderAndMaybeDestroy(reader: DifferenceStreamReader<T>) {
     this.removeReader(reader);
-    if (this.downstreamReaders.length === 0) {
+    if (this.#downstreamReaders.length === 0) {
       this.destroy();
     }
   }
@@ -111,7 +136,7 @@ export class DifferenceStreamWriter<T> {
   }
 
   destroy() {
-    this.downstreamReaders.length = 0;
+    this.#downstreamReaders.length = 0;
     // The root differnce stream will not have an upstream operator
     this.#upstreamOperator?.destroy();
   }

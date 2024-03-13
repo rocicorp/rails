@@ -11,8 +11,12 @@ export class LinearUnaryOperator<I, O> extends UnaryOperator<I, O> {
     f: (input: Multiset<I>) => Multiset<O>,
   ) {
     const inner = (v: Version) => {
-      for (const collection of this.inputMessages(v)) {
-        this._output.queueData([v, f(collection)]);
+      for (const entry of this.inputMessages(v)) {
+        if (entry.length === 3) {
+          this._output.queueData([v, f(entry[1]), entry[2]]);
+        } else {
+          this._output.queueData([v, f(entry[1])]);
+        }
       }
     };
     super(input, output, inner);
