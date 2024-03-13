@@ -62,6 +62,10 @@ export class StatementImpl<TSchema extends EntitySchema, TReturn>
       }
     }
 
+    // TODO: we'll want some ability to let a caller await
+    // the response of historical data.
+    this.#materialization.pullHistoricalData();
+
     return this.#materialization as View<MakeHumanReadable<TReturn>>;
   }
 

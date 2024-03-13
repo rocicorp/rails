@@ -11,4 +11,5 @@ export interface View<T> {
     options?: {autoCleanup?: boolean},
   ): void;
   get value(): T;
+  pullHistoricalData(): void;
 }

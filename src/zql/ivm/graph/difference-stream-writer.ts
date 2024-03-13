@@ -2,6 +2,7 @@ import {assert, invariant} from '../../error/asserts.js';
 import {Multiset} from '../multiset.js';
 import {Version} from '../types.js';
 import {DifferenceStreamReader} from './difference-stream-reader.js';
+import {Request} from './message.js';
 import {Operator} from './operators/operator.js';
 
 /**
@@ -25,6 +26,7 @@ import {Operator} from './operators/operator.js';
 export class DifferenceStreamWriter<T> {
   #upstreamOperator: Operator | null = null;
   readonly downstreamReaders: DifferenceStreamReader<T>[] = [];
+  readonly #pendingRecipients = new Map<number, DifferenceStreamReader<T>>();
 
   setOperator(operator: Operator) {
     invariant(this.#upstreamOperator === null, 'Operator already set!');
@@ -98,6 +100,14 @@ export class DifferenceStreamWriter<T> {
     if (this.downstreamReaders.length === 0) {
       this.destroy();
     }
+  }
+
+  messageUpstream(
+    message: Request,
+    downstreamSender: DifferenceStreamReader<T>,
+  ) {
+    this.#pendingRecipients.set(message.id, downstreamSender);
+    this.#upstreamOperator?.messageUpstream(message);
   }
 
   destroy() {

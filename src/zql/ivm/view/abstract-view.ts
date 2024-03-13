@@ -2,6 +2,8 @@ import {Materialite} from '../materialite.js';
 import {DifferenceStream} from '../graph/difference-stream.js';
 import {Version} from '../types.js';
 import {View} from './view.js';
+import {assert} from '../../error/asserts.js';
+import {createPullMessage} from '../graph/message.js';
 
 export abstract class AbstractView<T, CT> implements View<CT> {
   readonly #stream;
@@ -35,11 +37,21 @@ export abstract class AbstractView<T, CT> implements View<CT> {
         this._notifyCommitted(this.value, v);
       },
       destroy() {},
+      messageUpstream: _ => {
+        assert(
+          false,
+          'Message Upstream should not be called in a view operator',
+        );
+      },
     });
   }
 
   get stream() {
     return this.#stream;
+  }
+
+  pullHistoricalData() {
+    this._reader.messageUpstream(createPullMessage());
   }
 
   protected _notifyCommitted(d: CT, v: Version) {

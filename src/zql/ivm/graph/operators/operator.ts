@@ -2,6 +2,7 @@ import {invariant} from '../../../error/asserts.js';
 import {Version} from '../../types.js';
 import {DifferenceStreamReader} from '../difference-stream-reader.js';
 import {DifferenceStreamWriter} from '../difference-stream-writer.js';
+import {Request} from '../message.js';
 
 /**
  * We have to run the graph breadth-first to ensure
@@ -25,9 +26,21 @@ import {DifferenceStreamWriter} from '../difference-stream-writer.js';
  * accumulated in that transaction.
  */
 export interface Operator {
+  /**
+   * Run the operator
+   */
   run(version: Version): void;
+  /**
+   * Notify along the output edges of the operator
+   * that the operator has run
+   */
   notify(v: Version): void;
+  /**
+   * Notify along the graph that the transaction
+   * has been comitted
+   */
   notifyCommitted(v: Version): void;
+  messageUpstream(message: Request): void;
   destroy(): void;
 }
 
@@ -35,6 +48,7 @@ export class NoOp implements Operator {
   run(_version: Version) {}
   notify(_v: Version) {}
   notifyCommitted(_v: Version): void {}
+  messageUpstream(): void {}
   destroy() {}
 }
 
@@ -86,6 +100,12 @@ export abstract class OperatorBase<O> implements Operator {
   destroy() {
     for (const input of this._inputs) {
       input.destroy();
+    }
+  }
+
+  messageUpstream(message: Request): void {
+    for (const input of this._inputs) {
+      input.messageUpstream(message);
     }
   }
 }
