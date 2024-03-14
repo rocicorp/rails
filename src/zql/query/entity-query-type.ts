@@ -1,5 +1,5 @@
 import {EntitySchema} from '../schema/entity-schema.js';
-import {IStatement} from './statement.js';
+import {Statement} from './statement.js';
 import {AST, Operator} from '../ast/ast.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -44,5 +44,5 @@ export interface EntityQuertType<TSchema extends EntitySchema, TReturn = []> {
 
   // TODO: we can probably skip the `prepare` step and just have `materialize`
   // Although we'd need the prepare step in order to get a stmt to change bindings.
-  readonly prepare: () => IStatement<TReturn>;
+  readonly prepare: () => Statement<TReturn>;
 }

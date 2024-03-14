@@ -5,7 +5,7 @@ import {
   Selectable,
   SelectedFields,
 } from './entity-query-type.js';
-import {IStatement, Statement} from './statement.js';
+import {Statement, StatementImpl} from './statement.js';
 import {AST, Operator, Primitive} from '../ast/ast.js';
 import {Context} from '../context/context.js';
 
@@ -121,8 +121,8 @@ export class EntityQuery<S extends EntitySchema, TReturn = []>
     return this.#ast;
   }
 
-  prepare(): IStatement<TReturn> {
+  prepare(): Statement<TReturn> {
     // TODO: build the IVM pipeline
-    return new Statement<S, TReturn>(this.#context, this);
+    return new StatementImpl<S, TReturn>(this.#context, this);
   }
 }

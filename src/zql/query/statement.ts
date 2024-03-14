@@ -10,13 +10,13 @@ import {Primitive} from '../ast/ast.js';
 import {Entity} from '../../generate.js';
 import {invariant} from '../error/asserts.js';
 
-export interface IStatement<TReturn> {
+export interface Statement<TReturn> {
   materialize: () => View<MakeHumanReadable<TReturn>>;
   destroy: () => void;
 }
 
-export class Statement<TSchema extends EntitySchema, TReturn>
-  implements IStatement<TReturn>
+export class StatementImpl<TSchema extends EntitySchema, TReturn>
+  implements Statement<TReturn>
 {
   readonly #pipeline;
   readonly #ast;
