@@ -26,15 +26,13 @@ export abstract class AbstractView<T, CT> implements View<CT> {
     this._materialite = materialite;
     this.#stream = stream;
     this._reader = this.#stream.newReader();
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
-    const self = this;
     this._reader.setOperator({
-      run(v: Version) {
-        self._run(v);
+      run: (v: Version) => {
+        this._run(v);
       },
       notify(_v: Version) {},
-      notifyCommitted(v: Version) {
-        self._notifyCommitted(self.value, v);
+      notifyCommitted: (v: Version) => {
+        this._notifyCommitted(this.value, v);
       },
     });
   }

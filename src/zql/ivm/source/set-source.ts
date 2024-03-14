@@ -33,50 +33,48 @@ export abstract class SetSource<T> implements Source<T> {
     this.#tree = treapConstructor(comparator);
     this.comparator = comparator;
 
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
-    const self = this;
     this.#internal = {
-      onCommitEnqueue(version: Version) {
-        for (let i = 0; i < self.#pending.length; i++) {
-          const [val, mult] = must(self.#pending[i]);
+      onCommitEnqueue: (version: Version) => {
+        for (let i = 0; i < this.#pending.length; i++) {
+          const [val, mult] = must(this.#pending[i]);
           // small optimization to reduce operations for replace
-          if (i + 1 < self.#pending.length) {
-            const [nextVal, nextMult] = must(self.#pending[i + 1]);
+          if (i + 1 < this.#pending.length) {
+            const [nextVal, nextMult] = must(this.#pending[i + 1]);
             if (
               Math.abs(mult) === 1 &&
               mult === -nextMult &&
               comparator(val, nextVal) === 0
             ) {
               // The tree doesn't allow dupes -- so this is a replace.
-              self.#tree = self.#tree.add(nextMult > 0 ? nextVal : val);
+              this.#tree = this.#tree.add(nextMult > 0 ? nextVal : val);
               ++i;
               continue;
             }
           }
           if (mult < 0) {
-            self.#tree = self.#tree.delete(val);
+            this.#tree = this.#tree.delete(val);
           } else if (mult > 0) {
-            self.#tree = self.#tree.add(val);
+            this.#tree = this.#tree.add(val);
           }
         }
 
-        self.#stream.queueData([version, new Multiset(self.#pending)]);
-        self.#pending = [];
+        this.#stream.queueData([version, new Multiset(this.#pending)]);
+        this.#pending = [];
       },
       // release queues by telling the stream to send data
-      onCommitRun(version: Version) {
-        self.#stream.notify(version);
+      onCommitRun: (version: Version) => {
+        this.#stream.notify(version);
       },
-      onCommitted(version: Version) {
+      onCommitted: (version: Version) => {
         // In case we have direct source observers
-        const tree = self.#tree;
-        for (const l of self.#listeners) {
+        const tree = this.#tree;
+        for (const l of this.#listeners) {
           l(tree, version);
         }
-        self.#stream.notifyCommitted(version);
+        this.#stream.notifyCommitted(version);
       },
-      onRollback() {
-        self.#pending = [];
+      onRollback: () => {
+        this.#pending = [];
       },
     };
   }
@@ -142,36 +140,3 @@ export class MutableSetSource<T> extends SetSource<T> {
     return ret as this;
   }
 }
-
-// TODO:
-// A source may be asked to send all information it has down a path.
-// In this case we:
-// 1. should send it lazily (since a path may have a limit)
-// 2. should ensure source order and view order match
-// 3. should check for an `AFTER` param so we can resume from a spot
-
-// function asEntries<T>(
-//   m: ITree<T>,
-//   comparator: Comparator<T>,
-//   hoisted: Hoisted,
-// ): Iterable<Entry<T>> {
-//   const after = hoisted.expressions.filter(e => e._tag === 'after')[0];
-//   if (after && after.comparator === comparator) {
-//     return {
-//       [Symbol.iterator]() {
-//         return gen(m.iteratorAfter(after.cursor as any));
-//       },
-//     };
-//   }
-//   return {
-//     [Symbol.iterator]() {
-//       return gen(m);
-//     },
-//   };
-// }
-
-// function* gen<T>(m: Iterable<T>) {
-//   for (const v of m) {
-//     yield [v, 1] as const;
-//   }
-// }

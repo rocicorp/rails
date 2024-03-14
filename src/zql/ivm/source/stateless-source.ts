@@ -17,26 +17,24 @@ export class StatelessSource<T> {
   constructor(materialite: MaterialiteForSourceInternal) {
     this.#materialite = materialite;
     this.#stream = new DifferenceStream<T>();
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
-    const self = this;
     this.#internal = {
       // add values to queues, add values to the set
-      onCommitEnqueue(version: Version) {
-        self.#stream.queueData([version, new Multiset(self.#pending)]);
-        self.#pending = [];
+      onCommitEnqueue: (version: Version) => {
+        this.#stream.queueData([version, new Multiset(this.#pending)]);
+        this.#pending = [];
       },
       // release queues by telling the stream to send data
-      onCommitRun(version: Version) {
-        self.#stream.notify(version);
+      onCommitRun: (version: Version) => {
+        this.#stream.notify(version);
       },
       // notify effects / listeners
       // this is done once the entire reactive graph has finished computing
       // itself
-      onCommitted(v: Version) {
-        self.#stream.notifyCommitted(v);
+      onCommitted: (v: Version) => {
+        this.#stream.notifyCommitted(v);
       },
-      onRollback() {
-        self.#pending = [];
+      onRollback: () => {
+        this.#pending = [];
       },
     };
   }
