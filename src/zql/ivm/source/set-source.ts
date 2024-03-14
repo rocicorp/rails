@@ -119,8 +119,12 @@ export abstract class SetSource<T> implements Source<T> {
     return this;
   }
 
-  get(key: T): T | null {
-    return this.#tree.get(key);
+  get(key: T): T | undefined {
+    const ret = this.#tree.get(key);
+    if (ret === null) {
+      return undefined;
+    }
+    return ret;
   }
 }
 
