@@ -17,5 +17,9 @@ export function compareEntityFields<T>(lVal: T, rVal: T) {
     return 1;
   }
 
+  if (lVal instanceof Date && rVal instanceof Date) {
+    return lVal.getTime() - rVal.getTime();
+  }
+
   unreachable();
 }

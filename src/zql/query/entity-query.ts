@@ -62,6 +62,7 @@ export class EntityQueryImpl<S extends EntitySchema, Return = []>
     this.#ast = ast ?? {
       table: tableName,
       alias: aliasCount++,
+      orderBy: [['id'], 'asc'],
     };
     this.#name = tableName;
     this.#context = context;
@@ -123,8 +124,8 @@ export class EntityQueryImpl<S extends EntitySchema, Return = []>
   }
 
   asc(...x: (keyof S['fields'])[]) {
-    if (this.#ast.orderBy !== undefined) {
-      throw new Misuse('OrderBy already set');
+    if (!x.includes('id')) {
+      x.push('id');
     }
 
     return new EntityQueryImpl<S, Return>(this.#context, this.#name, {
@@ -134,8 +135,8 @@ export class EntityQueryImpl<S extends EntitySchema, Return = []>
   }
 
   desc(...x: (keyof S['fields'])[]) {
-    if (this.#ast.orderBy !== undefined) {
-      throw new Misuse('OrderBy already set');
+    if (!x.includes('id')) {
+      x.push('id');
     }
 
     return new EntityQueryImpl<S, Return>(this.#context, this.#name, {

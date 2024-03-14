@@ -1,13 +1,11 @@
 import {Materialite} from '../ivm/materialite.js';
 import {Source} from '../ivm/source/source.js';
 import {Entity} from '../../generate.js';
+import {Ordering} from '../ast/ast.js';
 
 export type Context = {
   materialite: Materialite;
-  getSource: <T extends Entity>(
-    name: string,
-    ordering?: [string[], 'asc' | 'desc'],
-  ) => Source<T>;
+  getSource: <T extends Entity>(name: string, ordering?: Ordering) => Source<T>;
 };
 
 export function makeTestContext(): Context {

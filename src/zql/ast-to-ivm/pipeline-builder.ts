@@ -1,4 +1,4 @@
-import {AST, Condition, ConditionList, Operator} from '../ast/ast.js';
+import {AST, Condition, ConditionList, Operator, Ordering} from '../ast/ast.js';
 import {assert, must} from '../error/asserts.js';
 import {DifferenceStream} from '../ivm/graph/difference-stream.js';
 
@@ -36,9 +36,8 @@ export function buildPipeline(
 export function applySelect(
   stream: DifferenceStream<unknown>,
   select: string[],
-  orderBy: [string[], 'asc' | 'desc'] | undefined,
+  orderBy: Ordering | undefined,
 ) {
-  const pushID = !orderBy || !orderBy[0].includes('id');
   return stream.map(x => {
     const ret: Partial<Record<string, unknown>> = {};
     for (const field of select) {
@@ -50,9 +49,6 @@ export function applySelect(
       for (const field of orderBy[0]) {
         orderingValues.push((x as Record<string, unknown>)[field]);
       }
-    }
-    if (pushID) {
-      orderingValues.push((x as Record<string, unknown>).id);
     }
 
     Object.defineProperty(ret, orderingProp, {
