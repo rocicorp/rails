@@ -1,4 +1,4 @@
-import {expect, test} from 'vitest';
+import {expect, test, vi} from 'vitest';
 import {z} from 'zod';
 import {generate} from '../generate.js';
 import {makeReplicacheContext} from './context/replicache-context.js';
@@ -6,6 +6,12 @@ import {Replicache, TEST_LICENSE_KEY} from 'replicache';
 import {nanoid} from 'nanoid';
 import fc from 'fast-check';
 import {EntityQueryImpl} from './query/entity-query.js';
+
+export async function tickAFewTimes(n = 10, time = 0) {
+  for (let i = 0; i < n; i++) {
+    await new Promise(resolve => setTimeout(resolve, time));
+  }
+}
 
 const issueSchema = z.object({
   id: z.string(),
@@ -56,8 +62,6 @@ const issueArbitrary: fc.Arbitrary<Issue> = fc.record({
   closed: fc.option(fc.date(), {nil: undefined}),
 });
 
-// const operators = ['=', '<', '>', '>=', '<=', 'IN', 'LIKE', 'ILIKE'] as const;
-
 const tenUniqueIssues = fc.uniqueArray(issueArbitrary, {
   comparator: (a, b) => a.id === b.id,
   minLength: 10,
@@ -65,8 +69,7 @@ const tenUniqueIssues = fc.uniqueArray(issueArbitrary, {
 });
 
 // TODO: we have to make this non-empty for now
-// otherwise we will infinitely hang.
-// See comment about `experimentalWatch` in the first test.
+// otherwise we infinitely hang for an unknown reason.
 const uniqueNonEmptyIssuesArbitrary = fc.uniqueArray(issueArbitrary, {
   comparator: (a, b) => a.id === b.id,
   minLength: 1,
@@ -113,15 +116,25 @@ function makeComparator(...fields: (keyof Issue)[]) {
 //   return (l: Partial<Issue>, r: Partial<Issue>) => -1 * c(r, l);
 // }
 
+test('experimental watch with no data', async () => {
+  const {r} = setup();
+  const spy = vi.fn(() => {});
+  r.experimentalWatch(spy, {initialValuesInFirstDiff: true});
+  await tickAFewTimes();
+  expect(spy).toHaveBeenCalledTimes(1);
+
+  await r.close();
+});
+
 // This test fails because `experimentalWatch` does not call us with an empty array when we want initial data from an empty collection.
 // So we wait for forever for data to be available.
 test('1-shot against an empty collection', async () => {
   expect(
-    'This test fails because `experimentalWatch` does not call us with an empty array when we want initial data from an empty collection. So we wait for forever for data to be available.',
+    'This test fails for some unknown reason. ExperimentalWatch does notify with empty data so it is not that',
   ).toEqual('');
   const {q} = setup();
-  const rows = await q.select('id').prepare().exec();
-  expect(rows).toEqual([]);
+  const rows = q.select('id').prepare().exec();
+  expect(await rows).toEqual([]);
 });
 
 test('prepare a query before the collection has writes then run it', async () => {
@@ -389,9 +402,19 @@ test('order by optional field', async () => {
 test('join', () => {});
 test('having', () => {});
 test('group by', () => {});
+
+test('compound where', async () => {});
+
+// Need to pull this implementation into here from Materialite.
+// The one thing we need to address when doing so is when the
+// view goes under the limit (because a remove). in that case we should re-compute the query.
 test('limit', () => {});
+
+// To be implemented here: `asEntries` in `set-source.ts`
 test('after', () => {});
+
 test('sorted groupings', () => {});
+
 test('adding items late to a source materializes them in the correct order', () => {});
 test('disposing of a subscription causes us to no longer be called back', () => {});
 
@@ -399,7 +422,7 @@ test('hoisting `after` operations to the source', () => {});
 test('hoisting `limit` operations to the source', () => {});
 test('hoisting `where` operations to the source', () => {});
 
-test('order by joined in fields', () => {});
+test('order by joined fields', () => {});
 
 test('correctly sorted source is used to optimize joins', () => {});
 
