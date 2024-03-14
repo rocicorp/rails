@@ -119,16 +119,17 @@ export function ascComparator<T extends {[orderingProp]: Primitive[]}>(
     'orderingProp lengths must match',
   );
 
+  let comp = 0;
   for (let i = 0; i < leftVals.length; i++) {
     const leftVal = leftVals[i];
     const rightVal = rightVals[i];
-    const comp = compareEntityFields(leftVal, rightVal);
+    comp = compareEntityFields(leftVal, rightVal);
     if (comp !== 0) {
       return comp;
     }
   }
 
-  return 0;
+  return comp;
 }
 
 export function descComparator<T extends {[orderingProp]: Primitive[]}>(

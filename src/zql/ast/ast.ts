@@ -4,7 +4,7 @@
 // TODO: the chosen operator needs to constrain the allowed values for the value
 // input to the query builder.
 export type Operator = '=' | '<' | '>' | '>=' | '<=' | 'IN' | 'LIKE' | 'ILIKE';
-export type Ordering = [string[], 'asc' | 'desc'];
+export type Ordering = readonly [readonly string[], 'asc' | 'desc'];
 export type Primitive = string | number | boolean | null;
 // type Ref = `${string}.${string}`;
 export type AST = {

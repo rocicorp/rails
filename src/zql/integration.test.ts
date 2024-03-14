@@ -64,6 +64,15 @@ const tenUniqueIssues = fc.uniqueArray(issueArbitrary, {
   maxLength: 10,
 });
 
+// TODO: we have to make this non-empty for now
+// otherwise we will infinitely hang.
+// See comment about `experimentalWatch` in the first test.
+const uniqueNonEmptyIssuesArbitrary = fc.uniqueArray(issueArbitrary, {
+  comparator: (a, b) => a.id === b.id,
+  minLength: 1,
+  maxLength: 10,
+});
+
 function sampleTenUniqueIssues() {
   return fc.sample(tenUniqueIssues, 1)[0];
 }
@@ -74,9 +83,8 @@ function setup() {
   const q = new EntityQueryImpl<{fields: Issue}>(c, 'issue');
   return {r, c, q};
 }
+
 const compareIds = (a: {id: string}, b: {id: string}) =>
-  a.id < b.id ? 1 : a.id > b.id ? -1 : 0;
-const compareIdsAsc = (a: {id: string}, b: {id: string}) =>
   a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 
 function makeComparator(...fields: (keyof Issue)[]) {
@@ -251,15 +259,15 @@ test('each where operator', async () => {
   stmt.destroy();
 
   stmt = q.select('id').where('id', '>', 'a').prepare();
-  expect(await stmt.exec()).toEqual([{id: 'c'}, {id: 'b'}]);
+  expect(await stmt.exec()).toEqual([{id: 'b'}, {id: 'c'}]);
   stmt.destroy();
 
   stmt = q.select('id').where('id', '>=', 'b').prepare();
-  expect(await stmt.exec()).toEqual([{id: 'c'}, {id: 'b'}]);
+  expect(await stmt.exec()).toEqual([{id: 'b'}, {id: 'c'}]);
   stmt.destroy();
 
   stmt = q.select('id').where('id', '<=', 'b').prepare();
-  expect(await stmt.exec()).toEqual([{id: 'b'}, {id: 'a'}]);
+  expect(await stmt.exec()).toEqual([{id: 'a'}, {id: 'b'}]);
   stmt.destroy();
 
   // TODO: this breaks
@@ -290,79 +298,92 @@ test('each where operator', async () => {
   stmt.destroy();
 
   stmt = q.select('id').where('created', '>=', now).prepare();
-  expect(await stmt.exec()).toEqual([{id: 'c'}, {id: 'b'}]);
+  expect(await stmt.exec()).toEqual([{id: 'b'}, {id: 'c'}]);
   stmt.destroy();
 
   stmt = q.select('id').where('created', '<=', now).prepare();
-  expect(await stmt.exec()).toEqual([{id: 'b'}, {id: 'a'}]);
+  expect(await stmt.exec()).toEqual([{id: 'a'}, {id: 'b'}]);
   stmt.destroy();
 
   await r.close();
 });
 
-// TODO: change these to fast-check proper tests.
-// They're randomly failing and fast-check would find the exact
-// case for which they fail.
 test('order by single field', async () => {
-  const issues = sampleTenUniqueIssues();
-  const {q, r} = setup();
-  await Promise.all(issues.map(r.mutate.initIssue));
+  await fc.assert(
+    fc.asyncProperty(uniqueNonEmptyIssuesArbitrary, async issues => {
+      const {q, r} = setup();
+      await Promise.all(issues.map(r.mutate.initIssue));
 
-  const compareAssignees = makeComparator('assignee', 'id');
-  const stmt = q.select('id', 'assignee').asc('assignee').prepare();
-  const rows = await stmt.exec();
-  expect(rows).toEqual(
-    issues.map(({id, assignee}) => ({id, assignee})).sort(compareAssignees),
+      const compareAssignees = makeComparator('assignee', 'id');
+      const stmt = q.select('id', 'assignee').asc('assignee').prepare();
+      const rows = await stmt.exec();
+      try {
+        expect(rows).toEqual(
+          issues
+            .map(({id, assignee}) => ({id, assignee}))
+            .sort(compareAssignees),
+        );
+      } finally {
+        await r.close();
+      }
+    }),
   );
-
-  await r.close();
 });
 
 test('order by id', async () => {
-  const issues = sampleTenUniqueIssues();
-  const {q, r} = setup();
-  await Promise.all(issues.map(r.mutate.initIssue));
+  await fc.assert(
+    fc.asyncProperty(uniqueNonEmptyIssuesArbitrary, async issues => {
+      const {q, r} = setup();
+      await Promise.all(issues.map(r.mutate.initIssue));
 
-  const stmt = q.select('id').asc('id').prepare();
-  const rows = await stmt.exec();
-  expect(rows).toEqual(issues.map(({id}) => ({id})).sort(compareIdsAsc));
+      const stmt = q.select('id').asc('id').prepare();
+      const rows = await stmt.exec();
+      expect(rows).toEqual(issues.map(({id}) => ({id})).sort(compareIds));
 
-  await r.close();
+      await r.close();
+    }),
+  );
 });
 
 test('order by compound fields', async () => {
-  const issues = sampleTenUniqueIssues();
-  const {q, r} = setup();
-  await Promise.all(issues.map(r.mutate.initIssue));
+  await fc.assert(
+    fc.asyncProperty(uniqueNonEmptyIssuesArbitrary, async issues => {
+      const {q, r} = setup();
+      await Promise.all(issues.map(r.mutate.initIssue));
 
-  const compareExpected = makeComparator('assignee', 'created', 'id');
-  const stmt = q
-    .select('id', 'assignee', 'created')
-    .asc('assignee', 'created')
-    .prepare();
-  const rows = await stmt.exec();
-  expect(rows).toEqual(
-    issues
-      .map(({id, created, assignee}) => ({id, created, assignee}))
-      .sort(compareExpected),
+      const compareExpected = makeComparator('assignee', 'created', 'id');
+      const stmt = q
+        .select('id', 'assignee', 'created')
+        .asc('assignee', 'created')
+        .prepare();
+      const rows = await stmt.exec();
+      expect(rows).toEqual(
+        issues
+          .map(({id, created, assignee}) => ({id, created, assignee}))
+          .sort(compareExpected),
+      );
+
+      await r.close();
+    }),
   );
-
-  await r.close();
 });
 
 test('order by optional field', async () => {
-  const issues = sampleTenUniqueIssues();
-  const {q, r} = setup();
-  await Promise.all(issues.map(r.mutate.initIssue));
+  await fc.assert(
+    fc.asyncProperty(uniqueNonEmptyIssuesArbitrary, async issues => {
+      const {q, r} = setup();
+      await Promise.all(issues.map(r.mutate.initIssue));
 
-  const compareExpected = makeComparator('closed', 'id');
-  const stmt = q.select('id', 'closed').asc('closed').prepare();
-  const rows = await stmt.exec();
-  expect(rows).toEqual(
-    issues.map(({id, closed}) => ({id, closed})).sort(compareExpected),
+      const compareExpected = makeComparator('closed', 'id');
+      const stmt = q.select('id', 'closed').asc('closed').prepare();
+      const rows = await stmt.exec();
+      expect(rows).toEqual(
+        issues.map(({id, closed}) => ({id, closed})).sort(compareExpected),
+      );
+
+      await r.close();
+    }),
   );
-
-  await r.close();
 });
 
 test('join', () => {});

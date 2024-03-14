@@ -17,10 +17,8 @@ export function makeReplicacheContext(rep: ReplicacheLike): Context {
 
   return {
     materialite,
-    getSource: <T extends Entity>(
-      name: string,
-      ordering?: [string[], 'asc' | 'desc'],
-    ) => sourceStore.getSource(name, ordering) as Source<T>,
+    getSource: <T extends Entity>(name: string, ordering?: Ordering) =>
+      sourceStore.getSource(name, ordering) as Source<T>,
   };
 }
 
@@ -129,7 +127,7 @@ class ReplicacheSource {
     });
   };
 
-  get(ordering?: [string[], 'asc' | 'desc']) {
+  get(ordering?: Ordering) {
     if (
       ordering === undefined ||
       ordering[0].length === 0 ||
@@ -138,7 +136,7 @@ class ReplicacheSource {
       return this.#canonicalSource;
     }
 
-    const [keys, _] = ordering;
+    const [keys] = ordering;
     // We do _not_ use the direction to derive a soure. We can iterate backwards for DESC.
     const key = keys.join(',');
     let derivation = this.#sources.get(key);
@@ -155,16 +153,17 @@ class ReplicacheSource {
 const canonicalComparator = (l: Entity, r: Entity) =>
   l.id < r.id ? -1 : l.id > r.id ? 1 : 0;
 
-function makeComparator(key: string[]) {
+function makeComparator(key: readonly string[]) {
   return <T extends Entity>(l: T, r: T) => {
+    let comp = 0;
     for (const k of key) {
       const lVal = l[k as unknown as keyof T];
       const rVal = r[k as unknown as keyof T];
-      const comp = compareEntityFields(lVal, rVal);
+      comp = compareEntityFields(lVal, rVal);
       if (comp !== 0) {
         return comp;
       }
     }
-    return 0;
+    return comp;
   };
 }
