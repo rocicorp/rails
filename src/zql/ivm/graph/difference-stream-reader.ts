@@ -1,9 +1,9 @@
 import {invariant, must} from '../../error/asserts.js';
 import {Multiset} from '../multiset.js';
 import {Version} from '../types.js';
-import {Queue} from './queue.js';
-import {IOperator} from './operators/operator.js';
 import {DifferenceStreamWriter} from './difference-stream-writer.js';
+import {Operator} from './operators/operator.js';
+import {Queue} from './queue.js';
 
 /**
  * Represents the input to an operator.
@@ -22,7 +22,7 @@ import {DifferenceStreamWriter} from './difference-stream-writer.js';
 export class DifferenceStreamReader<T = unknown> {
   readonly #queue;
   readonly #upstreamWriter;
-  #downstreamOperator: IOperator | null = null;
+  #downstreamOperator: Operator | null = null;
   #lastSeenVersion: Version = -1;
 
   constructor(upstream: DifferenceStreamWriter<T>) {
@@ -30,7 +30,7 @@ export class DifferenceStreamReader<T = unknown> {
     this.#upstreamWriter = upstream;
   }
 
-  setOperator(operator: IOperator) {
+  setOperator(operator: Operator) {
     invariant(this.#downstreamOperator === null, 'Operator already set!');
     this.#downstreamOperator = operator;
   }
