@@ -24,14 +24,14 @@ import {DifferenceStreamWriter} from '../difference-stream-writer.js';
  * A single MultiSet is sent per transaction and contains all the values
  * accumulated in that transaction.
  */
-export interface IOperator {
+export interface Operator {
   run(version: Version): void;
   notify(v: Version): void;
   notifyCommitted(v: Version): void;
   destroy(): void;
 }
 
-export class NoOp implements IOperator {
+export class NoOp implements Operator {
   run(_version: Version) {}
   notify(_v: Version) {}
   notifyCommitted(_v: Version): void {}
@@ -41,7 +41,7 @@ export class NoOp implements IOperator {
 /**
  * A dataflow operator (node) that has many incoming edges (read handles) and one outgoing edge (write handle).
  */
-export abstract class Operator<O> implements IOperator {
+export abstract class OperatorBase<O> implements Operator {
   readonly #fn;
   #lastRunVersion: Version = -1;
   #lastNotifyVersion: Version = -1;

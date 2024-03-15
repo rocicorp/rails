@@ -2,7 +2,7 @@ import {assert, invariant} from '../../error/asserts.js';
 import {Multiset} from '../multiset.js';
 import {Version} from '../types.js';
 import {DifferenceStreamReader} from './difference-stream-reader.js';
-import {IOperator} from './operators/operator.js';
+import {Operator} from './operators/operator.js';
 
 /**
  * Represents the output of an Operator.
@@ -23,10 +23,10 @@ import {IOperator} from './operators/operator.js';
  * r = reader
  */
 export class DifferenceStreamWriter<T> {
-  #upstreamOperator: IOperator | null = null;
+  #upstreamOperator: Operator | null = null;
   readonly downstreamReaders: DifferenceStreamReader<T>[] = [];
 
-  setOperator(operator: IOperator) {
+  setOperator(operator: Operator) {
     invariant(this.#upstreamOperator === null, 'Operator already set!');
     this.#upstreamOperator = operator;
   }
