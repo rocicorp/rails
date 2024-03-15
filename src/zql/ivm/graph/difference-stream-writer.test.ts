@@ -67,7 +67,7 @@ test('replying to a message only notifies along the requesting path', () => {
     new DebugOperator(r, outputWriter, () => (notifications[i] = true));
   });
 
-  const msg = createPullMessage();
+  const msg = createPullMessage([[], 'asc'], 'select');
 
   outputs[1].messageUpstream(msg);
 

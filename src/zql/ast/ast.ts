@@ -6,6 +6,12 @@
 export type Ordering = readonly [readonly string[], 'asc' | 'desc'];
 export type Primitive = string | number | boolean | null;
 // type Ref = `${string}.${string}`;
+
+/**
+ * Note: We'll eventually need to start ordering conditions
+ * in the dataflow graph so we get the maximum amount
+ * of sharing between queries.
+ */
 export type AST = {
   readonly table?: string | undefined;
   readonly alias?: number | undefined;
@@ -22,7 +28,7 @@ export type AST = {
   // }[];
   readonly limit?: number | undefined;
   // readonly groupBy?: string[];
-  readonly orderBy?: Ordering | undefined;
+  readonly orderBy: Ordering;
   // readonly after?: Primitive;
 };
 
@@ -57,3 +63,11 @@ export type SimpleCondition =
     //   value: AST;
     // };
   };
+
+//  | {
+//   type: 'ref';
+//   value: Ref;
+// } | {
+//   type: 'query';
+//   value: AST;
+// };

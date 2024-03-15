@@ -3,6 +3,7 @@ import {DifferenceStream} from '../graph/difference-stream.js';
 import {Version} from '../types.js';
 import {AbstractView} from './abstract-view.js';
 import {must} from '../../error/asserts.js';
+import {createPullMessage} from '../graph/message.js';
 
 /**
  * Represents the most recent value from a stream of primitives.
@@ -21,6 +22,10 @@ export class ValueView<T> extends AbstractView<T, T | null> {
 
   get value() {
     return this.#data;
+  }
+
+  pullHistoricalData(): void {
+    this._reader.messageUpstream(createPullMessage(undefined));
   }
 
   protected _run(version: Version) {
