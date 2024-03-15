@@ -17,12 +17,8 @@ import {MapOperator} from './operators/map-operator.js';
 export class DifferenceStream<T> implements IDifferenceStream<T> {
   readonly #upstreamWriter = new DifferenceStreamWriter<T>();
 
-  newStream<X>(): DifferenceStream<X> {
-    return new DifferenceStream();
-  }
-
   map<O>(f: (value: T) => O): DifferenceStream<O> {
-    const ret = this.newStream<O>();
+    const ret = new DifferenceStream<O>();
     new MapOperator<T, O>(
       this.#upstreamWriter.newReader(),
       ret.#upstreamWriter,
@@ -34,7 +30,7 @@ export class DifferenceStream<T> implements IDifferenceStream<T> {
   filter<S extends T>(f: (x: T) => x is S): DifferenceStream<S>;
   filter(f: (x: T) => boolean): DifferenceStream<T>;
   filter<S extends T>(f: (x: T) => boolean): DifferenceStream<S> {
-    const ret = this.newStream<S>();
+    const ret = new DifferenceStream<S>();
     new FilterOperator<T>(
       this.#upstreamWriter.newReader(),
       ret.#upstreamWriter,
@@ -49,7 +45,7 @@ export class DifferenceStream<T> implements IDifferenceStream<T> {
    * @returns returns the size of the stream
    */
   linearCount() {
-    const ret = this.newStream<number>();
+    const ret = new DifferenceStream<number>();
     new LinearCountOperator(
       this.#upstreamWriter.newReader(),
       ret.#upstreamWriter,
@@ -64,7 +60,7 @@ export class DifferenceStream<T> implements IDifferenceStream<T> {
    * `mult === 0` is a no-op and can be ignored. Generally shouldn't happen.
    */
   effect(f: (i: T, mult: number) => void) {
-    const ret = this.newStream<T>();
+    const ret = new DifferenceStream<T>();
     new DifferenceEffectOperator(
       this.#upstreamWriter.newReader(),
       ret.#upstreamWriter,
@@ -74,7 +70,7 @@ export class DifferenceStream<T> implements IDifferenceStream<T> {
   }
 
   debug(onMessage: (c: Multiset<T>) => void) {
-    const ret = this.newStream<T>();
+    const ret = new DifferenceStream<T>();
     new DebugOperator(
       this.#upstreamWriter.newReader(),
       ret.#upstreamWriter,
