@@ -149,6 +149,7 @@ export function generate<T extends Entity>(
       listIDsImpl(keyFromID, keyToID, firstKey, tx, options),
     listEntries: (tx, options?) =>
       listEntriesImpl(keyFromID, keyToID, firstKey, parse, tx, options),
+    // query: () => new QueryInstance<{fields: T}>(),
   };
 }
 

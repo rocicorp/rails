@@ -833,7 +833,9 @@ test('undefined parse', async () => {
 
   const r = new Replicache({
     name: nanoid(),
-    mutators: generated,
+    mutators: {
+      set: generated.set,
+    },
     licenseKey: TEST_LICENSE_KEY,
   });
 

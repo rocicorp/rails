@@ -5,6 +5,7 @@
     "outDir": "out",
     "strict": true,
     "exactOptionalPropertyTypes": false,
+    "lib": ["ESNext.Array", "ESNext"],
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noImplicitReturns": true,
