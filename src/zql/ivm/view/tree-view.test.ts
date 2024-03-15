@@ -21,7 +21,7 @@ test('asc and descComparator on Entities', () => {
   const updatedStream = applySelect(
     s.stream,
     ['id'],
-    [['n'], 'asc'],
+    [['n', 'id'], 'asc'],
   ) as DifferenceStream<Selected>;
 
   const view = new MutableTreeView<Selected>(
@@ -35,7 +35,7 @@ test('asc and descComparator on Entities', () => {
     applySelect(
       s.stream,
       ['id'],
-      [['n'], 'desc'],
+      [['n', 'id'], 'desc'],
     ) as DifferenceStream<Selected>,
     descComparator,
     true,

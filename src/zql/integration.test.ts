@@ -403,7 +403,49 @@ test('join', () => {});
 test('having', () => {});
 test('group by', () => {});
 
-test('compound where', async () => {});
+test('compound where', async () => {
+  const {q, r} = setup();
+  const issues: Issue[] = [
+    {
+      id: 'a',
+      title: 'foo',
+      status: 'open',
+      priority: 'high',
+      assignee: 'charles',
+      created: new Date(),
+      updated: new Date(),
+    },
+    {
+      id: 'b',
+      title: 'bar',
+      status: 'open',
+      priority: 'medium',
+      assignee: 'bob',
+      created: new Date(),
+      updated: new Date(),
+    },
+    {
+      id: 'c',
+      title: 'baz',
+      status: 'closed',
+      priority: 'low',
+      assignee: 'alice',
+      created: new Date(),
+      updated: new Date(),
+    },
+  ] as const;
+  await Promise.all(issues.map(r.mutate.initIssue));
+
+  const stmt = q
+    .select('id')
+    .where('status', '=', 'open')
+    .where('priority', '>=', 'medium')
+    .prepare();
+  const rows = await stmt.exec();
+  expect(rows).toEqual([{id: 'b'}]);
+
+  await r.close();
+});
 
 // Need to pull this implementation into here from Materialite.
 // The one thing we need to address when doing so is when the

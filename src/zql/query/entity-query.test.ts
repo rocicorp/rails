@@ -128,6 +128,7 @@ test('ast: where', () => {
   expect({...q._ast, alias: 0}).toEqual({
     alias: 0,
     table: 'e1',
+    orderBy: [['id'], 'asc'],
     where: [
       {
         field: 'id',
@@ -146,6 +147,7 @@ test('ast: where', () => {
   expect({...q._ast, alias: 0}).toEqual({
     alias: 0,
     table: 'e1',
+    orderBy: [['id'], 'asc'],
     where: [
       {
         field: 'id',
@@ -171,6 +173,7 @@ test('ast: where', () => {
 test('ast: limit', () => {
   const q = new EntityQueryImpl<{fields: E1}>(context, 'e1');
   expect({...q.limit(10)._ast, alias: 0}).toEqual({
+    orderBy: [['id'], 'asc'],
     alias: 0,
     table: 'e1',
     limit: 10,
@@ -178,12 +181,7 @@ test('ast: limit', () => {
 });
 
 test('ast: asc/desc', () => {
-  // can only order once
   const q = new EntityQueryImpl<{fields: E1}>(context, 'e1');
-  expect(() => q.asc('id').desc('id')).toThrow(Misuse);
-  expect(() => q.asc('id').asc('id')).toThrow(Misuse);
-  expect(() => q.desc('id').desc('id')).toThrow(Misuse);
-  expect(() => q.asc('id').desc('a')).toThrow(Misuse);
 
   // order methods update the ast
   expect({...q.asc('id')._ast, alias: 0}).toEqual({
