@@ -1,15 +1,15 @@
-import {buildPipeline, orderingProp} from '../ast-to-ivm/pipeline-builder.js';
-import {View} from '../ivm/view/view.js';
-import {MutableTreeView} from '../ivm/view/tree-view.js';
-import {EntitySchema} from '../schema/entity-schema.js';
-import {MakeHumanReadable, EntityQuertType} from './entity-query-type.js';
-import {Context} from '../context/context.js';
-import {DifferenceStream} from '../ivm/graph/difference-stream.js';
-import {ValueView} from '../ivm/view/primitive-view.js';
-import {Primitive} from '../ast/ast.js';
 import {Entity} from '../../generate.js';
+import {buildPipeline, orderingProp} from '../ast-to-ivm/pipeline-builder.js';
+import {Primitive} from '../ast/ast.js';
+import {Context} from '../context/context.js';
 import {invariant} from '../error/asserts.js';
 import {compareEntityFields} from '../ivm/compare.js';
+import {DifferenceStream} from '../ivm/graph/difference-stream.js';
+import {ValueView} from '../ivm/view/primitive-view.js';
+import {MutableTreeView} from '../ivm/view/tree-view.js';
+import {View} from '../ivm/view/view.js';
+import {EntitySchema} from '../schema/entity-schema.js';
+import {EntityQuery, MakeHumanReadable} from './entity-query.js';
 
 export interface Statement<TReturn> {
   materialize: () => View<MakeHumanReadable<TReturn>>;
@@ -26,7 +26,7 @@ export class StatementImpl<TSchema extends EntitySchema, TReturn>
     TReturn extends [] ? TReturn[number] : TReturn
   > | null = null;
 
-  constructor(c: Context, q: EntityQuertType<TSchema, TReturn>) {
+  constructor(c: Context, q: EntityQuery<TSchema, TReturn>) {
     this.#ast = q._ast;
     this.#pipeline = buildPipeline(
       <T extends Entity>(sourceName: string) =>
