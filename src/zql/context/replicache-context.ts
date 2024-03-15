@@ -1,13 +1,14 @@
-import {ExperimentalNoIndexDiff, Replicache} from 'replicache';
-import {Materialite} from '../ivm/materialite.js';
+import {ExperimentalNoIndexDiff} from 'replicache';
 import {Entity} from '../../generate.js';
-import {Source} from '../ivm/source/source.js';
-import {MutableSetSource} from '../ivm/source/set-source.js';
+import {ReplicacheLike} from '../../replicache-like.js';
+import {Ordering} from '../ast/ast.js';
 import {assert, invariant} from '../error/asserts.js';
 import {compareEntityFields} from '../ivm/compare.js';
-import {Ordering} from '../ast/ast.js';
+import {Materialite} from '../ivm/materialite.js';
+import {MutableSetSource} from '../ivm/source/set-source.js';
+import {Source} from '../ivm/source/source.js';
 
-export function makeReplicacheContext(rep: Replicache) {
+export function makeReplicacheContext(rep: ReplicacheLike) {
   const materialite = new Materialite();
   const sourceStore = new ReplicacheSourceStore(rep, materialite);
 
@@ -38,11 +39,11 @@ export function makeReplicacheContext(rep: Replicache) {
  * And shares the work between queries.
  */
 class ReplicacheSourceStore {
-  readonly #rep: Replicache;
+  readonly #rep: ReplicacheLike;
   readonly #materialite: Materialite;
   readonly #sources = new Map<string, ReplicacheSource>();
 
-  constructor(rep: Replicache, materialite: Materialite) {
+  constructor(rep: ReplicacheLike, materialite: Materialite) {
     this.#rep = rep;
     this.#materialite = materialite;
   }
@@ -63,7 +64,7 @@ class ReplicacheSource {
   readonly #sources: Map<string, Source<Entity>> = new Map();
   readonly #canonicalSource: MutableSetSource<Entity>;
 
-  constructor(rep: Replicache, materialite: Materialite, name: string) {
+  constructor(rep: ReplicacheLike, materialite: Materialite, name: string) {
     this.#canonicalSource =
       materialite.newSetSource<Entity>(canonicalComparator);
     this.#materialite = materialite;

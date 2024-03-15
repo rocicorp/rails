@@ -1,6 +1,6 @@
+import {AST, Condition, ConditionList, Operator} from '../ast/ast.js';
 import {assert, must} from '../error/asserts.js';
 import {DifferenceStream} from '../ivm/graph/difference-stream.js';
-import {AST, Condition, ConditionList, Operator} from '../ast/ast.js';
 
 export const orderingProp = Symbol();
 
@@ -85,8 +85,7 @@ function applyWhere(stream: DifferenceStream<unknown>, where: ConditionList) {
   //        |
   //
   // So `ORs` cause a fork (two branches that need to be evaluated) and then that fork is combined.
-  for (let i = 0; i < where.length; i++) {
-    const condition = where[i];
+  for (const condition of where) {
     if (condition === 'AND') {
       continue;
     }
