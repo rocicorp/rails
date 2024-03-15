@@ -24,12 +24,10 @@ test('asc and descComparator on Entities', () => {
     [['n', 'id'], 'asc'],
   ) as DifferenceStream<Selected>;
 
-  const view = new MutableTreeView<Selected>(
-    m,
-    updatedStream,
-    ascComparator,
-    true,
-  );
+  const view = new MutableTreeView<Selected>(m, updatedStream, ascComparator, [
+    ['n', 'id'],
+    'asc',
+  ]);
   const descView = new MutableTreeView<Selected>(
     m,
     applySelect(
@@ -38,7 +36,7 @@ test('asc and descComparator on Entities', () => {
       [['n', 'id'], 'desc'],
     ) as DifferenceStream<Selected>,
     descComparator,
-    true,
+    [['n', 'id'], 'desc'],
   );
 
   const items = [
@@ -64,7 +62,7 @@ test('add & remove', () => {
         m,
         source.stream,
         numberComparator,
-        true,
+        undefined,
       );
 
       m.tx(() => {
@@ -85,12 +83,10 @@ test('replace', () => {
     fc.property(fc.uniqueArray(fc.integer()), arr => {
       const m = new Materialite();
       const source = m.newStatelessSource<number>();
-      const view = new MutableTreeView(
-        m,
-        source.stream,
-        numberComparator,
-        true,
-      );
+      const view = new MutableTreeView(m, source.stream, numberComparator, [
+        ['id'],
+        'asc',
+      ]);
 
       m.tx(() => {
         arr.forEach(x => source.add(x));

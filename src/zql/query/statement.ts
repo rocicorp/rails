@@ -53,8 +53,8 @@ export class Statement<Return> implements IStatement<Return> {
           this.#pipeline as DifferenceStream<
             Return extends [] ? Return[number] : never
           >,
-          this.#ast.orderBy?.[1] === 'asc' ? ascComparator : descComparator,
-          true, // TODO: since we're going to control everything we can make this so.
+          this.#ast.orderBy[1] === 'asc' ? ascComparator : descComparator,
+          this.#ast.orderBy,
           this.#ast.limit,
         ) as unknown as View<Return extends [] ? Return[number] : Return>;
       }

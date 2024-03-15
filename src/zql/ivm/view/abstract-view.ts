@@ -3,7 +3,6 @@ import {DifferenceStream} from '../graph/difference-stream.js';
 import {Version} from '../types.js';
 import {View} from './view.js';
 import {assert} from '../../error/asserts.js';
-import {createPullMessage} from '../graph/message.js';
 
 export abstract class AbstractView<T, CT> implements View<CT> {
   readonly #stream;
@@ -56,9 +55,7 @@ export abstract class AbstractView<T, CT> implements View<CT> {
     return this.#hydrated;
   }
 
-  pullHistoricalData() {
-    this._reader.messageUpstream(createPullMessage());
-  }
+  abstract pullHistoricalData(): void;
 
   protected _notifyCommitted(d: CT, v: Version) {
     if (this._notifiedListenersVersion === v) {
