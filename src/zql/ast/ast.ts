@@ -27,7 +27,7 @@ export type AST = {
   //   readonly on: ConditionList;
   // }[];
   readonly limit?: number | undefined;
-  // readonly groupBy?: string[];
+  readonly groupBy?: string[];
   readonly orderBy: Ordering;
   // readonly after?: Primitive;
 };
