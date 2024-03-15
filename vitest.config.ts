@@ -6,7 +6,8 @@ export default defineConfig({
       if (
         log.includes('Skipping license check for TEST_LICENSE_KEY.') ||
         log.includes('REPLICACHE LICENSE NOT VALID') ||
-        log.includes('enableAnalytics false')
+        log.includes('enableAnalytics false') ||
+        log.includes('no such entity')
       ) {
         return false;
       }
