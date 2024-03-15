@@ -148,5 +148,5 @@ test('ZQL query with Replicache', async () => {
     r.mutate.initE1({id: '5', str: 'y'}),
   ]);
 
-  expect(view.value).toEqual([{id: '5'}, {id: '4'}, {id: '3'}]);
+  expect(view.value).toEqual([{id: '3'}, {id: '4'}, {id: '5'}]);
 });

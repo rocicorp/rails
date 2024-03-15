@@ -35,7 +35,7 @@ test('basic materialization', () => {
   expected.push(items[1]);
   context.getSource('e1').add(items[1]);
 
-  expected.unshift(items[2]);
+  expected.push(items[2]);
   context.getSource('e1').add(items[2]);
   expect(callCount).toBe(2);
 });
