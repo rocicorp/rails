@@ -1,3 +1,4 @@
+import {Entity} from '../../generate.js';
 import {
   AST,
   Condition,
@@ -11,7 +12,7 @@ import {DifferenceStream} from '../ivm/graph/difference-stream.js';
 export const orderingProp = Symbol();
 
 export function buildPipeline(
-  sourceStreamProvider: (sourceName: string) => DifferenceStream<unknown>,
+  sourceStreamProvider: (sourceName: string) => DifferenceStream<Entity>,
   ast: AST,
 ) {
   // filters first
@@ -34,13 +35,18 @@ export function buildPipeline(
     ret = applySelect(stream, ast.select, ast.orderBy);
   }
 
+  if (ast.groupBy) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ret = applyGroupBy(ret as any, ast.orderBy, ast.groupBy);
+  }
+
   // Note: the stream is technically attached at this point.
   // We could detach it until the user actually runs (or subscribes to) the statement as a tiny optimization.
   return ret;
 }
 
 export function applySelect(
-  stream: DifferenceStream<unknown>,
+  stream: DifferenceStream<Entity>,
   select: string[],
   orderBy: Ordering | undefined,
 ) {
@@ -68,7 +74,7 @@ export function applySelect(
   });
 }
 
-function applyWhere(stream: DifferenceStream<unknown>, where: Condition) {
+function applyWhere(stream: DifferenceStream<Entity>, where: Condition) {
   let ret = stream;
   // We'll handle `OR` and parentheticals like so:
   // OR: We'll create a new stream for the LHS and RHS of the OR then merge together.
@@ -99,7 +105,7 @@ function applyWhere(stream: DifferenceStream<unknown>, where: Condition) {
 }
 
 function applySimpleCondition(
-  stream: DifferenceStream<unknown>,
+  stream: DifferenceStream<Entity>,
   condition: SimpleCondition,
 ) {
   const operator = getOperator(condition.op);
@@ -107,6 +113,38 @@ function applySimpleCondition(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     operator((x as any)[condition.field], condition.value.value),
   );
+}
+
+function applyGroupBy(
+  stream: DifferenceStream<
+    Record<string, unknown> & {
+      [orderingProp]: unknown[];
+    }
+  >,
+  orderBy: Ordering,
+  columns: string[],
+) {
+  const keyFunction = makeKeyFunction(columns);
+  const idIdx = orderBy[0].indexOf('id');
+  return stream.reduce(
+    keyFunction,
+    value => value[orderingProp][idIdx] as string,
+    // TODO: apply aggregate functions against the group if specified
+    // e.g., count(x), sum(x), avg(x), array(x) etc.
+    values => values[Symbol.iterator]().next().value,
+  );
+}
+
+function makeKeyFunction(columns: string[]) {
+  return (x: Record<string, unknown>) => {
+    const ret: unknown[] = [];
+    for (const column of columns) {
+      ret.push(x[column]);
+    }
+    // Would it be better to come up with someh hash function
+    // which can handle complex types?
+    return JSON.stringify(ret);
+  };
 }
 
 // We're well-typed in the query builder so once we're down here
