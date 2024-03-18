@@ -7,6 +7,7 @@ export {
   type PresenceListOptions,
   type PresenceUpdate,
 } from './generate-presence.js';
+export {generateZQL} from './generate-zql.js';
 export {
   generate,
   maybeParse,

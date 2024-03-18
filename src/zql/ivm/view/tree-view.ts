@@ -1,11 +1,11 @@
 import {PersistentTreap} from '@vlcn.io/ds-and-algos/PersistentTreap';
-import {AbstractView} from './abstract-view.js';
-import {Materialite} from '../materialite.js';
-import {DifferenceStream} from '../graph/difference-stream.js';
-import {Version} from '../types.js';
-import {Multiset} from '../multiset.js';
-import {Comparator, ITree} from '@vlcn.io/ds-and-algos/types';
 import {Treap} from '@vlcn.io/ds-and-algos/Treap';
+import {Comparator, ITree} from '@vlcn.io/ds-and-algos/types';
+import {DifferenceStream} from '../graph/difference-stream.js';
+import {Materialite} from '../materialite.js';
+import {Multiset} from '../multiset.js';
+import {Version} from '../types.js';
+import {AbstractView} from './abstract-view.js';
 
 /**
  * A sink that maintains the list of values in-order.
@@ -65,7 +65,7 @@ class AbstractTreeView<T> extends AbstractView<T, T[]> {
 
     let newData = this.#data;
     for (const entry of collections) {
-      [changed, newData] = this.#sink(entry[1], newData) || changed;
+      [changed, newData] = this.#sink(entry[1], newData, changed);
     }
     this.#data = newData;
 
@@ -78,8 +78,7 @@ class AbstractTreeView<T> extends AbstractView<T, T[]> {
     }
   }
 
-  #sink(c: Multiset<T>, data: ITree<T>): [boolean, ITree<T>] {
-    let changed = false;
+  #sink(c: Multiset<T>, data: ITree<T>, changed: boolean): [boolean, ITree<T>] {
     const iterator = c.entries[Symbol.iterator]();
     let next;
 
