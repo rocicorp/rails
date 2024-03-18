@@ -2307,6 +2307,13 @@ suite('listEntries', () => {
   }
 });
 
+type Console = {
+  debug(...args: unknown[]): void;
+  info(...args: unknown[]): void;
+  error(...args: unknown[]): void;
+};
+
+declare const console: Console;
 suite('optionalLogger', () => {
   type Case = {
     name: string;
@@ -2368,11 +2375,11 @@ suite('optionalLogger', () => {
 });
 
 test('undefined parse', async () => {
-  globalThis.process = {
+  (globalThis as Record<string, unknown>).process = {
     env: {
       NODE_ENV: '',
     },
-  } as unknown as NodeJS.Process;
+  } as const;
 
   const name = 'nnn';
   const generated = generatePresence<EntryNoID>(name);

@@ -105,6 +105,14 @@ export type GenerateResult<T extends Entity> = {
   ) => Promise<[string, T][]>;
 };
 
+type Console = {
+  debug(...args: unknown[]): void;
+  info(...args: unknown[]): void;
+  error(...args: unknown[]): void;
+};
+
+declare const console: Console;
+
 /**
  * Generates strongly-typed CRUD-style functions for interacting with Reflect
  * from an Entity.

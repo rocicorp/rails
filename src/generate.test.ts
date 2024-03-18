@@ -772,7 +772,15 @@ suite('listEntries', () => {
   }
 });
 
--test('optionalLogger', async () => {
+type Console = {
+  debug(...args: unknown[]): void;
+  info(...args: unknown[]): void;
+  error(...args: unknown[]): void;
+};
+
+declare const console: Console;
+
+test('optionalLogger', async () => {
   type Case = {
     name: string;
     logger: OptionalLogger | undefined;
@@ -822,11 +830,11 @@ suite('listEntries', () => {
 });
 
 test('undefined parse', async () => {
-  globalThis.process = {
+  (globalThis as Record<string, unknown>).process = {
     env: {
       NODE_ENV: '',
     },
-  } as unknown as NodeJS.Process;
+  } as const;
 
   const generated = generate<E1>('e1');
   const {get, list, listIDs} = generated;
