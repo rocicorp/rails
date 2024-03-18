@@ -97,6 +97,8 @@ test('getSource - with ordering', async () => {
   expect([...(source as SetSource<E1>).value]).toEqual([{id: '2', str: 'z'}]);
 });
 
+declare function setTimeout(callback: () => void, ms: number): number;
+
 test('derived sources are correctly seeded', async () => {
   const r = newRep();
   const context = makeReplicacheContext(r);

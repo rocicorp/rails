@@ -247,6 +247,14 @@ function validateMutate(
   }
 }
 
+type Console = {
+  debug(...args: unknown[]): void;
+  info(...args: unknown[]): void;
+  error(...args: unknown[]): void;
+};
+
+declare const console: Console;
+
 export function generatePresence<T extends Required<PresenceEntity>>(
   name: string,
   parse?: Parse<T> | undefined,
