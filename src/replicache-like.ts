@@ -1,45 +1,36 @@
 import {ReadonlyJSONValue} from './json.js';
 
-type DiffOperationAdd<Key, Value = ReadonlyJSONValue> = {
+type DiffOperationAdd = {
   readonly op: 'add';
-  readonly key: Key;
-  readonly newValue: Value;
+  readonly key: string;
+  readonly newValue: ReadonlyJSONValue;
 };
-type DiffOperationDel<Key, Value = ReadonlyJSONValue> = {
+
+type DiffOperationDel = {
   readonly op: 'del';
-  readonly key: Key;
-  readonly oldValue: Value;
+  readonly key: string;
+  readonly oldValue: ReadonlyJSONValue;
 };
-type DiffOperationChange<Key, Value = ReadonlyJSONValue> = {
+
+type DiffOperationChange = {
   readonly op: 'change';
-  readonly key: Key;
-  readonly oldValue: Value;
-  readonly newValue: Value;
+  readonly key: string;
+  readonly oldValue: ReadonlyJSONValue;
+  readonly newValue: ReadonlyJSONValue;
 };
-type DiffOperation<Key> =
-  | DiffOperationAdd<Key>
-  | DiffOperationDel<Key>
-  | DiffOperationChange<Key>;
-type NoIndexDiff = readonly DiffOperation<string>[];
-type WatchNoIndexCallback = (diff: NoIndexDiff) => void;
-type WatchIndexCallback = (diff: IndexDiff) => void;
-type IndexKey = readonly [secondary: string, primary: string];
-type IndexDiff = readonly DiffOperation<IndexKey>[];
-type WatchOptions = WatchIndexOptions | WatchNoIndexOptions;
-type WatchIndexOptions = WatchNoIndexOptions & {
-  indexName: string;
-};
-type WatchNoIndexOptions = {
+
+type DiffOperation = DiffOperationAdd | DiffOperationDel | DiffOperationChange;
+
+type WatchCallback = (diff: readonly DiffOperation[]) => void;
+
+type WatchOptions = {
   prefix?: string | undefined;
   initialValuesInFirstDiff?: boolean | undefined;
 };
-type WatchCallbackForOptions<Options extends WatchOptions> =
-  Options extends WatchIndexOptions ? WatchIndexCallback : WatchNoIndexCallback;
 
 export type ReplicacheLike = {
-  experimentalWatch(callback: WatchNoIndexCallback): () => void;
-  experimentalWatch<Options extends WatchOptions>(
-    callback: WatchCallbackForOptions<Options>,
-    options?: Options,
+  experimentalWatch(
+    callback: WatchCallback,
+    options?: WatchOptions,
   ): () => void;
 };
