@@ -13,17 +13,17 @@ export type SelectedFields<T, Fields extends Selectable<any>[]> = Pick<
 
 export type Selectable<T extends EntitySchema> = keyof T['fields'];
 
-/**
- * Have you ever noticed that when you hover over Types in TypeScript, it shows
- * Pick<Omit<T, K>, K>? Rather than the final object structure after picking and omitting?
- * Or any time you use a type alias.
- *
- * MakeHumanReadable collapses the type aliases into their final form.
- */
-// eslint-disable-next-line @typescript-eslint/ban-types
-export type MakeHumanReadable<T> = {} & {
-  readonly [P in keyof T]: T[P] extends string ? T[P] : MakeHumanReadable<T[P]>;
-};
+// /**
+//  * Have you ever noticed that when you hover over Types in TypeScript, it shows
+//  * Pick<Omit<T, K>, K>? Rather than the final object structure after picking and omitting?
+//  * Or any time you use a type alias.
+//  *
+//  * MakeHumanReadable collapses the type aliases into their final form.
+//  */
+// // eslint-disable-next-line @typescript-eslint/ban-types
+// export type MakeHumanReadable<T> = {} & {
+//   readonly [P in keyof T]: T[P] extends string ? T[P] : MakeHumanReadable<T[P]>;
+// };
 
 export interface EntityQuery<Schema extends EntitySchema, Return = []> {
   readonly select: <Fields extends Selectable<Schema>[]>(

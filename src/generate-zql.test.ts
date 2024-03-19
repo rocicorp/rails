@@ -6,6 +6,7 @@ import {z} from 'zod';
 import {generateZQL} from './generate-zql.js';
 import {WriteTransaction, generate} from './generate.js';
 import {ReadonlyJSONValue} from './json.js';
+import {Console} from './types/lib/dom/console.js';
 
 const e1 = z.object({
   id: z.string(),
@@ -60,6 +61,8 @@ const factory = <M extends MutatorDefs>(m: M) =>
 //     });
 //   });
 // }
+
+declare const console: Console;
 
 test('generate', async () => {
   const rep = factory(mutators);

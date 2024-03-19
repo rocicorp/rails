@@ -7,6 +7,7 @@ import {expect, suite, test} from 'vitest';
 import {ZodError, ZodTypeAny, z} from 'zod';
 import {ListOptions, WriteTransaction, generate} from './generate.js';
 import {ReadonlyJSONObject, ReadonlyJSONValue} from './json.js';
+import {Console} from './types/lib/dom/console.js';
 
 const e1 = z.object({
   id: z.string(),
@@ -771,12 +772,6 @@ suite('listEntries', () => {
     }
   }
 });
-
-type Console = {
-  debug(...args: unknown[]): void;
-  info(...args: unknown[]): void;
-  error(...args: unknown[]): void;
-};
 
 declare const console: Console;
 

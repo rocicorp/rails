@@ -15,6 +15,7 @@ import {
 } from './generate-presence.js';
 import {WriteTransaction} from './generate.js';
 import {ReadonlyJSONValue} from './json.js';
+import {Console} from './types/lib/dom/console.js';
 
 const entryNoID = z
   .object({
@@ -2307,13 +2308,8 @@ suite('listEntries', () => {
   }
 });
 
-type Console = {
-  debug(...args: unknown[]): void;
-  info(...args: unknown[]): void;
-  error(...args: unknown[]): void;
-};
-
 declare const console: Console;
+
 suite('optionalLogger', () => {
   type Case = {
     name: string;

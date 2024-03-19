@@ -23,6 +23,7 @@ import {
   setImpl,
   updateImpl,
 } from './generate.js';
+import {Console} from './types/lib/dom/console.js';
 
 /**
  * For presence entities there are two common cases:
@@ -246,12 +247,6 @@ function validateMutate(
     );
   }
 }
-
-type Console = {
-  debug(...args: unknown[]): void;
-  info(...args: unknown[]): void;
-  error(...args: unknown[]): void;
-};
 
 declare const console: Console;
 

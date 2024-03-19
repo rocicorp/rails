@@ -1,5 +1,6 @@
 import type {OptionalLogger} from '@rocicorp/logger';
 import type {ReadonlyJSONObject, ReadonlyJSONValue} from './json.js';
+import {Console} from './types/lib/dom/console.js';
 
 /**
  * An entity is something that can be read or written by Rails.
@@ -103,12 +104,6 @@ export type GenerateResult<T extends Entity> = {
     tx: ReadTransaction,
     options?: ListOptions,
   ) => Promise<[string, T][]>;
-};
-
-type Console = {
-  debug(...args: unknown[]): void;
-  info(...args: unknown[]): void;
-  error(...args: unknown[]): void;
 };
 
 declare const console: Console;
