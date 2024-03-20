@@ -1,4 +1,4 @@
-import {expect, test, vi} from 'vitest';
+import {expect, test} from 'vitest';
 import {z} from 'zod';
 import {generate} from '../generate.js';
 import {makeReplicacheContext} from './context/replicache-context.js';
@@ -176,9 +176,9 @@ test('subscribing to a query calls us with the complete query results on change'
   const {q, r} = setup();
   await Promise.all(issues.map(r.mutate.initIssue));
 
-  let called: (v: unknown) => void;
-  const calledPromise = new Promise(resolve => {
-    called = resolve;
+  let resolve: (v: unknown) => void;
+  const calledPromise = new Promise(res => {
+    resolve = res;
   });
 
   let callCount = 0;
@@ -187,7 +187,7 @@ test('subscribing to a query calls us with the complete query results on change'
     .subscribe(value => {
       expect(value).toEqual(issues.map(({id}) => ({id})).sort(compareIds));
       if (callCount === 0) {
-        called(value);
+        resolve(value);
       }
       ++callCount;
     });
