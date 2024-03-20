@@ -190,3 +190,7 @@ test('operations against a multiset are lazy', () => {
     6,
   );
 });
+
+test('extend', () => {});
+
+test('compact', () => {});

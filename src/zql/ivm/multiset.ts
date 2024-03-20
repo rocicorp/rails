@@ -52,6 +52,37 @@ export class Multiset<T> {
   filter(f: (value: T) => boolean): Multiset<T> {
     return new Multiset(genFilter(this.entries, ([value, _]) => f(value)));
   }
+
+  // TODO: faster way to extend without converting to an array?
+  // list of iterables?
+  extend(other: Multiset<T>) {
+    if (!Array.isArray(this.#entries)) {
+      this.#entries = [...this.#entries];
+    }
+    for (const e of other.entries) {
+      (this.#entries as Entry<T>[]).push(e);
+    }
+  }
+
+  consolidate(
+    getValueIdentity: (v: T) => string | number | symbol,
+  ): Multiset<T> {
+    const map = new Map<string | number | symbol, [T, number]>();
+    for (const [value, multiplicity] of this.entries) {
+      const existing = map.get(getValueIdentity(value))?.[1] ?? 0;
+      const newMultiplicity = existing + multiplicity;
+      if (newMultiplicity === 0) {
+        map.delete(getValueIdentity(value));
+      } else {
+        map.set(getValueIdentity(value), [value, newMultiplicity]);
+      }
+    }
+    return new Multiset({
+      [Symbol.iterator]() {
+        return map.values();
+      },
+    });
+  }
 }
 
 function genMap<T, U>(s: Iterable<T>, cb: (x: T) => U) {

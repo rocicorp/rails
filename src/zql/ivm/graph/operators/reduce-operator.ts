@@ -2,7 +2,7 @@ import {Primitive} from '../../../ast/ast.js';
 import {assert} from '../../../error/asserts.js';
 import {flatMapIter} from '../../../util/iterables.js';
 import {Entry, Multiset} from '../../multiset.js';
-import {Version} from '../../types.js';
+import {StrOrNum, Version} from '../../types.js';
 import {DifferenceStreamReader} from '../difference-stream-reader.js';
 import {DifferenceStreamWriter} from '../difference-stream-writer.js';
 import {UnaryOperator} from './unary-operator.js';
@@ -31,7 +31,7 @@ export class ReduceOperator<
    * If a negative multiplicity comes through the pipeline,
    * it reduces the multiplicity of the existing value in the map.
    */
-  readonly #inIndex = new Map<K, Map<string, [V, number]>>();
+  readonly #inIndex = new Map<K, Map<StrOrNum, [V, number]>>();
   /**
    * Our prior reduction for a given key.
    *
@@ -41,12 +41,12 @@ export class ReduceOperator<
    * so they can remove it from their count.
    */
   readonly #outIndex = new Map<K, O>();
-  readonly #getValueIdentity: (value: V) => string;
+  readonly #getValueIdentity;
 
   constructor(
     input: DifferenceStreamReader<V>,
     output: DifferenceStreamWriter<O>,
-    getValueIdentity: (value: V) => string,
+    getValueIdentity: (value: V) => StrOrNum,
     getGroupKey: (value: V) => K,
     f: (input: Iterable<V>) => O,
   ) {
