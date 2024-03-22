@@ -51,17 +51,17 @@ export class ReduceOperator<
     f: (input: Iterable<V>) => O,
   ) {
     const inner = (version: Version) => {
-      const keysToDo = new Set<K>();
+      const keysToProcess = new Set<K>();
       const ret: Entry<O>[] = [];
       for (const entry of this.inputMessages(version)) {
         for (const [value, mult] of entry[1].entries) {
           const key = getGroupKey(value);
-          keysToDo.add(key);
+          keysToProcess.add(key);
           this.#addToIndex(key, value, mult);
         }
       }
 
-      for (const k of keysToDo) {
+      for (const k of keysToProcess) {
         const dataIn = this.#inIndex.get(k);
         const existingOut = this.#outIndex.get(k);
         if (dataIn === undefined) {
@@ -100,9 +100,10 @@ export class ReduceOperator<
       existing = new Map<string, [V, number]>();
       this.#inIndex.set(key, existing);
     }
-    const prev = existing.get(this.#getValueIdentity(value));
+    const valueIdentity = this.#getValueIdentity(value);
+    const prev = existing.get(valueIdentity);
     if (prev === undefined) {
-      existing.set(this.#getValueIdentity(value), [value, mult]);
+      existing.set(valueIdentity, [value, mult]);
     } else {
       const [v, m] = prev;
       const newMult = m + mult;
@@ -111,13 +112,13 @@ export class ReduceOperator<
         'Should not end up with a negative multiplicity when tracking all events for an item',
       );
       if (newMult === 0) {
-        existing.delete(this.#getValueIdentity(value));
+        existing.delete(valueIdentity);
         if (existing.size === 0) {
           this.#inIndex.delete(key);
           return undefined;
         }
       } else {
-        existing.set(this.#getValueIdentity(value), [v, newMult]);
+        existing.set(valueIdentity, [v, newMult]);
       }
     }
 
