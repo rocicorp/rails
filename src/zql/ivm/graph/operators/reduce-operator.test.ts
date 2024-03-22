@@ -1,13 +1,13 @@
 import {expect, test} from 'vitest';
-import {DifferenceStreamWriter} from '../difference-stream-writer.js';
-import {ReduceOperator} from './reduce-operator.js';
 import {Multiset} from '../../multiset.js';
+import {DifferenceStreamWriter} from '../difference-stream-writer.js';
 import {NoOp} from './operator.js';
+import {ReduceOperator} from './reduce-operator.js';
 
 type Thing = {
   id: string;
-  a: number;
-  b: string;
+  value: number;
+  groupKey: string;
 };
 
 type Reduction = {
@@ -20,8 +20,8 @@ test('collects all things with the same key', () => {
   const inputReader = inputWriter.newReader();
   const output = new DifferenceStreamWriter<Reduction>();
 
-  function getKey(t: Thing) {
-    return t.b;
+  function getGroupKey(t: Thing) {
+    return t.groupKey;
   }
   function getValueIdentity(t: Thing) {
     return t.id;
@@ -31,13 +31,13 @@ test('collects all things with the same key', () => {
     inputReader,
     output,
     getValueIdentity,
-    getKey,
+    getGroupKey,
     (group: Iterable<Thing>) => {
       let sum = 0;
       let id = '';
       for (const item of group) {
-        id = item.b;
-        sum += item.a;
+        id = item.groupKey;
+        sum += item.value;
       }
 
       return {
@@ -56,16 +56,16 @@ test('collects all things with the same key', () => {
       [
         {
           id: 'a',
-          a: 1,
-          b: 'x',
+          value: 1,
+          groupKey: 'x',
         },
         1,
       ],
       [
         {
           id: 'b',
-          a: 2,
-          b: 'x',
+          value: 2,
+          groupKey: 'x',
         },
         2,
       ],
@@ -80,8 +80,8 @@ test('collects all things with the same key', () => {
       [
         {
           id: 'a',
-          a: 1,
-          b: 'x',
+          value: 1,
+          groupKey: 'x',
         },
         -1,
       ],
@@ -92,15 +92,15 @@ test('collects all things with the same key', () => {
     [{id: 'x', sum: 4}, 1],
   ]);
 
-  // fully retract items that constitue a grouping
+  // fully retract items that constitute a grouping
   inputWriter.queueData([
     1,
     new Multiset([
       [
         {
           id: 'b',
-          a: 2,
-          b: 'x',
+          value: 2,
+          groupKey: 'x',
         },
         -2,
       ],
@@ -115,8 +115,8 @@ test('collects all things with the same key', () => {
       [
         {
           id: 'a',
-          a: 1,
-          b: 'c',
+          value: 1,
+          groupKey: 'c',
         },
         1,
       ],
@@ -129,8 +129,8 @@ test('collects all things with the same key', () => {
       [
         {
           id: 'b',
-          a: 2,
-          b: 'c',
+          value: 2,
+          groupKey: 'c',
         },
         1,
       ],
@@ -147,16 +147,16 @@ test('collects all things with the same key', () => {
       [
         {
           id: 'a',
-          a: 1,
-          b: 'c',
+          value: 1,
+          groupKey: 'c',
         },
         -1,
       ],
       [
         {
           id: 'a',
-          a: 2,
-          b: 'c',
+          value: 2,
+          groupKey: 'c',
         },
         1,
       ],
