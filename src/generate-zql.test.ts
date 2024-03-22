@@ -70,7 +70,7 @@ test('generate', async () => {
 
   const selected = zql.select();
   const statement = selected.prepare();
-  const view = statement.materialize();
+  const view = statement.view();
 
   view.on(v => {
     console.log('on', v);
