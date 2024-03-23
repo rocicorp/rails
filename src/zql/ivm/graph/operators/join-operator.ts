@@ -1,21 +1,10 @@
 import {Primitive} from '../../../ast/ast.js';
 import {Multiset} from '../../multiset.js';
-import {StrOrNum, Version} from '../../types.js';
+import {JoinResult, StrOrNum, Version} from '../../types.js';
 import {DifferenceStreamReader} from '../difference-stream-reader.js';
 import {DifferenceStreamWriter} from '../difference-stream-writer.js';
 import {BinaryOperator} from './binary-operator.js';
 import {Index} from './operator-index.js';
-
-type JoinResult<
-  AValue,
-  BValue,
-  AAlias extends string,
-  BAlias extends string,
-> = {
-  [K in AAlias]: AValue;
-} & {
-  [K in BAlias]: BValue;
-};
 
 /**
  * Joins two streams.
@@ -42,11 +31,14 @@ export class InnerJoinOperator<
   K extends Primitive,
   AValue,
   BValue,
-  AAlias extends string,
-  BAlias extends string,
+  AAlias extends string = '',
+  BAlias extends string = '',
 > extends BinaryOperator<
   AValue,
   BValue,
+  // If AValue or BValue are join results
+  // then they should be lifted and need no aliasing
+  // since they're already aliased
   JoinResult<AValue, BValue, AAlias, BAlias>
 > {
   readonly #inputAPending: Index<K, AValue>[] = [];
@@ -54,21 +46,15 @@ export class InnerJoinOperator<
 
   constructor(
     inputA: DifferenceStreamReader<AValue>,
-    aAlias: AAlias,
+    aAlias: AAlias | undefined,
     getKeyA: (value: AValue) => K,
     getIdentityA: (value: AValue) => StrOrNum,
     inputB: DifferenceStreamReader<BValue>,
-    bAlias: BAlias,
+    bAlias: BAlias | undefined,
     getKeyB: (value: BValue) => K,
     getIdentityB: (value: BValue) => StrOrNum,
     output: DifferenceStreamWriter<JoinResult<AValue, BValue, AAlias, BAlias>>,
   ) {
-    const getJoinResultIdentity = makeGetJoinResultIdentity(
-      aAlias,
-      bAlias,
-      getIdentityA,
-      getIdentityB,
-    );
     const indexA = new Index<K, AValue>(getIdentityA);
     const indexB = new Index<K, BValue>(getIdentityB);
 
@@ -90,30 +76,23 @@ export class InnerJoinOperator<
       }
 
       while (this.#inputAPending.length > 0 || this.#inputBPending.length > 0) {
-        const result = new Multiset<
-          {
-            [K in AAlias]: AValue;
-          } & {
-            [K in BAlias]: BValue;
-          }
-        >([]);
+        const result = new Multiset<JoinResult<AValue, BValue, AAlias, BAlias>>(
+          [],
+        );
         const deltaA = this.#inputAPending.shift();
         const deltaB = this.#inputBPending.shift();
 
         if (deltaA !== undefined) {
-          result.extend(deltaA.join(aAlias, indexB, bAlias));
+          result.extend(deltaA.join(aAlias, indexB, bAlias, getIdentityB));
           indexA.extend(deltaA);
         }
 
         if (deltaB !== undefined) {
-          result.extend(indexA.join(aAlias, deltaB, bAlias));
+          result.extend(indexA.join(aAlias, deltaB, bAlias, getIdentityB));
           indexB.extend(deltaB);
         }
 
-        this._output.queueData([
-          version,
-          result.consolidate(getJoinResultIdentity),
-        ]);
+        this._output.queueData([version, result.consolidate(x => x.id)]);
         indexA.compact();
         indexB.compact();
       }
@@ -122,16 +101,4 @@ export class InnerJoinOperator<
   }
 }
 
-function makeGetJoinResultIdentity<
-  AValue,
-  BValue,
-  AAlias extends string,
-  BAlias extends string,
->(
-  aAlias: AAlias,
-  bAlias: BAlias,
-  aIdentity: (v: AValue) => StrOrNum,
-  bIdentity: (v: BValue) => StrOrNum,
-): (v: JoinResult<AValue, BValue, AAlias, BAlias>) => StrOrNum {
-  return v => `${aIdentity(v[aAlias])},${bIdentity(v[bAlias])}`;
-}
+// export

@@ -1,5 +1,6 @@
 import {Primitive} from '../../../ast/ast.js';
 import {Entry, Multiset} from '../../multiset.js';
+import {JoinResult, StrOrNum, isJoinResult, joinSymbol} from '../../types.js';
 
 export class Index<K extends Primitive, V> {
   readonly #index = new Map<K, Entry<V>[]>();
@@ -31,24 +32,12 @@ export class Index<K extends Primitive, V> {
   }
 
   join<VO, AAlias extends string, BAlias extends string>(
-    aAlias: AAlias,
+    aAlias: AAlias | undefined,
     other: Index<K, VO>,
-    bAlias: BAlias,
-  ): Multiset<
-    {
-      [K in AAlias]: V;
-    } & {
-      [K in BAlias]: VO;
-    }
-  > {
-    const ret: (readonly [
-      {
-        [K in AAlias]: V;
-      } & {
-        [K in BAlias]: VO;
-      },
-      number,
-    ])[] = [];
+    bAlias: BAlias | undefined,
+    getBValueIdentity: (v: VO) => StrOrNum,
+  ): Multiset<JoinResult<V, VO, AAlias, BAlias>> {
+    const ret: (readonly [JoinResult<V, VO, AAlias, BAlias>, number])[] = [];
     for (const [key, entry] of this.#index) {
       const otherEntry = other.#index.get(key);
       if (otherEntry === undefined) {
@@ -58,14 +47,34 @@ export class Index<K extends Primitive, V> {
         for (const [v2, m2] of otherEntry) {
           // Flatten our join results so we don't
           // end up arbitrarily deep after many joins.
-          const value = {
-            [aAlias]: v1,
-            [bAlias]: v2,
-          } as {
-            [K in AAlias]: V;
-          } & {
-            [K in BAlias]: VO;
-          };
+          let value: JoinResult<V, VO, AAlias, BAlias>;
+          if (isJoinResult(v1) && isJoinResult(v2)) {
+            value = {...v1, ...v2, id: v1.id + '_' + v2.id} as JoinResult<
+              V,
+              VO,
+              AAlias,
+              BAlias
+            >;
+          } else if (isJoinResult(v1)) {
+            value = {
+              ...v1,
+              [bAlias!]: v2,
+              id: v1.id + '_' + getBValueIdentity(v2),
+            } as JoinResult<V, VO, AAlias, BAlias>;
+          } else if (isJoinResult(v2)) {
+            value = {
+              ...v2,
+              [aAlias!]: v1,
+              id: this.#getValueIdentity(v1) + '_' + v2.id,
+            } as JoinResult<V, VO, AAlias, BAlias>;
+          } else {
+            value = {
+              [joinSymbol]: true,
+              id: this.#getValueIdentity(v1) + '_' + getBValueIdentity(v2),
+              [aAlias!]: v1,
+              [bAlias!]: v2,
+            } as JoinResult<V, VO, AAlias, BAlias>;
+          }
           ret.push([value, m1 * m2] as const);
         }
       }
