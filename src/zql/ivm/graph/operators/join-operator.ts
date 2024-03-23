@@ -10,8 +10,8 @@ type JoinArgs<
   Key extends Primitive,
   AValue,
   BValue,
-  AAlias extends string = '',
-  BAlias extends string = '',
+  AAlias extends string | undefined,
+  BAlias extends string | undefined,
 > = {
   a: DifferenceStreamReader<AValue>;
   aAs: AAlias | undefined;
@@ -49,8 +49,8 @@ export class InnerJoinOperator<
   K extends Primitive,
   AValue,
   BValue,
-  AAlias extends string = '',
-  BAlias extends string = '',
+  AAlias extends string | undefined,
+  BAlias extends string | undefined,
 > extends BinaryOperator<
   AValue,
   BValue,
