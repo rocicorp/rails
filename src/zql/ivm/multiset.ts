@@ -1,3 +1,5 @@
+import {StrOrNum} from './types';
+
 export type Entry<T> = readonly [T, Multiplicity];
 export type Multiplicity = number;
 
@@ -64,10 +66,8 @@ export class Multiset<T> {
     }
   }
 
-  consolidate(
-    getValueIdentity: (v: T) => string | number | symbol,
-  ): Multiset<T> {
-    const map = new Map<string | number | symbol, [T, number]>();
+  consolidate(getValueIdentity: (v: T) => StrOrNum): Multiset<T> {
+    const map = new Map<StrOrNum, [T, number]>();
     for (const [value, multiplicity] of this.entries) {
       const existing = map.get(getValueIdentity(value))?.[1] ?? 0;
       const newMultiplicity = existing + multiplicity;

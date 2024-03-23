@@ -3,6 +3,7 @@ import {InnerJoinOperator} from './join-operator.js';
 import {DifferenceStreamWriter} from '../difference-stream-writer.js';
 import {NoOp} from './operator.js';
 import {Multiset} from '../../multiset.js';
+import {JoinResult, joinSymbol} from '../../types.js';
 
 type Track = {
   id: number;
@@ -36,23 +37,14 @@ type PlaylistTrack = {
   trackId: number;
 };
 
-type TrackAndAlbum = {
-  track: Track;
-  album: Album;
-};
-
-type TrackAndTrackArtistAndArtist = {
-  track: Track;
-  trackArtist: TrackArtist;
-  artist: Artist;
-};
-
 test('unbalanced input', () => {
   const trackWriter = new DifferenceStreamWriter<Track>();
   const albumWriter = new DifferenceStreamWriter<Album>();
   const trackReader = trackWriter.newReader();
   const albumReader = albumWriter.newReader();
-  const output = new DifferenceStreamWriter<TrackAndAlbum>();
+  const output = new DifferenceStreamWriter<
+    JoinResult<Track, Album, 'track', 'album'>
+  >();
 
   new InnerJoinOperator<number, Track, Album, 'track', 'album'>(
     trackReader,
@@ -113,6 +105,8 @@ test('unbalanced input', () => {
   expect([...entry2[1].entries]).toEqual([
     [
       {
+        id: '1_1',
+        [joinSymbol]: true,
         track: {
           id: 1,
           title: 'Track One',
@@ -141,7 +135,9 @@ test('basic join', () => {
   const albumWriter = new DifferenceStreamWriter<Album>();
   const trackReader = trackWriter.newReader();
   const albumReader = albumWriter.newReader();
-  const output = new DifferenceStreamWriter<TrackAndAlbum>();
+  const output = new DifferenceStreamWriter<
+    JoinResult<Track, Album, 'track', 'album'>
+  >();
 
   new InnerJoinOperator<number, Track, Album, 'track', 'album'>(
     trackReader,
@@ -189,6 +185,8 @@ test('basic join', () => {
   check([
     [
       {
+        id: '1_1',
+        [joinSymbol]: true,
         track: {
           id: 1,
           title: 'Track One',
@@ -204,7 +202,7 @@ test('basic join', () => {
     ],
   ]);
 
-  function check(expected: [TrackAndAlbum, number][]) {
+  function check(expected: [unknown, number][]) {
     trackWriter.notify(1);
     albumWriter.notify(1);
     trackWriter.notifyCommitted(1);
@@ -225,7 +223,135 @@ test('join through a junction table', () => {
   const trackArtistReader = trackArtistWriter.newReader();
   const artistReader = artistWriter.newReader();
 
-  const output = new DifferenceStreamWriter<TrackAndTrackArtistAndArtist>();
+  const trackAndTrackArtistOutput = new DifferenceStreamWriter<
+    JoinResult<Track, TrackArtist, 'track', 'trackArtist'>
+  >();
+
+  new InnerJoinOperator<number, Track, TrackArtist, 'track', 'trackArtist'>(
+    trackReader,
+    'track',
+    track => track.id,
+    track => track.id,
+    trackArtistReader,
+    'trackArtist',
+    trackArtist => trackArtist.trackId,
+    trackArtist => trackArtist.trackId + '_' + trackArtist.artistId,
+    trackAndTrackArtistOutput,
+  );
+
+  const output = new DifferenceStreamWriter<
+    JoinResult<
+      JoinResult<Track, TrackArtist, 'track', 'trackArtist'>,
+      Artist,
+      undefined,
+      'artist'
+    >
+  >();
+
+  new InnerJoinOperator<
+    number,
+    JoinResult<Track, TrackArtist, 'track', 'trackArtist'>,
+    Artist,
+    'undefined',
+    'artist'
+  >(
+    trackAndTrackArtistOutput.newReader(),
+    undefined,
+    x => x.trackArtist.artistId,
+    x => x.id,
+    artistReader,
+    'artist',
+    x => x.id,
+    x => x.id,
+    output,
+  );
+  const outReader = output.newReader();
+  outReader.setOperator(new NoOp());
+
+  trackWriter.queueData([
+    1,
+    new Multiset([
+      [
+        {
+          id: 1,
+          title: 'Track One',
+          length: 1,
+          albumId: 1,
+        },
+        1,
+      ],
+    ]),
+  ]);
+  trackArtistWriter.queueData([
+    1,
+    new Multiset([
+      [
+        {
+          trackId: 1,
+          artistId: 1,
+        },
+        1,
+      ],
+      [
+        {
+          trackId: 1,
+          artistId: 2,
+        },
+        1,
+      ],
+    ]),
+  ]);
+  artistWriter.queueData([
+    1,
+    new Multiset([
+      [
+        {
+          id: 1,
+          name: 'Artist One',
+        },
+        1,
+      ],
+      [
+        {
+          id: 2,
+          name: 'Artist Two',
+        },
+        1,
+      ],
+    ]),
+  ]);
+
+  trackWriter.notify(1);
+  trackArtistWriter.notify(1);
+  artistWriter.notify(1);
+  trackWriter.notifyCommitted(1);
+  trackArtistWriter.notifyCommitted(1);
+  artistWriter.notifyCommitted(1);
+
+  const items = outReader.drain(1);
+  console.log([...items[0][1].entries]);
+  expect([...items[0][1].entries]).toEqual([
+    [
+      {
+        id: '1_1_1_1',
+        track: {id: 1, title: 'Track One', length: 1, albumId: 1},
+        trackArtist: {trackId: 1, artistId: 1},
+        artist: {id: 1, name: 'Artist One'},
+        [joinSymbol]: true,
+      },
+      1,
+    ],
+    [
+      {
+        id: '1_1_2_2',
+        track: {id: 1, title: 'Track One', length: 1, albumId: 1},
+        trackArtist: {trackId: 1, artistId: 2},
+        artist: {id: 2, name: 'Artist Two'},
+        [joinSymbol]: true,
+      },
+      1,
+    ],
+  ]);
 });
 
 test('complicated join', () => {
