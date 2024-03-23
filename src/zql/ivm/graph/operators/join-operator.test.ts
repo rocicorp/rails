@@ -46,17 +46,17 @@ test('unbalanced input', () => {
     JoinResult<Track, Album, 'track', 'album'>
   >();
 
-  new InnerJoinOperator<number, Track, Album, 'track', 'album'>(
-    trackReader,
-    'track',
-    track => track.albumId,
-    track => track.id,
-    albumReader,
-    'album',
-    album => album.id,
-    album => album.id,
+  new InnerJoinOperator<number, Track, Album, 'track', 'album'>({
+    a: trackReader,
+    aAs: 'track',
+    getAJoinKey: track => track.albumId,
+    getAPrimaryKey: track => track.id,
+    b: albumReader,
+    bAs: 'album',
+    getBJoinKey: album => album.id,
+    getBPrimaryKey: album => album.id,
     output,
-  );
+  });
 
   const outReader = output.newReader();
   outReader.setOperator(new NoOp());
@@ -139,17 +139,17 @@ test('basic join', () => {
     JoinResult<Track, Album, 'track', 'album'>
   >();
 
-  new InnerJoinOperator<number, Track, Album, 'track', 'album'>(
-    trackReader,
-    'track',
-    track => track.albumId,
-    track => track.id,
-    albumReader,
-    'album',
-    album => album.id,
-    album => album.id,
+  new InnerJoinOperator<number, Track, Album, 'track', 'album'>({
+    a: trackReader,
+    aAs: 'track',
+    getAJoinKey: track => track.albumId,
+    getAPrimaryKey: track => track.id,
+    b: albumReader,
+    bAs: 'album',
+    getBJoinKey: album => album.id,
+    getBPrimaryKey: album => album.id,
     output,
-  );
+  });
 
   const outReader = output.newReader();
   outReader.setOperator(new NoOp());
@@ -227,17 +227,18 @@ test('join through a junction table', () => {
     JoinResult<Track, TrackArtist, 'track', 'trackArtist'>
   >();
 
-  new InnerJoinOperator<number, Track, TrackArtist, 'track', 'trackArtist'>(
-    trackReader,
-    'track',
-    track => track.id,
-    track => track.id,
-    trackArtistReader,
-    'trackArtist',
-    trackArtist => trackArtist.trackId,
-    trackArtist => trackArtist.trackId + '_' + trackArtist.artistId,
-    trackAndTrackArtistOutput,
-  );
+  new InnerJoinOperator<number, Track, TrackArtist, 'track', 'trackArtist'>({
+    a: trackReader,
+    aAs: 'track',
+    getAJoinKey: track => track.id,
+    getAPrimaryKey: track => track.id,
+    b: trackArtistReader,
+    bAs: 'trackArtist',
+    getBJoinKey: trackArtist => trackArtist.trackId,
+    getBPrimaryKey: trackArtist =>
+      trackArtist.trackId + '-' + trackArtist.artistId,
+    output: trackAndTrackArtistOutput,
+  });
 
   const output = new DifferenceStreamWriter<
     JoinResult<
@@ -254,17 +255,17 @@ test('join through a junction table', () => {
     Artist,
     'undefined',
     'artist'
-  >(
-    trackAndTrackArtistOutput.newReader(),
-    undefined,
-    x => x.trackArtist.artistId,
-    x => x.id,
-    artistReader,
-    'artist',
-    x => x.id,
-    x => x.id,
+  >({
+    a: trackAndTrackArtistOutput.newReader(),
+    aAs: undefined,
+    getAJoinKey: x => x.trackArtist.artistId,
+    getAPrimaryKey: x => x.id,
+    b: artistReader,
+    bAs: 'artist',
+    getBJoinKey: x => x.id,
+    getBPrimaryKey: x => x.id,
     output,
-  );
+  });
   const outReader = output.newReader();
   outReader.setOperator(new NoOp());
 
@@ -329,11 +330,10 @@ test('join through a junction table', () => {
   artistWriter.notifyCommitted(1);
 
   const items = outReader.drain(1);
-  console.log([...items[0][1].entries]);
   expect([...items[0][1].entries]).toEqual([
     [
       {
-        id: '1_1_1_1',
+        id: '1_1-1_1',
         track: {id: 1, title: 'Track One', length: 1, albumId: 1},
         trackArtist: {trackId: 1, artistId: 1},
         artist: {id: 1, name: 'Artist One'},
@@ -343,7 +343,7 @@ test('join through a junction table', () => {
     ],
     [
       {
-        id: '1_1_2_2',
+        id: '1_1-2_2',
         track: {id: 1, title: 'Track One', length: 1, albumId: 1},
         trackArtist: {trackId: 1, artistId: 2},
         artist: {id: 2, name: 'Artist Two'},
@@ -352,9 +352,24 @@ test('join through a junction table', () => {
       1,
     ],
   ]);
+
+  // remove an artist
+
+  // remove a track-artist link
+
+  // remove everything
 });
 
-test('complicated join', () => {
+/*
+fast-check join...
+
+1. create tables
+2. join in different directions
+3. add items
+
+*/
+
+test('join followed by reduction to gather playlists', () => {
   /**
    * For a user:
    * - Join their playlists

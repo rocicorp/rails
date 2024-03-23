@@ -6,6 +6,24 @@ import {DifferenceStreamWriter} from '../difference-stream-writer.js';
 import {BinaryOperator} from './binary-operator.js';
 import {Index} from './operator-index.js';
 
+type JoinArgs<
+  Key extends Primitive,
+  AValue,
+  BValue,
+  AAlias extends string = '',
+  BAlias extends string = '',
+> = {
+  a: DifferenceStreamReader<AValue>;
+  aAs: AAlias | undefined;
+  getAJoinKey: (value: AValue) => Key;
+  getAPrimaryKey: (value: AValue) => StrOrNum;
+  b: DifferenceStreamReader<BValue>;
+  bAs: BAlias | undefined;
+  getBJoinKey: (value: BValue) => Key;
+  getBPrimaryKey: (value: BValue) => StrOrNum;
+  output: DifferenceStreamWriter<JoinResult<AValue, BValue, AAlias, BAlias>>;
+};
+
 /**
  * Joins two streams.
  *
@@ -44,33 +62,33 @@ export class InnerJoinOperator<
   readonly #inputAPending: Index<K, AValue>[] = [];
   readonly #inputBPending: Index<K, BValue>[] = [];
 
-  constructor(
-    inputA: DifferenceStreamReader<AValue>,
-    aAlias: AAlias | undefined,
-    getKeyA: (value: AValue) => K,
-    getIdentityA: (value: AValue) => StrOrNum,
-    inputB: DifferenceStreamReader<BValue>,
-    bAlias: BAlias | undefined,
-    getKeyB: (value: BValue) => K,
-    getIdentityB: (value: BValue) => StrOrNum,
-    output: DifferenceStreamWriter<JoinResult<AValue, BValue, AAlias, BAlias>>,
-  ) {
-    const indexA = new Index<K, AValue>(getIdentityA);
-    const indexB = new Index<K, BValue>(getIdentityB);
+  constructor({
+    a,
+    aAs,
+    getAJoinKey,
+    getAPrimaryKey,
+    b,
+    bAs,
+    getBJoinKey,
+    getBPrimaryKey,
+    output,
+  }: JoinArgs<K, AValue, BValue, AAlias, BAlias>) {
+    const indexA = new Index<K, AValue>(getAPrimaryKey);
+    const indexB = new Index<K, BValue>(getBPrimaryKey);
 
     const inner = (version: Version) => {
       for (const entry of this.inputAMessages(version)) {
-        const deltaA = new Index<K, AValue>(getIdentityA);
+        const deltaA = new Index<K, AValue>(getAPrimaryKey);
         for (const [value, mult] of entry[1].entries) {
-          deltaA.add(getKeyA(value), [value, mult]);
+          deltaA.add(getAJoinKey(value), [value, mult]);
         }
         this.#inputAPending.push(deltaA);
       }
 
       for (const entry of this.inputBMessages(version)) {
-        const deltaB = new Index<K, BValue>(getIdentityB);
+        const deltaB = new Index<K, BValue>(getBPrimaryKey);
         for (const [value, mult] of entry[1].entries) {
-          deltaB.add(getKeyB(value), [value, mult]);
+          deltaB.add(getBJoinKey(value), [value, mult]);
         }
         this.#inputBPending.push(deltaB);
       }
@@ -83,12 +101,12 @@ export class InnerJoinOperator<
         const deltaB = this.#inputBPending.shift();
 
         if (deltaA !== undefined) {
-          result.extend(deltaA.join(aAlias, indexB, bAlias, getIdentityB));
+          result.extend(deltaA.join(aAs, indexB, bAs, getBPrimaryKey));
           indexA.extend(deltaA);
         }
 
         if (deltaB !== undefined) {
-          result.extend(indexA.join(aAlias, deltaB, bAlias, getIdentityB));
+          result.extend(indexA.join(aAs, deltaB, bAs, getBPrimaryKey));
           indexB.extend(deltaB);
         }
 
@@ -97,7 +115,7 @@ export class InnerJoinOperator<
         indexB.compact();
       }
     };
-    super(inputA, inputB, output, inner);
+    super(a, b, output, inner);
   }
 }
 
