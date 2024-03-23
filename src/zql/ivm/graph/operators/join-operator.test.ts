@@ -253,7 +253,7 @@ test('join through a junction table', () => {
     number,
     JoinResult<Track, TrackArtist, 'track', 'trackArtist'>,
     Artist,
-    'undefined',
+    undefined,
     'artist'
   >({
     a: trackAndTrackArtistOutput.newReader(),

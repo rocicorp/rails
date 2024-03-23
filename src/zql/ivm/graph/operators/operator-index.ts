@@ -31,7 +31,11 @@ export class Index<K extends Primitive, V> {
     return this.#index.get(key) ?? [];
   }
 
-  join<VO, AAlias extends string, BAlias extends string>(
+  join<
+    VO,
+    AAlias extends string | undefined,
+    BAlias extends string | undefined,
+  >(
     aAlias: AAlias | undefined,
     other: Index<K, VO>,
     bAlias: BAlias | undefined,
