@@ -1,4 +1,10 @@
-import {AST, Operator, Primitive} from '../ast/ast.js';
+import {
+  AST,
+  Condition,
+  Primitive,
+  SimpleCondition,
+  SimpleOperator,
+} from '../ast/ast.js';
 import {Context} from '../context/context.js';
 import {must} from '../error/asserts.js';
 import {Misuse} from '../error/misuse.js';
@@ -32,7 +38,7 @@ export interface EntityQuery<Schema extends EntitySchema, Return = []> {
   readonly count: () => EntityQuery<Schema, number>;
   readonly where: <K extends keyof Schema['fields']>(
     f: K,
-    op: Operator,
+    op: SimpleOperator,
     value: Schema['fields'][K],
   ) => EntityQuery<Schema, Return>;
   readonly limit: (n: number) => EntityQuery<Schema, Return>;
@@ -93,24 +99,36 @@ export class EntityQueryImpl<S extends EntitySchema, Return = []>
 
   where<K extends keyof S['fields']>(
     field: K,
-    op: Operator,
+    op: SimpleOperator,
     value: S['fields'][K],
   ) {
+    const leaf: SimpleCondition = {
+      field: field as string,
+      op,
+      value: {
+        type: 'literal',
+        value: value as Primitive,
+      },
+    };
+
+    let cond: Condition;
+    if (!this.#ast.where) {
+      cond = leaf;
+    } else if (this.#ast.where.op === 'AND') {
+      cond = {
+        op: 'AND',
+        conditions: [...this.#ast.where.conditions, leaf],
+      };
+    } else {
+      cond = {
+        op: 'AND',
+        conditions: [this.#ast.where, leaf],
+      };
+    }
+
     return new EntityQueryImpl<S, Return>(this.#context, this.#name, {
       ...this.#ast,
-      where: [
-        ...(this.#ast.where !== undefined
-          ? [...this.#ast.where, 'AND' as const]
-          : []),
-        {
-          field: field as string,
-          op,
-          value: {
-            type: 'literal',
-            value: value as Primitive,
-          },
-        },
-      ],
+      where: cond,
     });
   }
 
