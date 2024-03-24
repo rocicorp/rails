@@ -1,8 +1,14 @@
-import {Statement} from './statement.js';
-import {AST, Operator, Primitive} from '../ast/ast.js';
+import {
+  AST,
+  Operator,
+  Primitive,
+  getLookupKey,
+  normalizeAST,
+} from '../ast/ast.js';
 import {Context} from '../context/context.js';
 import {Misuse} from '../error/misuse.js';
 import {EntitySchema} from '../schema/entity-schema.js';
+import {Statement} from './statement.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type SelectedFields<T, Fields extends Selectable<any>[]> = Pick<
@@ -79,7 +85,7 @@ export class EntityQueryImpl<S extends EntitySchema, Return = []>
       select.add(more as string);
     }
 
-    return new EntityQueryImpl<S, SelectedFields<S['fields'], Fields>[]>(
+    return getExistingOrCreate<S, SelectedFields<S['fields'], Fields>[]>(
       this.#context,
       this.#name,
       {
@@ -94,7 +100,7 @@ export class EntityQueryImpl<S extends EntitySchema, Return = []>
     op: Operator,
     value: S['fields'][K],
   ) {
-    return new EntityQueryImpl<S, Return>(this.#context, this.#name, {
+    return getExistingOrCreate<S, Return>(this.#context, this.#name, {
       ...this.#ast,
       where: [
         ...(this.#ast.where !== undefined
@@ -117,10 +123,10 @@ export class EntityQueryImpl<S extends EntitySchema, Return = []>
       throw new Misuse('Limit already set');
     }
 
-    return new EntityQueryImpl<S, Return>(this.#context, this.#name, {
+    return getExistingOrCreate<S, Return>(this.#context, this.#name, {
       ...this.#ast,
       limit: n,
-    });
+    } as const);
   }
 
   asc(...x: (keyof S['fields'])[]) {
@@ -128,10 +134,10 @@ export class EntityQueryImpl<S extends EntitySchema, Return = []>
       x.push('id');
     }
 
-    return new EntityQueryImpl<S, Return>(this.#context, this.#name, {
+    return getExistingOrCreate<S, Return>(this.#context, this.#name, {
       ...this.#ast,
       orderBy: [x as string[], 'asc'],
-    });
+    } as const);
   }
 
   desc(...x: (keyof S['fields'])[]) {
@@ -139,10 +145,10 @@ export class EntityQueryImpl<S extends EntitySchema, Return = []>
       x.push('id');
     }
 
-    return new EntityQueryImpl<S, Return>(this.#context, this.#name, {
+    return getExistingOrCreate<S, Return>(this.#context, this.#name, {
       ...this.#ast,
       orderBy: [x as string[], 'desc'],
-    });
+    } as const);
   }
 
   count() {
@@ -151,10 +157,10 @@ export class EntityQueryImpl<S extends EntitySchema, Return = []>
         'Selection set already set. Will not change to a count query.',
       );
     }
-    return new EntityQueryImpl<S, number>(this.#context, this.#name, {
+    return getExistingOrCreate<S, number>(this.#context, this.#name, {
       ...this.#ast,
       select: 'count',
-    });
+    } as const);
   }
 
   // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -165,4 +171,34 @@ export class EntityQueryImpl<S extends EntitySchema, Return = []>
   prepare(): Statement<Return> {
     return new Statement<Return>(this.#context, this);
   }
+}
+
+const lookupTable = new Map<
+  string,
+  WeakRef<EntityQueryImpl<EntitySchema, unknown>>
+>();
+
+function getExistingOrCreate<S extends EntitySchema, Return>(
+  context: Context,
+  tableName: string,
+  ast: AST,
+): EntityQueryImpl<S, Return> {
+  // TODO(arv): Normalize ast so that
+  const normalized = normalizeAST(ast);
+  const key = getLookupKey(normalized);
+  const existingRef = lookupTable.get(key);
+  if (existingRef) {
+    const v = existingRef.deref();
+    if (v) {
+      return v as EntityQueryImpl<S, Return>;
+    }
+  }
+  const newEntityQuery = new EntityQueryImpl<S, Return>(
+    context,
+    tableName,
+    normalized,
+  );
+  const ref = new WeakRef(newEntityQuery);
+  lookupTable.set(key, ref);
+  return newEntityQuery;
 }

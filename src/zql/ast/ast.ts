@@ -4,9 +4,13 @@
 // TODO: the chosen operator needs to constrain the allowed values for the value
 // input to the query builder.
 export type Operator = '=' | '<' | '>' | '>=' | '<=' | 'IN' | 'LIKE' | 'ILIKE';
+
 export type Ordering = readonly [readonly string[], 'asc' | 'desc'];
+
 export type Primitive = string | number | boolean | null;
+
 // type Ref = `${string}.${string}`;
+
 export type AST = {
   readonly table?: string | undefined;
   readonly alias?: number | undefined;
@@ -28,7 +32,9 @@ export type AST = {
 };
 
 type Conjunction = 'AND'; // | 'OR' | 'NOT' | 'EXISTS';
+
 export type ConditionList = (Conjunction | Condition)[];
+
 export type Condition =
   // | ConditionList
   {
@@ -46,3 +52,20 @@ export type Condition =
     //   value: AST;
     // };
   };
+
+export function normalizeAST(ast: AST): AST {
+  return {
+    table: ast.table,
+    alias: ast.alias,
+    // Consider sorting the selects...
+    select: ast.select,
+    where: ast.where,
+    limit: ast.limit,
+    orderBy: ast.orderBy,
+  };
+}
+
+export function getLookupKey(ast: AST): string {
+  // TODO: this is a naive implementation
+  return JSON.stringify(ast);
+}

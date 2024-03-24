@@ -1,10 +1,10 @@
+import fc from 'fast-check';
+import {nanoid} from 'nanoid';
+import {Replicache, TEST_LICENSE_KEY} from 'replicache';
 import {expect, test} from 'vitest';
 import {z} from 'zod';
 import {generate} from '../generate.js';
 import {makeReplicacheContext} from './context/replicache-context.js';
-import {Replicache, TEST_LICENSE_KEY} from 'replicache';
-import {nanoid} from 'nanoid';
-import fc from 'fast-check';
 import {EntityQueryImpl} from './query/entity-query.js';
 
 export async function tickAFewTimes(n = 10, time = 0) {
@@ -384,7 +384,7 @@ test('order by optional field', async () => {
       const stmt = q.select('id', 'closed').asc('closed').prepare();
       const rows = await stmt.exec();
       expect(rows).toEqual(
-        issues.map(({id, closed}) => ({id, closed})).sort(compareExpected),
+        issues.map(({id, closed}) => ({closed, id})).sort(compareExpected),
       );
 
       await r.close();
