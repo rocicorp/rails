@@ -1,8 +1,9 @@
-import {Statement} from './statement.js';
 import {AST, Operator, Primitive} from '../ast/ast.js';
 import {Context} from '../context/context.js';
+import {must} from '../error/asserts.js';
 import {Misuse} from '../error/misuse.js';
 import {EntitySchema} from '../schema/entity-schema.js';
+import {Statement} from './statement.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type SelectedFields<T, Fields extends Selectable<any>[]> = Pick<
@@ -41,8 +42,6 @@ export interface EntityQuery<Schema extends EntitySchema, Return = []> {
   readonly desc: (
     ...x: (keyof Schema['fields'])[]
   ) => EntityQuery<Schema, Return>;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  readonly _ast: AST;
 
   // TODO: we can probably skip the `prepare` step and just have `materialize`
   // Although we'd need the prepare step in order to get a stmt to change bindings.
@@ -66,6 +65,9 @@ export class EntityQueryImpl<S extends EntitySchema, Return = []>
     };
     this.#name = tableName;
     this.#context = context;
+
+    // TODO(arv): Guard this with TESTING once we have the infrastructure.
+    astWeakMap.set(this, this.#ast);
   }
 
   select<Fields extends Selectable<S>[]>(...x: Fields) {
@@ -157,12 +159,13 @@ export class EntityQueryImpl<S extends EntitySchema, Return = []>
     });
   }
 
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  get _ast() {
-    return this.#ast;
-  }
-
   prepare(): Statement<Return> {
-    return new Statement<Return>(this.#context, this);
+    return new Statement<Return>(this.#context, this.#ast);
   }
+}
+
+const astWeakMap = new WeakMap<EntityQueryImpl<EntitySchema, unknown>, AST>();
+
+export function astForTesting(q: EntityQueryImpl<EntitySchema, unknown>): AST {
+  return must(astWeakMap.get(q));
 }
