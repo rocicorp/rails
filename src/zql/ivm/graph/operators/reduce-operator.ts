@@ -74,11 +74,14 @@ export class ReduceOperator<
         }
 
         const reduction = f(
-          flatMapIter(dataIn.values(), function* ([v, mult]) {
-            for (let i = 0; i < mult; i++) {
-              yield v;
-            }
-          }),
+          flatMapIter(
+            () => dataIn.values(),
+            function* ([v, mult]) {
+              for (let i = 0; i < mult; i++) {
+                yield v;
+              }
+            },
+          ),
         );
         if (existingOut !== undefined) {
           // modified reduction

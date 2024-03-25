@@ -201,14 +201,17 @@ export class EntityGroupQuery<S extends EntitySchema, Return = []> {
     return this.#ast;
   }
 
-  count<K extends keyof S['fields']>(field: K, alias?: string | undefined) {
+  count<K extends keyof S['fields']>(
+    field?: K | undefined,
+    alias?: string | undefined,
+  ) {
     return new EntityGroupQuery<S, number>(this.#context, this.#name, {
       ...this.#ast,
       aggregate: [
         ...(this.#ast.aggregate || []),
         {
           field: field as string,
-          alias: alias ?? (field as string),
+          alias: alias ?? 'count' + (field ? `_${field as string}` : ''),
           aggregate: 'count',
         },
       ],

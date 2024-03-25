@@ -8,12 +8,16 @@ export function* mapIter<T, U>(
   }
 }
 
-export function* flatMapIter<T, U>(
-  iter: Iterable<T>,
+export function flatMapIter<T, U>(
+  iter: () => Iterable<T>,
   f: (t: T, index: number) => Iterable<U>,
-): Iterable<U> {
-  let index = 0;
-  for (const t of iter) {
-    yield* f(t, index++);
-  }
+) {
+  return {
+    *[Symbol.iterator]() {
+      let index = 0;
+      for (const t of iter()) {
+        yield* f(t, index++);
+      }
+    },
+  };
 }

@@ -1,4 +1,3 @@
-import {Entity} from '../../../generate.js';
 import {Primitive} from '../../ast/ast.js';
 import {Multiset} from '../multiset.js';
 import {Source} from '../source/source.js';
@@ -51,7 +50,7 @@ export class DifferenceStream<T> implements IDifferenceStream<T> {
     return ret;
   }
 
-  reduce<K extends Primitive, O extends Entity>(
+  reduce<K extends Primitive, O>(
     getKey: (value: T) => K,
     getIdentity: (value: T) => string,
     f: (input: Iterable<T>) => O,
