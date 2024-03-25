@@ -2,7 +2,7 @@ import {expect, test} from 'vitest';
 import {z} from 'zod';
 import {makeTestContext} from '../context/context.js';
 import {Materialite} from '../ivm/materialite.js';
-import {EntityQueryImpl, astForTesting as ast} from '../query/entity-query.js';
+import {EntityQuery, astForTesting as ast} from '../query/entity-query.js';
 import {buildPipeline} from './pipeline-builder.js';
 
 const e1 = z.object({
@@ -16,7 +16,7 @@ type E1 = z.infer<typeof e1>;
 
 const context = makeTestContext();
 test('A simple select', () => {
-  const q = new EntityQueryImpl<{fields: E1}>(context, 'e1');
+  const q = new EntityQuery<{fields: E1}>(context, 'e1');
   const m = new Materialite();
   let s = m.newStatelessSource<E1>();
   let pipeline = buildPipeline(
@@ -55,10 +55,15 @@ test('A simple select', () => {
 });
 
 test('Count', () => {
-  const q = new EntityQueryImpl<{fields: E1}>(context, 'e1');
+  const q = new EntityQuery<{fields: E1}>(context, 'e1');
   const m = new Materialite();
+<<<<<<< HEAD
   const s = m.newStatelessSource();
   const pipeline = buildPipeline(() => s.stream, ast(q.count()));
+=======
+  const s = m.newStatelessSource<E1>();
+  const pipeline = buildPipeline(() => s.stream, q.count()._ast);
+>>>>>>> c936b08 (add group-by to EntityQuery)
 
   let effectRunCount = 0;
   pipeline.effect(x => {
@@ -66,17 +71,17 @@ test('Count', () => {
   });
   const expected = [1, 2, 1, 0];
 
-  s.add({});
-  s.add({});
-  s.delete({});
-  s.delete({});
+  s.add({id: '1', a: 1, b: 1n, d: false});
+  s.add({id: '2', a: 1, b: 1n, d: false});
+  s.delete({id: '1', a: 1, b: 1n, d: false});
+  s.delete({id: '2', a: 1, b: 1n, d: false});
   expect(effectRunCount).toBe(4);
 });
 
 test('Where', () => {
-  const q = new EntityQueryImpl<{fields: E1}>(context, 'e1');
+  const q = new EntityQuery<{fields: E1}>(context, 'e1');
   const m = new Materialite();
-  const s = m.newStatelessSource();
+  const s = m.newStatelessSource<E1>();
   const pipeline = buildPipeline(
     () => s.stream,
     ast(q.select('id').where('a', '>', 1).where('b', '<', 2)),
@@ -88,10 +93,10 @@ test('Where', () => {
   });
   const expected = [{id: 'b'}];
 
-  s.add({id: 'a', a: 1, b: 1n});
-  s.add({id: 'b', a: 2, b: 1n});
-  s.add({id: 'c', a: 1, b: 2n});
-  s.add({id: 'd', a: 2, b: 2n});
+  s.add({id: 'a', a: 1, b: 1n, d: false});
+  s.add({id: 'b', a: 2, b: 1n, d: false});
+  s.add({id: 'c', a: 1, b: 2n, d: false});
+  s.add({id: 'd', a: 2, b: 2n, d: false});
   expect(effectRunCount).toBe(1);
 });
 

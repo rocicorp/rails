@@ -4,7 +4,7 @@ import {expect, test} from 'vitest';
 import {z} from 'zod';
 import {generate} from '../../generate.js';
 import {SetSource} from '../ivm/source/set-source.js';
-import {EntityQueryImpl} from '../query/entity-query.js';
+import {EntityQuery} from '../query/entity-query.js';
 import {makeReplicacheContext} from './replicache-context.js';
 
 const e1 = z.object({
@@ -136,7 +136,7 @@ test('ZQL query with Replicache', async () => {
   const r = newRep();
   const context = makeReplicacheContext(r);
 
-  const q = new EntityQueryImpl<{fields: E1}>(context, 'e1');
+  const q = new EntityQuery<{fields: E1}>(context, 'e1');
 
   const view = q.select('id').where('str', '>', 'm').prepare().view();
 

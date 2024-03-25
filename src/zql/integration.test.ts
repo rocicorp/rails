@@ -1,11 +1,11 @@
-import fc from 'fast-check';
-import {nanoid} from 'nanoid';
-import {Replicache, TEST_LICENSE_KEY} from 'replicache';
 import {expect, test} from 'vitest';
 import {z} from 'zod';
 import {generate} from '../generate.js';
 import {makeReplicacheContext} from './context/replicache-context.js';
-import {EntityQueryImpl} from './query/entity-query.js';
+import {Replicache, TEST_LICENSE_KEY} from 'replicache';
+import {nanoid} from 'nanoid';
+import fc from 'fast-check';
+import {EntityQuery} from './query/entity-query.js';
 
 export async function tickAFewTimes(n = 10, time = 0) {
   for (let i = 0; i < n; i++) {
@@ -83,7 +83,7 @@ function sampleTenUniqueIssues() {
 function setup() {
   const r = newRep();
   const c = makeReplicacheContext(r);
-  const q = new EntityQueryImpl<{fields: Issue}>(c, 'issue');
+  const q = new EntityQuery<{fields: Issue}>(c, 'issue');
   return {r, c, q};
 }
 
@@ -394,7 +394,41 @@ test('order by optional field', async () => {
 
 test('join', () => {});
 test('having', () => {});
-test('group by', () => {});
+
+test('group by', async () => {
+  // const {q, r} = setup();
+  // const issues: Issue[] = [
+  //   {
+  //     id: 'a',
+  //     title: 'foo',
+  //     status: 'open',
+  //     priority: 'high',
+  //     assignee: 'charles',
+  //     created: new Date(),
+  //     updated: new Date(),
+  //   },
+  //   {
+  //     id: 'b',
+  //     title: 'bar',
+  //     status: 'open',
+  //     priority: 'medium',
+  //     assignee: 'bob',
+  //     created: new Date(),
+  //     updated: new Date(),
+  //   },
+  //   {
+  //     id: 'c',
+  //     title: 'baz',
+  //     status: 'closed',
+  //     priority: 'low',
+  //     assignee: 'alice',
+  //     created: new Date(),
+  //     updated: new Date(),
+  //   },
+  // ] as const;
+  // await Promise.all(issues.map(r.mutate.initIssue));
+  // const stmt = q.groupBy('status').count('id').prepare();
+});
 
 test('compound where', async () => {
   const {q, r} = setup();
