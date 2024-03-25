@@ -27,17 +27,17 @@ export function buildPipeline(
     stream = applyWhere(stream, ast.where);
   }
 
-  let ret: DifferenceStream<unknown>;
-  assert(ast.select, 'No select clause');
-  if (ast.select === 'count') {
-    ret = stream.linearCount();
-  } else {
-    ret = applySelect(stream, ast.select, ast.orderBy);
-  }
-
+  let ret: DifferenceStream<unknown> = stream;
   if (ast.groupBy) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ret = applyGroupBy(ret as any, ast.orderBy, ast.groupBy);
+    ret = applyGroupBy(ret as DifferenceStream<Entity>, ast.groupBy);
+  }
+
+  assert(ast.select, 'No select clause');
+  if (ast.select === 'count') {
+    ret = ret.linearCount();
+  } else {
+    ret = applySelect(ret as DifferenceStream<Entity>, ast.select, ast.orderBy);
   }
 
   // Note: the stream is technically attached at this point.
@@ -115,20 +115,14 @@ function applySimpleCondition(
   );
 }
 
-function applyGroupBy(
-  stream: DifferenceStream<
-    Record<string, unknown> & {
-      [orderingProp]: unknown[];
-    }
-  >,
-  orderBy: Ordering,
+function applyGroupBy<T extends Entity>(
+  stream: DifferenceStream<T>,
   columns: string[],
 ) {
   const keyFunction = makeKeyFunction(columns);
-  const idIdx = orderBy[0].indexOf('id');
   return stream.reduce(
     keyFunction,
-    value => value[orderingProp][idIdx] as string,
+    value => value.id as string,
     // TODO: apply aggregate functions against the group if specified
     // e.g., count(x), sum(x), avg(x), array(x) etc.
     values => values[Symbol.iterator]().next().value,
