@@ -7,7 +7,7 @@ import {
   SimpleCondition,
   SimpleOperator,
 } from '../ast/ast.js';
-import {assert, must} from '../error/asserts.js';
+import {must} from '../error/asserts.js';
 import {DifferenceStream} from '../ivm/graph/difference-stream.js';
 
 export const orderingProp = Symbol();
@@ -31,14 +31,23 @@ export function buildPipeline(
   let ret: DifferenceStream<unknown> = stream;
   if (ast.groupBy) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ret = applyGroupBy(ret as DifferenceStream<Entity>, ast.groupBy);
+    ret = applyGroupBy(
+      ret as DifferenceStream<Entity>,
+      ast.groupBy,
+      ast.aggregate ?? [],
+      Array.isArray(ast.select) ? ast.select : [],
+      ast.orderBy,
+    );
   }
 
-  assert(ast.select, 'No select clause');
   if (ast.select === 'count') {
     ret = ret.linearCount();
-  } else {
-    ret = applySelect(ret as DifferenceStream<Entity>, ast.select, ast.orderBy);
+  } else if (ast.groupBy === undefined) {
+    ret = applySelect(
+      ret as DifferenceStream<Entity>,
+      ast.select ?? [],
+      ast.orderBy,
+    );
   }
 
   // Note: the stream is technically attached at this point.
@@ -62,21 +71,29 @@ export function applySelect(
       }
     }
 
-    const orderingValues: unknown[] = [];
-    if (orderBy !== undefined) {
-      for (const field of orderBy[0]) {
-        orderingValues.push((x as Record<string, unknown>)[field]);
-      }
-    }
-
-    Object.defineProperty(ret, orderingProp, {
-      enumerable: false,
-      writable: false,
-      configurable: false,
-      value: orderingValues,
-    });
+    addOrdering(ret, x, orderBy);
 
     return ret;
+  });
+}
+
+function addOrdering(
+  ret: Record<string, unknown>,
+  row: Record<string, unknown>,
+  orderBy: Ordering | undefined,
+) {
+  const orderingValues: unknown[] = [];
+  if (orderBy !== undefined) {
+    for (const field of orderBy[0]) {
+      orderingValues.push(row[field]);
+    }
+  }
+
+  Object.defineProperty(ret, orderingProp, {
+    enumerable: false,
+    writable: false,
+    configurable: false,
+    value: orderingValues,
   });
 }
 
@@ -124,16 +141,21 @@ function applySimpleCondition(
 function applyGroupBy<T extends Entity>(
   stream: DifferenceStream<T>,
   columns: string[],
-  aggregations: Aggregation[] = [],
+  aggregations: Aggregation[],
+  select: string[],
+  orderBy: Ordering | undefined,
 ) {
   const keyFunction = makeKeyFunction(columns);
   return stream.reduce(
     keyFunction,
     value => value.id as string,
     values => {
-      const ret: Entity & Record<string, unknown> = {
-        id: keyFunction(values[Symbol.iterator]().next().value),
-      };
+      const first = values[Symbol.iterator]().next().value;
+      const ret: Record<string, unknown> = {};
+      for (const column of select) {
+        ret[column] = first[column];
+      }
+      addOrdering(ret, first, orderBy);
 
       for (const aggregation of aggregations) {
         switch (aggregation.aggregate) {

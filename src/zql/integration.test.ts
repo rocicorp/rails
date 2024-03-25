@@ -396,38 +396,78 @@ test('join', () => {});
 test('having', () => {});
 
 test('group by', async () => {
-  // const {q, r} = setup();
-  // const issues: Issue[] = [
-  //   {
-  //     id: 'a',
-  //     title: 'foo',
-  //     status: 'open',
-  //     priority: 'high',
-  //     assignee: 'charles',
-  //     created: new Date(),
-  //     updated: new Date(),
-  //   },
-  //   {
-  //     id: 'b',
-  //     title: 'bar',
-  //     status: 'open',
-  //     priority: 'medium',
-  //     assignee: 'bob',
-  //     created: new Date(),
-  //     updated: new Date(),
-  //   },
-  //   {
-  //     id: 'c',
-  //     title: 'baz',
-  //     status: 'closed',
-  //     priority: 'low',
-  //     assignee: 'alice',
-  //     created: new Date(),
-  //     updated: new Date(),
-  //   },
-  // ] as const;
-  // await Promise.all(issues.map(r.mutate.initIssue));
-  // const stmt = q.groupBy('status').count('id').prepare();
+  const {q, r} = setup();
+  const issues: Issue[] = [
+    {
+      id: 'a',
+      title: 'foo',
+      status: 'open',
+      priority: 'high',
+      assignee: 'charles',
+      created: new Date('2024-01-01'),
+      updated: new Date(),
+    },
+    {
+      id: 'b',
+      title: 'bar',
+      status: 'open',
+      priority: 'medium',
+      assignee: 'bob',
+      created: new Date('2024-01-02'),
+      updated: new Date(),
+    },
+    {
+      id: 'c',
+      title: 'baz',
+      status: 'closed',
+      priority: 'low',
+      assignee: 'alice',
+      created: new Date('2024-01-03'),
+      updated: new Date(),
+    },
+  ] as const;
+  await Promise.all(issues.map(r.mutate.initIssue));
+  await new Promise(resolve => setTimeout(resolve, 0));
+  let stmt = q.select('status').groupBy('status').count().prepare();
+  let rows = await stmt.exec();
+
+  expect(rows).toEqual([
+    {status: 'open', count: 2},
+    {status: 'closed', count: 1},
+  ]);
+
+  stmt.destroy();
+
+  stmt = q.select('status').groupBy('status').array('assignee').prepare();
+  rows = await stmt.exec();
+
+  expect(rows).toEqual([
+    {status: 'open', assignee: ['charles', 'bob']},
+    {status: 'closed', assignee: ['alice']},
+  ]);
+
+  stmt = q
+    .select('status')
+    .groupBy('status')
+    .array('assignee')
+    .min('created')
+    .prepare();
+  rows = await stmt.exec();
+
+  expect(rows).toEqual([
+    {
+      status: 'open',
+      assignee: ['charles', 'bob'],
+      created: issues[0].created.getTime(),
+    },
+    {
+      status: 'closed',
+      assignee: ['alice'],
+      created: issues[2].created.getTime(),
+    },
+  ]);
+
+  await r.close();
 });
 
 test('compound where', async () => {
