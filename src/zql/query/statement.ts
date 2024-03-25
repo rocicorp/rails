@@ -1,6 +1,6 @@
 import {Entity} from '../../generate.js';
 import {buildPipeline, orderingProp} from '../ast-to-ivm/pipeline-builder.js';
-import {Primitive} from '../ast/ast.js';
+import {AST, Primitive} from '../ast/ast.js';
 import {Context} from '../context/context.js';
 import {invariant, must} from '../error/asserts.js';
 import {compareEntityFields} from '../ivm/compare.js';
@@ -8,8 +8,7 @@ import {DifferenceStream} from '../ivm/graph/difference-stream.js';
 import {ValueView} from '../ivm/view/primitive-view.js';
 import {MutableTreeView} from '../ivm/view/tree-view.js';
 import {View} from '../ivm/view/view.js';
-import {EntitySchema} from '../schema/entity-schema.js';
-import {EntityQuery, MakeHumanReadable} from './entity-query.js';
+import {MakeHumanReadable} from './entity-query.js';
 
 export interface IStatement<TReturn> {
   subscribe(cb: (value: MakeHumanReadable<TReturn>) => void): () => void;
@@ -18,26 +17,25 @@ export interface IStatement<TReturn> {
   destroy(): void;
 }
 
-export class Statement<TReturn> implements IStatement<TReturn> {
+export class Statement<Return> implements IStatement<Return> {
   readonly #pipeline;
   readonly #ast;
   readonly #context;
-  #materialization: View<
-    TReturn extends [] ? TReturn[number] : TReturn
-  > | null = null;
+  #materialization: View<Return extends [] ? Return[number] : Return> | null =
+    null;
 
-  constructor(c: Context, q: EntityQuery<EntitySchema, TReturn>) {
-    this.#ast = q._ast;
+  constructor(context: Context, ast: AST) {
+    this.#ast = ast;
     this.#pipeline = buildPipeline(
       <T extends Entity>(sourceName: string) =>
-        c.getSource(sourceName, this.#ast.orderBy)
+        context.getSource(sourceName, this.#ast.orderBy)
           .stream as DifferenceStream<T>,
-      q._ast,
+      ast,
     );
-    this.#context = c;
+    this.#context = context;
   }
 
-  view(): View<TReturn> {
+  view(): View<Return> {
     // TODO: invariants to throw if the statement is not completely bound before materialization.
     if (this.#materialization === null) {
       if (this.#ast.select === 'count') {
@@ -46,19 +44,19 @@ export class Statement<TReturn> implements IStatement<TReturn> {
           this.#context.materialite,
           this.#pipeline as DifferenceStream<number>,
           0,
-        ) as unknown as View<TReturn extends [] ? TReturn[number] : TReturn>;
+        ) as unknown as View<Return extends [] ? Return[number] : Return>;
       } else {
         this.#materialization = new MutableTreeView<
-          TReturn extends [] ? TReturn[number] : never
+          Return extends [] ? Return[number] : never
         >(
           this.#context.materialite,
           this.#pipeline as DifferenceStream<
-            TReturn extends [] ? TReturn[number] : never
+            Return extends [] ? Return[number] : never
           >,
           this.#ast.orderBy?.[1] === 'asc' ? ascComparator : descComparator,
           true, // TODO: since we're going to control everything we can make this so.
           this.#ast.limit,
-        ) as unknown as View<TReturn extends [] ? TReturn[number] : TReturn>;
+        ) as unknown as View<Return extends [] ? Return[number] : Return>;
       }
     }
 
@@ -66,10 +64,10 @@ export class Statement<TReturn> implements IStatement<TReturn> {
     // the response of historical data.
     this.#materialization.pullHistoricalData();
 
-    return this.#materialization as View<TReturn>;
+    return this.#materialization as View<Return>;
   }
 
-  subscribe(cb: (value: MakeHumanReadable<TReturn>) => void) {
+  subscribe(cb: (value: MakeHumanReadable<Return>) => void) {
     if (this.#materialization === null) {
       this.view();
     }
@@ -87,16 +85,16 @@ export class Statement<TReturn> implements IStatement<TReturn> {
 
     if (this.#materialization?.hydrated) {
       return Promise.resolve(this.#materialization.value) as Promise<
-        MakeHumanReadable<TReturn>
+        MakeHumanReadable<Return>
       >;
     }
 
-    return new Promise<MakeHumanReadable<TReturn>>(resolve => {
+    return new Promise<MakeHumanReadable<Return>>(resolve => {
       const cleanup = must(this.#materialization).on(value => {
-        resolve(value as MakeHumanReadable<TReturn>);
+        resolve(value as MakeHumanReadable<Return>);
         cleanup();
       });
-    }) as Promise<MakeHumanReadable<TReturn>>;
+    }) as Promise<MakeHumanReadable<Return>>;
   }
 
   // For savvy users that want to subscribe directly to diffs.
