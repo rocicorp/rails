@@ -1,6 +1,7 @@
 import {Entity} from '../../generate.js';
 import {
   AST,
+  Aggregation,
   Condition,
   Ordering,
   SimpleCondition,
@@ -51,9 +52,14 @@ export function applySelect(
   orderBy: Ordering | undefined,
 ) {
   return stream.map(x => {
-    const ret: Partial<Record<string, unknown>> = {};
-    for (const field of select) {
-      ret[field] = (x as Record<string, unknown>)[field];
+    let ret: Partial<Record<string, unknown>>;
+    if (select.length === 0) {
+      ret = {...x};
+    } else {
+      ret = {};
+      for (const field of select) {
+        ret[field] = (x as Record<string, unknown>)[field];
+      }
     }
 
     const orderingValues: unknown[] = [];
@@ -118,14 +124,79 @@ function applySimpleCondition(
 function applyGroupBy<T extends Entity>(
   stream: DifferenceStream<T>,
   columns: string[],
+  aggregations: Aggregation[] = [],
 ) {
   const keyFunction = makeKeyFunction(columns);
   return stream.reduce(
     keyFunction,
     value => value.id as string,
-    // TODO: apply aggregate functions against the group if specified
-    // e.g., count(x), sum(x), avg(x), array(x) etc.
-    values => values[Symbol.iterator]().next().value,
+    values => {
+      const ret: Entity & Record<string, unknown> = {
+        id: keyFunction(values[Symbol.iterator]().next().value),
+      };
+
+      for (const aggregation of aggregations) {
+        switch (aggregation.aggregate) {
+          case 'count': {
+            let count = 0;
+            for (const _ of values) {
+              count++;
+            }
+            ret[aggregation.alias] = count;
+            break;
+          }
+          case 'sum': {
+            let sum = 0;
+            for (const value of values) {
+              sum += value[aggregation.field as keyof T] as number;
+            }
+            ret[aggregation.alias] = sum;
+            break;
+          }
+          case 'avg': {
+            let sum = 0;
+            let count = 0;
+            for (const value of values) {
+              sum += value[aggregation.field as keyof T] as number;
+              count++;
+            }
+            ret[aggregation.alias] = sum / count;
+            break;
+          }
+          case 'min': {
+            let min = Infinity;
+            for (const value of values) {
+              min = Math.min(
+                min,
+                value[aggregation.field as keyof T] as number,
+              );
+            }
+            ret[aggregation.alias] = min;
+            break;
+          }
+          case 'max': {
+            let max = -Infinity;
+            for (const value of values) {
+              max = Math.max(
+                max,
+                value[aggregation.field as keyof T] as number,
+              );
+            }
+            ret[aggregation.alias] = max;
+            break;
+          }
+          case 'array': {
+            ret[aggregation.alias] = Array.from(values).map(
+              x => x[aggregation.field as keyof T],
+            );
+            break;
+          }
+          default:
+            throw new Error(`Unknown aggregation ${aggregation.aggregate}`);
+        }
+      }
+      return ret;
+    },
   );
 }
 

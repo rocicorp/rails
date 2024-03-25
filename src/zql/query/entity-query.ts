@@ -42,30 +42,9 @@ export type MakeHumanReadable<T> = {} & {
   readonly [P in keyof T]: T[P] extends string ? T[P] : MakeHumanReadable<T[P]>;
 };
 
-export interface EntityQuery<Schema extends EntitySchema, Return = []> {
-  readonly select: <Fields extends Selectable<Schema>[]>(
-    ...x: Fields
-  ) => EntityQuery<Schema, SelectedFields<Schema, Fields>[]>;
-  readonly count: () => EntityQuery<Schema, number>;
-  readonly where: <Key extends Selectable<Schema>>(
-    f: Key,
-    op: SimpleOperator,
-    value: FieldValue<Schema, Key>,
-  ) => EntityQuery<Schema, Return>;
-  readonly limit: (n: number) => EntityQuery<Schema, Return>;
-  readonly asc: (...x: Selectable<Schema>[]) => EntityQuery<Schema, Return>;
-  readonly desc: (...x: Selectable<Schema>[]) => EntityQuery<Schema, Return>;
-
-  // TODO: we can probably skip the `prepare` step and just have `materialize`
-  // Although we'd need the prepare step in order to get a stmt to change bindings.
-  readonly prepare: () => Statement<Return>;
-}
-
 let aliasCount = 0;
 
-export class EntityQueryImpl<S extends EntitySchema, Return = []>
-  implements EntityQuery<S, Return>
-{
+export class EntityQuery<S extends EntitySchema, Return = []> {
   readonly #ast: AST;
   readonly #name: string;
   readonly #context: Context;
@@ -94,7 +73,7 @@ export class EntityQueryImpl<S extends EntitySchema, Return = []>
       select.add(more);
     }
 
-    return new EntityQueryImpl<S, SelectedFields<S, Fields>[]>(
+    return new EntityQuery<S, SelectedFields<S, Fields>[]>(
       this.#context,
       this.#name,
       {
@@ -102,6 +81,13 @@ export class EntityQueryImpl<S extends EntitySchema, Return = []>
         select: [...select],
       },
     );
+  }
+
+  groupBy<K extends keyof S['fields']>(...x: K[]) {
+    return new EntityGroupQuery<S, Return>(this.#context, this.#name, {
+      ...this.#ast,
+      groupBy: x as string[],
+    });
   }
 
   where<K extends Selectable<S>>(
@@ -133,7 +119,7 @@ export class EntityQueryImpl<S extends EntitySchema, Return = []>
       };
     }
 
-    return new EntityQueryImpl<S, Return>(this.#context, this.#name, {
+    return new EntityQuery<S, Return>(this.#context, this.#name, {
       ...this.#ast,
       where: cond,
     });
@@ -144,7 +130,7 @@ export class EntityQueryImpl<S extends EntitySchema, Return = []>
       throw new Misuse('Limit already set');
     }
 
-    return new EntityQueryImpl<S, Return>(this.#context, this.#name, {
+    return new EntityQuery<S, Return>(this.#context, this.#name, {
       ...this.#ast,
       limit: n,
     });
@@ -155,7 +141,7 @@ export class EntityQueryImpl<S extends EntitySchema, Return = []>
       x.push('id');
     }
 
-    return new EntityQueryImpl<S, Return>(this.#context, this.#name, {
+    return new EntityQuery<S, Return>(this.#context, this.#name, {
       ...this.#ast,
       orderBy: [x, 'asc'],
     });
@@ -166,7 +152,7 @@ export class EntityQueryImpl<S extends EntitySchema, Return = []>
       x.push('id');
     }
 
-    return new EntityQueryImpl<S, Return>(this.#context, this.#name, {
+    return new EntityQuery<S, Return>(this.#context, this.#name, {
       ...this.#ast,
       orderBy: [x, 'desc'],
     });
@@ -178,7 +164,7 @@ export class EntityQueryImpl<S extends EntitySchema, Return = []>
         'Selection set already set. Will not change to a count query.',
       );
     }
-    return new EntityQueryImpl<S, number>(this.#context, this.#name, {
+    return new EntityQuery<S, number>(this.#context, this.#name, {
       ...this.#ast,
       select: 'count',
     });
@@ -189,8 +175,170 @@ export class EntityQueryImpl<S extends EntitySchema, Return = []>
   }
 }
 
-const astWeakMap = new WeakMap<EntityQueryImpl<EntitySchema, unknown>, AST>();
+const astWeakMap = new WeakMap<EntityQuery<EntitySchema, unknown>, AST>();
 
-export function astForTesting(q: EntityQueryImpl<EntitySchema, unknown>): AST {
+export function astForTesting(q: EntityQuery<EntitySchema, unknown>): AST {
   return must(astWeakMap.get(q));
 }
+
+export class EntityGroupQuery<S extends EntitySchema, Return = []> {
+  readonly #ast: AST;
+  readonly #name: string;
+  readonly #context: Context;
+
+  constructor(context: Context, tableName: string, ast?: AST) {
+    this.#ast = ast ?? {
+      table: tableName,
+      alias: aliasCount++,
+      orderBy: [['id'], 'asc'],
+    };
+    this.#name = tableName;
+    this.#context = context;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  get _ast() {
+    return this.#ast;
+  }
+
+  count<K extends keyof S['fields']>(field: K, alias?: string | undefined) {
+    return new EntityGroupQuery<S, number>(this.#context, this.#name, {
+      ...this.#ast,
+      aggregate: [
+        ...(this.#ast.aggregate || []),
+        {
+          field: field as string,
+          alias: alias ?? (field as string),
+          aggregate: 'count',
+        },
+      ],
+    });
+  }
+
+  sum<K extends keyof S['fields']>(field: K, alias?: string | undefined) {
+    return new EntityGroupQuery<S, number>(this.#context, this.#name, {
+      ...this.#ast,
+      aggregate: [
+        ...(this.#ast.aggregate || []),
+        {
+          field: field as string,
+          alias: alias ?? (field as string),
+          aggregate: 'sum',
+        },
+      ],
+    });
+  }
+
+  avg<K extends keyof S['fields']>(field: K, alias?: string | undefined) {
+    return new EntityGroupQuery<S, number>(this.#context, this.#name, {
+      ...this.#ast,
+      aggregate: [
+        ...(this.#ast.aggregate || []),
+        {
+          field: field as string,
+          alias: alias ?? (field as string),
+          aggregate: 'avg',
+        },
+      ],
+    });
+  }
+
+  min<K extends keyof S['fields']>(field: K, alias?: string | undefined) {
+    return new EntityGroupQuery<S, number>(this.#context, this.#name, {
+      ...this.#ast,
+      aggregate: [
+        ...(this.#ast.aggregate || []),
+        {
+          field: field as string,
+          alias: alias ?? (field as string),
+          aggregate: 'min',
+        },
+      ],
+    });
+  }
+
+  max<K extends keyof S['fields']>(field: K, alias?: string | undefined) {
+    return new EntityGroupQuery<S, number>(this.#context, this.#name, {
+      ...this.#ast,
+      aggregate: [
+        ...(this.#ast.aggregate || []),
+        {
+          field: field as string,
+          alias: alias ?? (field as string),
+          aggregate: 'max',
+        },
+      ],
+    });
+  }
+
+  array<K extends keyof S['fields']>(field: K, alias?: string | undefined) {
+    return new EntityGroupQuery<S, number>(this.#context, this.#name, {
+      ...this.#ast,
+      aggregate: [
+        ...(this.#ast.aggregate || []),
+        {
+          field: field as string,
+          alias: alias ?? (field as string),
+          aggregate: 'array',
+        },
+      ],
+    });
+  }
+
+  limit(n: number) {
+    if (this.#ast.limit !== undefined) {
+      throw new Misuse('Limit already set');
+    }
+
+    return new EntityGroupQuery<S, Return>(this.#context, this.#name, {
+      ...this.#ast,
+      limit: n,
+    });
+  }
+
+  asc(...x: (keyof S['fields'])[]) {
+    if (!x.includes('id')) {
+      x.push('id');
+    }
+
+    return new EntityGroupQuery<S, Return>(this.#context, this.#name, {
+      ...this.#ast,
+      orderBy: [x as string[], 'asc'],
+    });
+  }
+
+  desc(...x: (keyof S['fields'])[]) {
+    if (!x.includes('id')) {
+      x.push('id');
+    }
+
+    return new EntityGroupQuery<S, Return>(this.#context, this.#name, {
+      ...this.#ast,
+      orderBy: [x as string[], 'desc'],
+    });
+  }
+
+  prepare(): Statement<Return> {
+    return new Statement<Return>(this.#context, this.#ast);
+  }
+}
+
+/*
+aggregate ops can take a key for the reduction to apply to?
+Non join result:
+[
+  {...row},
+]
+
+join result:
+[
+  {
+    id,
+    left: {...row},
+    right: {...row},
+  },
+]
+
+group-by application would need to know how to extract join
+details.
+*/

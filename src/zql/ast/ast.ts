@@ -5,6 +5,18 @@
 // input to the query builder.
 export type Ordering = readonly [readonly string[], 'asc' | 'desc'];
 export type Primitive = string | number | boolean | null;
+
+// I think letting users provide their own lambda functions
+// to perform the aggregation would make the most sense.
+// We should should extend that to let users provide `filter`, `map`, and `reduce` lambdas
+// to do things not available in the query language itself.
+export type Aggregate = 'sum' | 'avg' | 'min' | 'max' | 'array' | 'count';
+export type Aggregation = {
+  readonly field: string;
+  readonly alias: string;
+  readonly aggregate: Aggregate;
+};
+
 // type Ref = `${string}.${string}`;
 
 /**
@@ -29,6 +41,7 @@ export type AST = {
   readonly limit?: number | undefined;
   readonly groupBy?: string[];
   readonly orderBy: Ordering;
+  readonly aggregate?: Aggregation[];
   // readonly after?: Primitive;
 };
 
