@@ -1,4 +1,10 @@
-import {AST, Condition, ConditionList, Operator, Ordering} from '../ast/ast.js';
+import {
+  AST,
+  Condition,
+  Ordering,
+  SimpleCondition,
+  SimpleOperator,
+} from '../ast/ast.js';
 import {assert, must} from '../error/asserts.js';
 import {DifferenceStream} from '../ivm/graph/difference-stream.js';
 
@@ -62,7 +68,7 @@ export function applySelect(
   });
 }
 
-function applyWhere(stream: DifferenceStream<unknown>, where: ConditionList) {
+function applyWhere(stream: DifferenceStream<unknown>, where: Condition) {
   let ret = stream;
   // We'll handle `OR` and parentheticals like so:
   // OR: We'll create a new stream for the LHS and RHS of the OR then merge together.
@@ -81,20 +87,20 @@ function applyWhere(stream: DifferenceStream<unknown>, where: ConditionList) {
   //        |
   //
   // So `ORs` cause a fork (two branches that need to be evaluated) and then that fork is combined.
-  for (const condition of where) {
-    if (condition === 'AND') {
-      continue;
+  if (where.op === 'AND') {
+    for (const condition of where.conditions) {
+      ret = applyWhere(ret, condition);
     }
-
-    ret = applyCondition(ret, condition);
+  } else {
+    ret = applySimpleCondition(ret, where);
   }
 
   return ret;
 }
 
-function applyCondition(
+function applySimpleCondition(
   stream: DifferenceStream<unknown>,
-  condition: Condition,
+  condition: SimpleCondition,
 ) {
   const operator = getOperator(condition.op);
   return stream.filter(x =>
@@ -106,7 +112,7 @@ function applyCondition(
 // We're well-typed in the query builder so once we're down here
 // we can assume that the operator is valid.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function getOperator(op: Operator): (l: any, r: any) => boolean {
+function getOperator(op: SimpleOperator): (l: any, r: any) => boolean {
   switch (op) {
     case '=':
       return (l, r) => l === r;

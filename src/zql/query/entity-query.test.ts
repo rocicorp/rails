@@ -129,16 +129,14 @@ test('ast: where', () => {
     alias: 0,
     table: 'e1',
     orderBy: [['id'], 'asc'],
-    where: [
-      {
-        field: 'id',
-        op: '=',
-        value: {
-          type: 'literal',
-          value: 'a',
-        },
+    where: {
+      field: 'id',
+      op: '=',
+      value: {
+        type: 'literal',
+        value: 'a',
       },
-    ],
+    },
   });
 
   // additional wheres are anded
@@ -148,25 +146,64 @@ test('ast: where', () => {
     alias: 0,
     table: 'e1',
     orderBy: [['id'], 'asc'],
-    where: [
-      {
-        field: 'id',
-        op: '=',
-        value: {
-          type: 'literal',
-          value: 'a',
+    where: {
+      op: 'AND',
+      conditions: [
+        {
+          field: 'id',
+          op: '=',
+          value: {
+            type: 'literal',
+            value: 'a',
+          },
         },
-      },
-      'AND',
-      {
-        field: 'a',
-        op: '>',
-        value: {
-          type: 'literal',
-          value: 0,
+        {
+          field: 'a',
+          op: '>',
+          value: {
+            type: 'literal',
+            value: 0,
+          },
         },
-      },
-    ],
+      ],
+    },
+  });
+
+  q = q.where('c', '=', 'foo');
+  // multiple ANDs are flattened
+  expect({...ast(q), alias: 0}).toEqual({
+    alias: 0,
+    table: 'e1',
+    orderBy: [['id'], 'asc'],
+    where: {
+      op: 'AND',
+      conditions: [
+        {
+          field: 'id',
+          op: '=',
+          value: {
+            type: 'literal',
+            value: 'a',
+          },
+        },
+        {
+          field: 'a',
+          op: '>',
+          value: {
+            type: 'literal',
+            value: 0,
+          },
+        },
+        {
+          field: 'c',
+          op: '=',
+          value: {
+            type: 'literal',
+            value: 'foo',
+          },
+        },
+      ],
+    },
   });
 });
 
