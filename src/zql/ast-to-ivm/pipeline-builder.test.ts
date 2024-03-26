@@ -8,7 +8,7 @@ import {buildPipeline} from './pipeline-builder.js';
 const e1 = z.object({
   id: z.string(),
   a: z.number(),
-  b: z.bigint(),
+  b: z.number(),
   c: z.string().optional(),
   d: z.boolean(),
 });
@@ -30,8 +30,8 @@ test('A simple select', () => {
   });
 
   const expected = [
-    {id: 'a', a: 1, b: 1n, c: '', d: true},
-    {id: 'b', a: 2, b: 2n, d: false},
+    {id: 'a', a: 1, b: 1, c: '', d: true},
+    {id: 'b', a: 2, b: 2, d: false},
   ] as const;
 
   s.add(expected[0]);
@@ -79,7 +79,7 @@ test('Where', () => {
   const s = m.newStatelessSource();
   const pipeline = buildPipeline(
     () => s.stream,
-    ast(q.select('id').where('a', '>', 1).where('b', '<', 2n)),
+    ast(q.select('id').where('a', '>', 1).where('b', '<', 2)),
   );
 
   let effectRunCount = 0;

@@ -1,10 +1,10 @@
+import fc from 'fast-check';
+import {nanoid} from 'nanoid';
+import {Replicache, TEST_LICENSE_KEY} from 'replicache';
 import {expect, test} from 'vitest';
 import {z} from 'zod';
 import {generate} from '../generate.js';
 import {makeReplicacheContext} from './context/replicache-context.js';
-import {Replicache, TEST_LICENSE_KEY} from 'replicache';
-import {nanoid} from 'nanoid';
-import fc from 'fast-check';
 import {EntityQueryImpl} from './query/entity-query.js';
 
 export async function tickAFewTimes(n = 10, time = 0) {
@@ -19,9 +19,9 @@ const issueSchema = z.object({
   status: z.enum(['open', 'closed']),
   priority: z.enum(['high', 'medium', 'low']),
   assignee: z.string(),
-  created: z.date(),
-  updated: z.date(),
-  closed: z.date().optional(),
+  created: z.number(),
+  updated: z.number(),
+  closed: z.number().optional(),
 });
 
 type Issue = z.infer<typeof issueSchema>;
@@ -57,9 +57,9 @@ const issueArbitrary: fc.Arbitrary<Issue> = fc.record({
   status: fc.constantFrom('open', 'closed'),
   priority: fc.constantFrom('high', 'medium', 'low'),
   assignee: fc.string(),
-  created: fc.date(),
-  updated: fc.date(),
-  closed: fc.option(fc.date(), {nil: undefined}),
+  created: fc.integer(),
+  updated: fc.integer(),
+  closed: fc.option(fc.integer(), {nil: undefined}),
 });
 
 const tenUniqueIssues = fc.uniqueArray(issueArbitrary, {
@@ -219,9 +219,9 @@ test('subscribing to differences', () => {});
 test('each where operator', async () => {
   // go through each operator
   // double check it against a `filter` in JS
-  const now = new Date();
-  const future = new Date(now.getTime() + 1000);
-  const past = new Date(now.getTime() - 1000);
+  const now = Date.now();
+  const future = now + 1000;
+  const past = now - 1000;
   const issues: Issue[] = [
     {
       id: 'a',
@@ -230,7 +230,7 @@ test('each where operator', async () => {
       priority: 'high',
       assignee: 'charles',
       created: past,
-      updated: new Date(),
+      updated: Date.now(),
     },
     {
       id: 'b',
@@ -239,7 +239,7 @@ test('each where operator', async () => {
       priority: 'medium',
       assignee: 'bob',
       created: now,
-      updated: new Date(),
+      updated: Date.now(),
     },
     {
       id: 'c',
@@ -248,7 +248,7 @@ test('each where operator', async () => {
       priority: 'low',
       assignee: 'alice',
       created: future,
-      updated: new Date(),
+      updated: Date.now(),
     },
   ];
 
@@ -405,8 +405,8 @@ test('compound where', async () => {
       status: 'open',
       priority: 'high',
       assignee: 'charles',
-      created: new Date(),
-      updated: new Date(),
+      created: Date.now(),
+      updated: Date.now(),
     },
     {
       id: 'b',
@@ -414,8 +414,8 @@ test('compound where', async () => {
       status: 'open',
       priority: 'medium',
       assignee: 'bob',
-      created: new Date(),
-      updated: new Date(),
+      created: Date.now(),
+      updated: Date.now(),
     },
     {
       id: 'c',
@@ -423,8 +423,8 @@ test('compound where', async () => {
       status: 'closed',
       priority: 'low',
       assignee: 'alice',
-      created: new Date(),
-      updated: new Date(),
+      created: Date.now(),
+      updated: Date.now(),
     },
   ] as const;
   await Promise.all(issues.map(r.mutate.initIssue));

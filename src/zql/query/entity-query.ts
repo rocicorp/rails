@@ -11,13 +11,24 @@ import {Misuse} from '../error/misuse.js';
 import {EntitySchema} from '../schema/entity-schema.js';
 import {Statement} from './statement.js';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type SelectedFields<T, Fields extends Selectable<any>[]> = Pick<
-  T,
-  Fields[number] extends keyof T ? Fields[number] : never
+type FieldValue<
+  S extends EntitySchema,
+  K extends Selectable<S>,
+> = S['fields'][K] extends Primitive | undefined ? S['fields'][K] : never;
+
+export type SelectedFields<
+  S extends EntitySchema,
+  Fields extends Selectable<EntitySchema>[],
+> = Pick<
+  S['fields'],
+  Fields[number] extends keyof S['fields'] ? Fields[number] : never
 >;
 
-export type Selectable<T extends EntitySchema> = keyof T['fields'];
+type AsString<T> = T extends string ? T : never;
+
+export type Selectable<S extends EntitySchema> =
+  | AsString<keyof S['fields']>
+  | 'id';
 
 /**
  * Have you ever noticed that when you hover over Types in TypeScript, it shows
@@ -34,20 +45,16 @@ export type MakeHumanReadable<T> = {} & {
 export interface EntityQuery<Schema extends EntitySchema, Return = []> {
   readonly select: <Fields extends Selectable<Schema>[]>(
     ...x: Fields
-  ) => EntityQuery<Schema, SelectedFields<Schema['fields'], Fields>[]>;
+  ) => EntityQuery<Schema, SelectedFields<Schema, Fields>[]>;
   readonly count: () => EntityQuery<Schema, number>;
-  readonly where: <K extends keyof Schema['fields']>(
-    f: K,
+  readonly where: <Key extends Selectable<Schema>>(
+    f: Key,
     op: SimpleOperator,
-    value: Schema['fields'][K],
+    value: FieldValue<Schema, Key>,
   ) => EntityQuery<Schema, Return>;
   readonly limit: (n: number) => EntityQuery<Schema, Return>;
-  readonly asc: (
-    ...x: (keyof Schema['fields'])[]
-  ) => EntityQuery<Schema, Return>;
-  readonly desc: (
-    ...x: (keyof Schema['fields'])[]
-  ) => EntityQuery<Schema, Return>;
+  readonly asc: (...x: Selectable<Schema>[]) => EntityQuery<Schema, Return>;
+  readonly desc: (...x: Selectable<Schema>[]) => EntityQuery<Schema, Return>;
 
   // TODO: we can probably skip the `prepare` step and just have `materialize`
   // Although we'd need the prepare step in order to get a stmt to change bindings.
@@ -84,10 +91,10 @@ export class EntityQueryImpl<S extends EntitySchema, Return = []>
     }
     const select = new Set(this.#ast.select);
     for (const more of x) {
-      select.add(more as string);
+      select.add(more);
     }
 
-    return new EntityQueryImpl<S, SelectedFields<S['fields'], Fields>[]>(
+    return new EntityQueryImpl<S, SelectedFields<S, Fields>[]>(
       this.#context,
       this.#name,
       {
@@ -97,13 +104,13 @@ export class EntityQueryImpl<S extends EntitySchema, Return = []>
     );
   }
 
-  where<K extends keyof S['fields']>(
+  where<K extends Selectable<S>>(
     field: K,
     op: SimpleOperator,
-    value: S['fields'][K],
+    value: FieldValue<S, K>,
   ) {
     const leaf: SimpleCondition = {
-      field: field as string,
+      field,
       op,
       value: {
         type: 'literal',
@@ -143,25 +150,25 @@ export class EntityQueryImpl<S extends EntitySchema, Return = []>
     });
   }
 
-  asc(...x: (keyof S['fields'])[]) {
+  asc(...x: Selectable<S>[]) {
     if (!x.includes('id')) {
       x.push('id');
     }
 
     return new EntityQueryImpl<S, Return>(this.#context, this.#name, {
       ...this.#ast,
-      orderBy: [x as string[], 'asc'],
+      orderBy: [x, 'asc'],
     });
   }
 
-  desc(...x: (keyof S['fields'])[]) {
+  desc(...x: Selectable<S>[]) {
     if (!x.includes('id')) {
       x.push('id');
     }
 
     return new EntityQueryImpl<S, Return>(this.#context, this.#name, {
       ...this.#ast,
-      orderBy: [x as string[], 'desc'],
+      orderBy: [x, 'desc'],
     });
   }
 

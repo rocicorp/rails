@@ -6,13 +6,13 @@ import {EntityQueryImpl, astForTesting as ast} from './entity-query.js';
 
 const context = makeTestContext();
 test('query types', () => {
-  const e1 = z.object({
-    id: z.string(),
-    str: z.string(),
-    optStr: z.string().optional(),
-  });
-
-  type E1 = z.infer<typeof e1>;
+  const sym = Symbol('sym');
+  type E1 = {
+    id: string;
+    str: string;
+    optStr?: string | undefined;
+    [sym]: boolean;
+  };
 
   const q = new EntityQueryImpl<{fields: E1}>(context, 'e1');
 
@@ -54,6 +54,12 @@ test('query types', () => {
   q.where('id', '=', 1);
 
   expectTypeOf(q.count().prepare().exec()).toMatchTypeOf<Promise<number>>();
+
+  // @ts-expect-error - Argument of type 'unique symbol' is not assignable to parameter of type '"id" | "str" | "optStr"'.ts(2345)
+  q.select(sym);
+
+  // @ts-expect-error - Argument of type 'unique symbol' is not assignable to parameter of type 'FieldName<{ fields: E1; }>'.ts(2345)
+  q.where(sym, '==', true);
 });
 
 const e1 = z.object({
