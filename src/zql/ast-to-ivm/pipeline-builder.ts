@@ -30,13 +30,16 @@ export function buildPipeline(
 
   let ret: DifferenceStream<unknown> = stream;
   if (ast.groupBy) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ret = applyGroupBy(
       ret as DifferenceStream<Entity>,
       ast.groupBy,
       ast.aggregate ?? [],
       Array.isArray(ast.select) ? ast.select : [],
       ast.orderBy,
+    );
+  } else if (ast.aggregate && ast.aggregate.length > 0) {
+    throw new Error(
+      'Aggregates (other than count) without a group-by are not supported',
     );
   }
 
