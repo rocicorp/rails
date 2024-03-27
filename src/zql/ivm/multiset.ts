@@ -1,4 +1,4 @@
-import {StrOrNum} from './types';
+import {StrOrNum} from './types.js';
 
 export type Entry<T> = readonly [T, Multiplicity];
 export type Multiplicity = number;
