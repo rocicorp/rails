@@ -57,13 +57,8 @@ test('A simple select', () => {
 test('Count', () => {
   const q = new EntityQuery<{fields: E1}>(context, 'e1');
   const m = new Materialite();
-<<<<<<< HEAD
-  const s = m.newStatelessSource();
-  const pipeline = buildPipeline(() => s.stream, ast(q.count()));
-=======
   const s = m.newStatelessSource<E1>();
-  const pipeline = buildPipeline(() => s.stream, q.count()._ast);
->>>>>>> c936b08 (add group-by to EntityQuery)
+  const pipeline = buildPipeline(() => s.stream, ast(q.count()));
 
   let effectRunCount = 0;
   pipeline.effect(x => {
@@ -71,10 +66,10 @@ test('Count', () => {
   });
   const expected = [1, 2, 1, 0];
 
-  s.add({id: '1', a: 1, b: 1n, d: false});
-  s.add({id: '2', a: 1, b: 1n, d: false});
-  s.delete({id: '1', a: 1, b: 1n, d: false});
-  s.delete({id: '2', a: 1, b: 1n, d: false});
+  s.add({id: '1', a: 1, b: 1, d: false});
+  s.add({id: '2', a: 1, b: 1, d: false});
+  s.delete({id: '1', a: 1, b: 1, d: false});
+  s.delete({id: '2', a: 1, b: 1, d: false});
   expect(effectRunCount).toBe(4);
 });
 
