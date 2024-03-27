@@ -6,7 +6,7 @@ import {
   DifferenceStreamWriter,
   RootDifferenceStreamWriter,
 } from './difference-stream-writer.js';
-import {LinearCountOperator} from './operators/count-operator.js';
+import {LinearCountOperator} from './operators/full-agg-operators.js';
 import {DebugOperator} from './operators/debug-operator.js';
 import {DifferenceEffectOperator} from './operators/difference-effect-operator.js';
 import {FilterOperator} from './operators/filter-operator.js';

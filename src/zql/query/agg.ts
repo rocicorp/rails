@@ -83,18 +83,19 @@ export function sum<Field extends string, Alias extends string>(
   };
 }
 
+export function count(): Count<'id', 'count'>;
 export function count<Field extends string>(field: Field): Count<Field, Field>;
 export function count<Field extends string, Alias extends string>(
   field: Field,
   alias: Alias,
 ): Count<Field, Alias>;
 export function count<Field extends string, Alias extends string>(
-  field: Field,
+  field?: Field | undefined,
   alias?: Alias | undefined,
 ): Count<Field, Alias> {
   return {
     aggregate: 'count',
-    field,
+    field: field ?? ('id' as Field),
     alias: alias ?? (field as unknown as Alias),
   };
 }

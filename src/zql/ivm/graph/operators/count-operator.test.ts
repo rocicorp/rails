@@ -1,6 +1,6 @@
 import {expect, test} from 'vitest';
 import {DifferenceStreamWriter} from '../difference-stream-writer.js';
-import {LinearCountOperator} from './count-operator.js';
+import {LinearCountOperator} from './full-agg-operators.js';
 import {Multiset} from '../../multiset.js';
 import {NoOp} from './operator.js';
 
