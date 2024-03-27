@@ -472,7 +472,31 @@ test('group by', async () => {
     },
   ]);
 
-  // TODO: aliased groupings
+  const stmt4 = q
+    .select(
+      'status',
+      agg.array('assignee'),
+      agg.min('created', 'minCreated'),
+      agg.max('created', 'maxCreated'),
+    )
+    .groupBy('status')
+    .prepare();
+  const rows4 = await stmt4.exec();
+
+  expect(rows4).toEqual([
+    {
+      status: 'open',
+      assignee: ['charles', 'bob'],
+      minCreated: issues[0].created,
+      maxCreated: issues[1].created,
+    },
+    {
+      status: 'closed',
+      assignee: ['alice'],
+      minCreated: issues[2].created,
+      maxCreated: issues[2].created,
+    },
+  ]);
 
   await r.close();
 });
