@@ -78,10 +78,8 @@ test('unbalanced input', () => {
 
   trackWriter.notify(1);
   trackWriter.notifyCommitted(1);
-  const items = outReader.drain(1);
-  expect(items.length).toBe(1);
-  const entry = items[0];
-  expect([...entry[1].entries]).toEqual([]);
+  const entry = outReader.drain(1);
+  expect([...entry![1].entries]).toEqual([]);
 
   // now add to the other side
   albumWriter.queueData([
@@ -99,10 +97,8 @@ test('unbalanced input', () => {
 
   albumWriter.notify(2);
   albumWriter.notifyCommitted(2);
-  const items2 = outReader.drain(2);
-  expect(items2.length).toBe(1);
-  const entry2 = items2[0];
-  expect([...entry2[1].entries]).toEqual([
+  const entry2 = outReader.drain(2);
+  expect([...entry2![1].entries]).toEqual([
     [
       {
         id: '1_1',
@@ -207,10 +203,8 @@ test('basic join', () => {
     albumWriter.notify(1);
     trackWriter.notifyCommitted(1);
     albumWriter.notifyCommitted(1);
-    const items = outReader.drain(1);
-    expect(items.length).toBe(1);
-    const entry = items[0];
-    expect([...entry[1].entries]).toEqual(expected);
+    const entry = outReader.drain(1);
+    expect([...entry![1].entries]).toEqual(expected);
   }
 });
 
@@ -329,8 +323,8 @@ test('join through a junction table', () => {
   trackArtistWriter.notifyCommitted(1);
   artistWriter.notifyCommitted(1);
 
-  const items = outReader.drain(1);
-  expect([...items[0][1].entries]).toEqual([
+  const entry = outReader.drain(1);
+  expect([...entry![1].entries]).toEqual([
     [
       {
         id: '1_1-1_1',

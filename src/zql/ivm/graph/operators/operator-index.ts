@@ -6,7 +6,7 @@ export class Index<K extends Primitive, V> {
   readonly #index = new Map<K, Entry<V>[]>();
   readonly #getValueIdentity;
 
-  constructor(getValueIdentity: (value: V) => string | symbol | number) {
+  constructor(getValueIdentity: (value: V) => string | number) {
     this.#getValueIdentity = getValueIdentity;
   }
 
