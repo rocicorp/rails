@@ -9,6 +9,7 @@ import {
 } from '../ast/ast.js';
 import {must} from '../error/asserts.js';
 import {DifferenceStream} from '../ivm/graph/difference-stream.js';
+import {Multiset} from '../ivm/multiset.js';
 
 export const orderingProp = Symbol();
 
@@ -37,15 +38,14 @@ export function buildPipeline(
       Array.isArray(ast.select) ? ast.select : [],
       ast.orderBy,
     );
-  } else if (ast.aggregate && ast.aggregate.length > 0) {
-    throw new Error(
-      'Aggregates (other than count) without a group-by are not supported',
+  } else if (ast.aggregate) {
+    ret = applyFullTableAggregation(
+      ret as DifferenceStream<Entity>,
+      ast.aggregate,
     );
   }
 
-  if (ast.select === 'count') {
-    ret = ret.linearCount();
-  } else if (ast.groupBy === undefined) {
+  if (ast.groupBy === undefined) {
     ret = applySelect(
       ret as DifferenceStream<Entity>,
       ast.select ?? [],
@@ -224,6 +224,60 @@ function applyGroupBy<T extends Entity>(
       return ret;
     },
   );
+}
+
+function applyFullTableAggregation(
+  stream: DifferenceStream<Entity>,
+  aggregations: Aggregation[],
+) {}
+
+function makeAggregator<V>(aggregations: Aggregation[]) {
+  return (collection: Multiset<V>, priorState: any) => {
+    const ret: Record<string, unknown> = {};
+    for (const aggregation of aggregations) {
+      switch (aggregation.aggregate) {
+        case 'count': {
+          let count = priorState?.[aggregation.alias] ?? 0;
+          for (const [, mult] of collection.entries) {
+            count += mult;
+          }
+          ret[aggregation.alias] = count;
+          break;
+        }
+        case 'sum': {
+          let sum = priorState?.[aggregation.alias] ?? 0;
+          for (const [value, mult] of collection.entries) {
+            sum += (value[aggregation.field as keyof V] as number) * mult;
+          }
+          ret[aggregation.alias] = sum;
+          break;
+        }
+        case 'avg': {
+          throw new Error('Not implemented');
+        }
+        case 'min': {
+          let min = priorState?.[aggregation.alias] ?? Infinity;
+          for (const [value] of collection.entries) {
+            min = Math.min(min, value[aggregation.field as keyof V] as number);
+          }
+          ret[aggregation.alias] = min;
+          break;
+        }
+        case 'max': {
+          let max = priorState?.[aggregation.alias] ?? -Infinity;
+          for (const [value] of collection.entries) {
+            max = Math.max(max, value[aggregation.field as keyof V] as number);
+          }
+          ret[aggregation.alias] = max;
+          break;
+        }
+        case 'array': {
+          throw new Error('Not implemented');
+        }
+      }
+    }
+    return ret;
+  };
 }
 
 function makeKeyFunction(columns: string[]) {

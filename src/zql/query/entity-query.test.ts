@@ -44,7 +44,9 @@ test('query types', () => {
   // @ts-expect-error - comparing with the wrong data type for the value is an error
   q.where('id', '=', 1);
 
-  expectTypeOf(q.count().prepare().exec()).toMatchTypeOf<Promise<number>>();
+  expectTypeOf(q.select(agg.count()).prepare().exec()).toMatchTypeOf<
+    Promise<number>
+  >();
 
   // @ts-expect-error - Argument of type 'unique symbol' is not assignable to parameter of type '"id" | "str" | "optStr"'.ts(2345)
   q.select(sym);
@@ -114,21 +116,6 @@ test('ast: select', () => {
     newq = newq.select(k as keyof E1);
   });
   expect(ast(newq).select).toEqual(Object.keys(dummyObject));
-});
-
-test('ast: count', () => {
-  // Cannot select fields in addition to a count.
-  // A query is one or the other: count query or selection query.
-  expect(() =>
-    new EntityQuery<{fields: E1}>(context, 'e1').select('id').count(),
-  ).toThrow(Misuse);
-  expect(() =>
-    new EntityQuery<{fields: E1}>(context, 'e1').count().select('id'),
-  ).toThrow(Misuse);
-
-  // selection set is the literal `count`, not an array of fields
-  const q = new EntityQuery<{fields: E1}>(context, 'e1').count();
-  expect(ast(q).select).toEqual('count');
 });
 
 test('ast: where', () => {

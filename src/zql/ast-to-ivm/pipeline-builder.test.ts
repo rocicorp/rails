@@ -5,6 +5,7 @@ import {Materialite} from '../ivm/materialite.js';
 import {EntityQuery, astForTesting as ast} from '../query/entity-query.js';
 import {buildPipeline} from './pipeline-builder.js';
 import {compareUTF8} from 'compare-utf8';
+import * as agg from '../query/agg.js';
 
 const e1 = z.object({
   id: z.string(),
@@ -60,7 +61,7 @@ test('Count', () => {
   const q = new EntityQuery<{fields: E1}>(context, 'e1');
   const m = new Materialite();
   const s = m.newSetSource<E1>(comparator);
-  const pipeline = buildPipeline(() => s.stream, ast(q.count()));
+  const pipeline = buildPipeline(() => s.stream, ast(q.select(agg.count())));
 
   let effectRunCount = 0;
   pipeline.effect(x => {
