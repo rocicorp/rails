@@ -1,6 +1,131 @@
 import {expect, test} from 'vitest';
 import {Multiset} from './multiset.js';
 
+test('negate', () => {
+  type Case = {
+    name: string;
+    input: [number, number][];
+    expected: [number, number][];
+  };
+
+  const cases: Case[] = [
+    {
+      name: 'empty',
+      input: [],
+      expected: [],
+    },
+    {
+      name: 'positive',
+      input: [[1, 1]],
+      expected: [[1, -1]],
+    },
+    {
+      name: 'negative',
+      input: [[1, -1]],
+      expected: [[1, 1]],
+    },
+    {
+      name: 'zero',
+      input: [[1, 0]],
+      expected: [[1, -0]],
+    },
+    {
+      name: 'multiple',
+      input: [
+        [0, -0],
+        [1, 1],
+        [2, -2],
+        [3, 3],
+        [4, -4],
+      ],
+      expected: [
+        [0, 0],
+        [1, -1],
+        [2, 2],
+        [3, -3],
+        [4, 4],
+      ],
+    },
+  ];
+
+  for (const c of cases) {
+    const actual = [...new Multiset(c.input).negate().entries];
+    expect(actual, c.name).toEqual(c.expected);
+  }
+});
+
+test('map', () => {
+  type Case = {
+    name: string;
+    input: [number, number][];
+    expected: [number, number][];
+  };
+
+  const cases: Case[] = [
+    {
+      name: 'empty',
+      input: [],
+      expected: [],
+    },
+    {
+      name: 'integers',
+      input: [
+        [1, 1],
+        [2, 2],
+        [3, -3],
+      ],
+      expected: [
+        [2, 1],
+        [4, 2],
+        [6, -3],
+      ],
+    },
+  ];
+
+  for (const c of cases) {
+    const actual = [...new Multiset(c.input).map(v => v * 2).entries];
+    expect(actual, c.name).toEqual(c.expected);
+  }
+});
+
+test('filter', () => {
+  type Case = {
+    name: string;
+    input: [number, number][];
+    expected: [number, number][];
+  };
+
+  const cases: Case[] = [
+    {
+      name: 'empty',
+      input: [],
+      expected: [],
+    },
+    {
+      name: 'single',
+      input: [[-1, 2]],
+      expected: [],
+    },
+    {
+      name: 'multiple',
+      input: [
+        [1, 1],
+        [2, -2],
+        [-3, 3],
+      ],
+      expected: [
+        [1, 1],
+        [2, -2],
+      ],
+    },
+  ];
+
+  for (const c of cases) {
+    const actual = [...new Multiset(c.input).filter(v => v > 0).entries];
+    expect(actual, c.name).toEqual(c.expected);
+  }
+});
+
 type Ref<T> = {
   v: T;
 };

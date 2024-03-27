@@ -7,9 +7,8 @@ import {compareEntityFields} from '../ivm/compare.js';
 import {Materialite} from '../ivm/materialite.js';
 import {MutableSetSource} from '../ivm/source/set-source.js';
 import {Source} from '../ivm/source/source.js';
-
-import type {Context} from './context.js';
 import {mapIter} from '../util/iterables.js';
+import type {Context} from './context.js';
 
 export function makeReplicacheContext(rep: ReplicacheLike): Context {
   const materialite = new Materialite();
@@ -64,7 +63,7 @@ class ReplicacheSource {
   readonly #materialite;
   readonly #sources: Map<string, Source<Entity>> = new Map();
   readonly #canonicalSource: MutableSetSource<Entity>;
-  #receivedFirstDiif = false;
+  #receivedFirstDiff = false;
 
   constructor(rep: ReplicacheLike, materialite: Materialite, name: string) {
     this.#canonicalSource =
@@ -81,7 +80,7 @@ class ReplicacheSource {
     // to seed the source. We don't process these
     // through the dataflow graph.
     // Views will explicitly request historical data as needed.
-    if (this.#receivedFirstDiif === false) {
+    if (this.#receivedFirstDiff === false) {
       this.#canonicalSource.seed(
         mapIter(changes, diff => {
           assert(diff.op === 'add');
@@ -96,7 +95,7 @@ class ReplicacheSource {
           }),
         );
       }
-      this.#receivedFirstDiif = true;
+      this.#receivedFirstDiff = true;
       return;
     }
     this.#materialite.tx(() => {

@@ -2,13 +2,13 @@ import {expect, test} from 'vitest';
 import {z} from 'zod';
 import {makeTestContext} from '../context/context.js';
 import {Materialite} from '../ivm/materialite.js';
-import {EntityQueryImpl} from '../query/entity-query.js';
+import {EntityQueryImpl, astForTesting as ast} from '../query/entity-query.js';
 import {buildPipeline} from './pipeline-builder.js';
 
 const e1 = z.object({
   id: z.string(),
   a: z.number(),
-  b: z.bigint(),
+  b: z.number(),
   c: z.string().optional(),
   d: z.boolean(),
 });
@@ -21,7 +21,7 @@ test('A simple select', () => {
   let s = m.newStatelessSource<E1>();
   let pipeline = buildPipeline(
     () => s.stream,
-    q.select('id', 'a', 'b', 'c', 'd')._ast,
+    ast(q.select('id', 'a', 'b', 'c', 'd')),
   );
 
   let effectRunCount = 0;
@@ -30,8 +30,8 @@ test('A simple select', () => {
   });
 
   const expected = [
-    {id: 'a', a: 1, b: 1n, c: '', d: true},
-    {id: 'b', a: 2, b: 2n, d: false},
+    {id: 'a', a: 1, b: 1, c: '', d: true},
+    {id: 'b', a: 2, b: 2, d: false},
   ] as const;
 
   s.add(expected[0]);
@@ -39,7 +39,7 @@ test('A simple select', () => {
   expect(effectRunCount).toBe(2);
 
   s = m.newStatelessSource();
-  pipeline = buildPipeline(() => s.stream, q.select('a', 'd')._ast);
+  pipeline = buildPipeline(() => s.stream, ast(q.select('a', 'd')));
   const expected2 = [
     {a: 1, d: true},
     {a: 2, d: false},
@@ -58,7 +58,7 @@ test('Count', () => {
   const q = new EntityQueryImpl<{fields: E1}>(context, 'e1');
   const m = new Materialite();
   const s = m.newStatelessSource();
-  const pipeline = buildPipeline(() => s.stream, q.count()._ast);
+  const pipeline = buildPipeline(() => s.stream, ast(q.count()));
 
   let effectRunCount = 0;
   pipeline.effect(x => {
@@ -79,7 +79,7 @@ test('Where', () => {
   const s = m.newStatelessSource();
   const pipeline = buildPipeline(
     () => s.stream,
-    q.select('id').where('a', '>', 1).where('b', '<', 2n)._ast,
+    ast(q.select('id').where('a', '>', 1).where('b', '<', 2)),
   );
 
   let effectRunCount = 0;

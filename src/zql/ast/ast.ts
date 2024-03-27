@@ -3,7 +3,6 @@
 
 // TODO: the chosen operator needs to constrain the allowed values for the value
 // input to the query builder.
-export type Operator = '=' | '<' | '>' | '>=' | '<=' | 'IN' | 'LIKE' | 'ILIKE';
 export type Ordering = readonly [readonly string[], 'asc' | 'desc'];
 export type Primitive = string | number | boolean | null;
 // type Ref = `${string}.${string}`;
@@ -15,7 +14,7 @@ export type AST = {
   //   readonly alias: string;
   //   readonly query: AST;
   // }[];
-  readonly where?: ConditionList | undefined;
+  readonly where?: Condition | undefined;
   // readonly joins?: {
   //   readonly table: string;
   //   readonly as: string;
@@ -27,13 +26,25 @@ export type AST = {
   // readonly after?: Primitive;
 };
 
-type Conjunction = 'AND'; // | 'OR' | 'NOT' | 'EXISTS';
-export type ConditionList = (Conjunction | Condition)[];
-export type Condition =
+export type Condition = SimpleCondition | Conjunction;
+export type Conjunction = {
+  op: 'AND'; // future OR
+  conditions: Condition[];
+};
+export type SimpleOperator =
+  | '='
+  | '<'
+  | '>'
+  | '>='
+  | '<='
+  | 'IN'
+  | 'LIKE'
+  | 'ILIKE';
+export type SimpleCondition =
   // | ConditionList
   {
+    op: SimpleOperator;
     field: string;
-    op: Operator;
     value: {
       type: 'literal';
       value: Primitive;

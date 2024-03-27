@@ -2,17 +2,17 @@ import {expect, expectTypeOf, test} from 'vitest';
 import {z} from 'zod';
 import {makeTestContext} from '../context/context.js';
 import {Misuse} from '../error/misuse.js';
-import {EntityQueryImpl} from './entity-query.js';
+import {EntityQueryImpl, astForTesting as ast} from './entity-query.js';
 
 const context = makeTestContext();
 test('query types', () => {
-  const e1 = z.object({
-    id: z.string(),
-    str: z.string(),
-    optStr: z.string().optional(),
-  });
-
-  type E1 = z.infer<typeof e1>;
+  const sym = Symbol('sym');
+  type E1 = {
+    id: string;
+    str: string;
+    optStr?: string | undefined;
+    [sym]: boolean;
+  };
 
   const q = new EntityQueryImpl<{fields: E1}>(context, 'e1');
 
@@ -54,6 +54,12 @@ test('query types', () => {
   q.where('id', '=', 1);
 
   expectTypeOf(q.count().prepare().exec()).toMatchTypeOf<Promise<number>>();
+
+  // @ts-expect-error - Argument of type 'unique symbol' is not assignable to parameter of type '"id" | "str" | "optStr"'.ts(2345)
+  q.select(sym);
+
+  // @ts-expect-error - Argument of type 'unique symbol' is not assignable to parameter of type 'FieldName<{ fields: E1; }>'.ts(2345)
+  q.where(sym, '==', true);
 });
 
 const e1 = z.object({
@@ -79,19 +85,19 @@ test('ast: select', () => {
   // each individual field is selectable on its own
   Object.keys(dummyObject).forEach(k => {
     const newq = q.select(k as keyof E1);
-    expect(newq._ast.select).toEqual([k]);
+    expect(ast(newq).select).toEqual([k]);
   });
 
   // all fields are selectable together
   let newq = q.select(...(Object.keys(dummyObject) as (keyof E1)[]));
-  expect(newq._ast.select).toEqual(Object.keys(dummyObject));
+  expect(ast(newq).select).toEqual(Object.keys(dummyObject));
 
   // we can call select many times to build up the selection set
   newq = q;
   Object.keys(dummyObject).forEach(k => {
     newq = newq.select(k as keyof E1);
   });
-  expect(newq._ast.select).toEqual(Object.keys(dummyObject));
+  expect(ast(newq).select).toEqual(Object.keys(dummyObject));
 
   // we remove duplicates
   newq = q;
@@ -101,7 +107,7 @@ test('ast: select', () => {
   Object.keys(dummyObject).forEach(k => {
     newq = newq.select(k as keyof E1);
   });
-  expect(newq._ast.select).toEqual(Object.keys(dummyObject));
+  expect(ast(newq).select).toEqual(Object.keys(dummyObject));
 });
 
 test('ast: count', () => {
@@ -116,7 +122,7 @@ test('ast: count', () => {
 
   // selection set is the literal `count`, not an array of fields
   const q = new EntityQueryImpl<{fields: E1}>(context, 'e1').count();
-  expect(q._ast.select).toEqual('count');
+  expect(ast(q).select).toEqual('count');
 });
 
 test('ast: where', () => {
@@ -125,54 +131,91 @@ test('ast: where', () => {
   // where is applied
   q = q.where('id', '=', 'a');
 
-  expect({...q._ast, alias: 0}).toEqual({
+  expect({...ast(q), alias: 0}).toEqual({
     alias: 0,
     table: 'e1',
     orderBy: [['id'], 'asc'],
-    where: [
-      {
-        field: 'id',
-        op: '=',
-        value: {
-          type: 'literal',
-          value: 'a',
-        },
+    where: {
+      field: 'id',
+      op: '=',
+      value: {
+        type: 'literal',
+        value: 'a',
       },
-    ],
+    },
   });
 
   // additional wheres are anded
   q = q.where('a', '>', 0);
 
-  expect({...q._ast, alias: 0}).toEqual({
+  expect({...ast(q), alias: 0}).toEqual({
     alias: 0,
     table: 'e1',
     orderBy: [['id'], 'asc'],
-    where: [
-      {
-        field: 'id',
-        op: '=',
-        value: {
-          type: 'literal',
-          value: 'a',
+    where: {
+      op: 'AND',
+      conditions: [
+        {
+          field: 'id',
+          op: '=',
+          value: {
+            type: 'literal',
+            value: 'a',
+          },
         },
-      },
-      'AND',
-      {
-        field: 'a',
-        op: '>',
-        value: {
-          type: 'literal',
-          value: 0,
+        {
+          field: 'a',
+          op: '>',
+          value: {
+            type: 'literal',
+            value: 0,
+          },
         },
-      },
-    ],
+      ],
+    },
+  });
+
+  q = q.where('c', '=', 'foo');
+  // multiple ANDs are flattened
+  expect({...ast(q), alias: 0}).toEqual({
+    alias: 0,
+    table: 'e1',
+    orderBy: [['id'], 'asc'],
+    where: {
+      op: 'AND',
+      conditions: [
+        {
+          field: 'id',
+          op: '=',
+          value: {
+            type: 'literal',
+            value: 'a',
+          },
+        },
+        {
+          field: 'a',
+          op: '>',
+          value: {
+            type: 'literal',
+            value: 0,
+          },
+        },
+        {
+          field: 'c',
+          op: '=',
+          value: {
+            type: 'literal',
+            value: 'foo',
+          },
+        },
+      ],
+    },
   });
 });
 
 test('ast: limit', () => {
   const q = new EntityQueryImpl<{fields: E1}>(context, 'e1');
-  expect({...q.limit(10)._ast, alias: 0}).toEqual({
+  expect({...ast(q.limit(10)), alias: 0}).toEqual({
     orderBy: [['id'], 'asc'],
     alias: 0,
     table: 'e1',
@@ -184,17 +227,17 @@ test('ast: asc/desc', () => {
   const q = new EntityQueryImpl<{fields: E1}>(context, 'e1');
 
   // order methods update the ast
-  expect({...q.asc('id')._ast, alias: 0}).toEqual({
+  expect({...ast(q.asc('id')), alias: 0}).toEqual({
     alias: 0,
     table: 'e1',
     orderBy: [['id'], 'asc'],
   });
-  expect({...q.desc('id')._ast, alias: 0}).toEqual({
+  expect({...ast(q.desc('id')), alias: 0}).toEqual({
     alias: 0,
     table: 'e1',
     orderBy: [['id'], 'desc'],
   });
-  expect({...q.asc('id', 'a', 'b', 'c', 'd')._ast, alias: 0}).toEqual({
+  expect({...ast(q.asc('id', 'a', 'b', 'c', 'd')), alias: 0}).toEqual({
     alias: 0,
     table: 'e1',
     orderBy: [['id', 'a', 'b', 'c', 'd'], 'asc'],
@@ -224,14 +267,14 @@ test('ast: independent of method call order', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     q = call(q) as any;
   }
-  const inOrderToAST = q._ast;
+  const inOrderToAST = ast(q);
 
   q = base;
   for (const call of Object.values(calls).reverse()) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     q = call(q) as any;
   }
-  const reverseToAST = q._ast;
+  const reverseToAST = ast(q);
 
   expect({
     ...inOrderToAST,

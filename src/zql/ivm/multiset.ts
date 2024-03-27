@@ -36,6 +36,9 @@ export class Multiset<T> {
 
   negate(): Multiset<T> {
     return new Multiset(
+      // Kind of weird/useless to negate zero, but 0 and -0 are === in
+      // JavaScript so it would be difficult to ever notice, and simplifies
+      // this code slightly.
       genMap(this.entries, ([value, multiplicity]) => [value, -multiplicity]),
     );
   }
