@@ -9,12 +9,23 @@ import {Context} from '../context/context.js';
 import {must} from '../error/asserts.js';
 import {Misuse} from '../error/misuse.js';
 import {EntitySchema} from '../schema/entity-schema.js';
+import {AggArray, Aggregate} from './agg.js';
 import {Statement} from './statement.js';
 
 type FieldValue<
   S extends EntitySchema,
   K extends Selectable<S>,
 > = S['fields'][K] extends Primitive | undefined ? S['fields'][K] : never;
+
+type AggregateValue<
+  S extends EntitySchema,
+  K extends Aggregate<AsString<keyof S['fields']>, string>,
+> =
+  // K extends Count<S, string>
+  //   ? number :
+  K extends AggArray<string, string>
+    ? S['fields'][K['field']][]
+    : S['fields'][K['field']];
 
 export type SelectedFields<
   S extends EntitySchema,
@@ -24,11 +35,33 @@ export type SelectedFields<
   Fields[number] extends keyof S['fields'] ? Fields[number] : never
 >;
 
+type SelectedAggregates<
+  S extends EntitySchema,
+  Aggregates extends Aggregate<AsString<keyof S['fields']>, string>[],
+> = {
+  [K in Aggregates[number]['alias']]: AggregateValue<
+    S,
+    Extract<Aggregates[number], {alias: K}>
+  >;
+};
+
 type AsString<T> = T extends string ? T : never;
 
 export type Selectable<S extends EntitySchema> =
   | AsString<keyof S['fields']>
   | 'id';
+
+type ToSelectableOnly<T, S extends EntitySchema> = T extends (infer U)[]
+  ? U extends Selectable<S>
+    ? U[]
+    : never
+  : never;
+
+type ToAggrableOnly<T, S extends EntitySchema> = T extends (infer U)[]
+  ? U extends Aggregate<AsString<keyof S['fields']>, string>
+    ? U[]
+    : never
+  : never;
 
 /**
  * Have you ever noticed that when you hover over Types in TypeScript, it shows
@@ -62,7 +95,12 @@ export class EntityQuery<S extends EntitySchema, Return = []> {
     astWeakMap.set(this, this.#ast);
   }
 
-  select<Fields extends Selectable<S>[]>(...x: Fields) {
+  select<
+    Fields extends (
+      | Selectable<S>
+      | Aggregate<AsString<keyof S['fields']>, string>
+    )[],
+  >(...x: Fields) {
     if (this.#ast.select === 'count') {
       throw new Misuse(
         'A query can either return fields or a count, not both.',
@@ -70,17 +108,19 @@ export class EntityQuery<S extends EntitySchema, Return = []> {
     }
     const select = new Set(this.#ast.select);
     for (const more of x) {
-      select.add(more);
+      if (typeof more !== 'object') {
+        select.add(more);
+      }
     }
 
-    return new EntityQuery<S, SelectedFields<S, Fields>[]>(
-      this.#context,
-      this.#name,
-      {
-        ...this.#ast,
-        select: [...select],
-      },
-    );
+    return new EntityQuery<
+      S,
+      (SelectedFields<S, ToSelectableOnly<Fields, S>> &
+        SelectedAggregates<S, ToAggrableOnly<Fields, S>>)[]
+    >(this.#context, this.#name, {
+      ...this.#ast,
+      select: [...select],
+    });
   }
 
   groupBy<K extends keyof S['fields']>(...x: K[]) {
@@ -175,7 +215,10 @@ export class EntityQuery<S extends EntitySchema, Return = []> {
   }
 }
 
-const astWeakMap = new WeakMap<EntityQuery<EntitySchema, unknown>, AST>();
+const astWeakMap = new WeakMap<
+  EntityQuery<EntitySchema, unknown> | EntityGroupQuery<EntitySchema, unknown>,
+  AST
+>();
 
 export function astForTesting(q: EntityQuery<EntitySchema, unknown>): AST {
   return must(astWeakMap.get(q));
@@ -194,11 +237,7 @@ export class EntityGroupQuery<S extends EntitySchema, Return = []> {
     };
     this.#name = tableName;
     this.#context = context;
-  }
-
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  get _ast() {
-    return this.#ast;
+    astWeakMap.set(this, this.#ast);
   }
 
   count<K extends keyof S['fields']>(

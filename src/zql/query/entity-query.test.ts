@@ -3,6 +3,7 @@ import {z} from 'zod';
 import {makeTestContext} from '../context/context.js';
 import {Misuse} from '../error/misuse.js';
 import {EntityQuery, astForTesting as ast} from './entity-query.js';
+import {agg} from './agg.js';
 
 const context = makeTestContext();
 test('query types', () => {
@@ -33,16 +34,6 @@ test('query types', () => {
   >();
 
   // where/order/limit do not change return type
-  expectTypeOf(
-    q
-      .select('id', 'str')
-      .where('id', '<', '123')
-      .limit(1)
-      .asc('id')
-      .prepare()
-      .exec(),
-  ).toMatchTypeOf<Promise<readonly {id: string; str: string}[]>>();
-
   expectTypeOf(q.where).toBeCallableWith('id', '=', 'foo');
   expectTypeOf(q.where).toBeCallableWith('str', '<', 'foo');
   expectTypeOf(q.where).toBeCallableWith('optStr', '>', 'foo');
@@ -60,6 +51,13 @@ test('query types', () => {
 
   // @ts-expect-error - Argument of type 'unique symbol' is not assignable to parameter of type 'FieldName<{ fields: E1; }>'.ts(2345)
   q.where(sym, '==', true);
+
+  // @ts-expect-error - 'x' is not a field that we can aggregate on
+  q.select(agg.array('x'));
+
+  expectTypeOf(q.select('id', agg.array('str')).prepare().exec()).toMatchTypeOf<
+    Promise<readonly {id: string; str: readonly string[]}[]>
+  >();
 });
 
 const e1 = z.object({
