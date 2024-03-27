@@ -2,7 +2,6 @@ import {Entity} from '../../../../generate.js';
 import {Primitive} from '../../../ast/ast.js';
 import {Entry} from '../../multiset.js';
 
-// TODO: see comment on join. Maybe we can do better here with somem sort of sorted map.
 export class Index<K extends Primitive, V extends Entity> {
   readonly #index = new Map<K, Entry<V>[]>();
 
@@ -59,10 +58,11 @@ export class Index<K extends Primitive, V extends Entity> {
       if (entries === undefined) {
         continue;
       }
-      this.#index.delete(key);
       const consolidated = consolidateValues(entries);
       if (consolidated.length !== 0) {
         this.#index.set(key, consolidated);
+      } else {
+        this.#index.delete(key);
       }
     }
   }
