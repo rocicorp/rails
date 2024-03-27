@@ -58,6 +58,10 @@ test('query types', () => {
   expectTypeOf(q.select('id', agg.array('str')).prepare().exec()).toMatchTypeOf<
     Promise<readonly {id: string; str: readonly string[]}[]>
   >();
+
+  expectTypeOf(
+    q.select('id', agg.array('str', 'alias')).prepare().exec(),
+  ).toMatchTypeOf<Promise<readonly {id: string; alias: readonly string[]}[]>>();
 });
 
 const e1 = z.object({

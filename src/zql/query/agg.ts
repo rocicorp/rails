@@ -12,27 +12,27 @@ export type Aggregate<Field extends string, Alias extends string> =
   | AggArray<Field, Alias>;
 
 type Min<Field extends string, Alias extends string> = {
-  type: 'min';
+  aggregate: 'min';
 } & AggregateBase<Field, Alias>;
 
 type Max<Field extends string, Alias extends string> = {
-  type: 'max';
+  aggregate: 'max';
 } & AggregateBase<Field, Alias>;
 
 type Sum<Field extends string, Alias extends string> = {
-  type: 'sum';
+  aggregate: 'sum';
 } & AggregateBase<Field, Alias>;
 
 type Avg<Field extends string, Alias extends string> = {
-  type: 'avg';
+  aggregate: 'avg';
 } & AggregateBase<Field, Alias>;
 
 export type Count<Field extends string, Alias extends string> = {
-  type: 'count';
+  aggregate: 'count';
 } & AggregateBase<Field, Alias>;
 
 export type AggArray<Field extends string, Alias extends string> = {
-  type: 'array';
+  aggregate: 'array';
 } & AggregateBase<Field, Alias>;
 
 export const agg: {
@@ -77,7 +77,7 @@ export const agg: {
     alias?: Alias | undefined,
   ): Min<Field, Alias> {
     return {
-      type: 'min',
+      aggregate: 'min',
       field,
       alias: alias ?? (field as unknown as Alias),
     };
@@ -88,7 +88,7 @@ export const agg: {
     alias?: Alias | undefined,
   ): Max<Field, Alias> {
     return {
-      type: 'max',
+      aggregate: 'max',
       field,
       alias: alias ?? (field as unknown as Alias),
     };
@@ -99,7 +99,7 @@ export const agg: {
     alias?: Alias | undefined,
   ): Sum<Field, Alias> {
     return {
-      type: 'sum',
+      aggregate: 'sum',
       field,
       alias: alias ?? (field as unknown as Alias),
     };
@@ -110,7 +110,7 @@ export const agg: {
     alias?: Alias | undefined,
   ): Count<Field, Alias> {
     return {
-      type: 'count',
+      aggregate: 'count',
       field,
       alias: alias ?? (field as unknown as Alias),
     };
@@ -121,7 +121,7 @@ export const agg: {
     alias?: Alias | undefined,
   ): Avg<Field, Alias> {
     return {
-      type: 'avg',
+      aggregate: 'avg',
       field,
       alias: alias ?? (field as unknown as Alias),
     };
@@ -132,7 +132,7 @@ export const agg: {
     alias?: Alias | undefined,
   ): AggArray<Field, Alias> {
     return {
-      type: 'array',
+      aggregate: 'array',
       field,
       alias: alias ?? (field as unknown as Alias),
     };
