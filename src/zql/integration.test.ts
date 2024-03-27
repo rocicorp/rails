@@ -404,8 +404,8 @@ test('group by', async () => {
       status: 'open',
       priority: 'high',
       assignee: 'charles',
-      created: new Date('2024-01-01'),
-      updated: new Date(),
+      created: new Date('2024-01-01').getTime(),
+      updated: new Date().getTime(),
     },
     {
       id: 'b',
@@ -413,8 +413,8 @@ test('group by', async () => {
       status: 'open',
       priority: 'medium',
       assignee: 'bob',
-      created: new Date('2024-01-02'),
-      updated: new Date(),
+      created: new Date('2024-01-02').getTime(),
+      updated: new Date().getTime(),
     },
     {
       id: 'c',
@@ -422,8 +422,8 @@ test('group by', async () => {
       status: 'closed',
       priority: 'low',
       assignee: 'alice',
-      created: new Date('2024-01-03'),
-      updated: new Date(),
+      created: new Date('2024-01-03').getTime(),
+      updated: new Date().getTime(),
     },
   ] as const;
   await Promise.all(issues.map(r.mutate.initIssue));
@@ -458,12 +458,12 @@ test('group by', async () => {
     {
       status: 'open',
       assignee: ['charles', 'bob'],
-      created: issues[0].created.getTime(),
+      created: issues[0].created,
     },
     {
       status: 'closed',
       assignee: ['alice'],
-      created: issues[2].created.getTime(),
+      created: issues[2].created,
     },
   ]);
 

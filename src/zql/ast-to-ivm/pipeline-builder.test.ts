@@ -88,10 +88,10 @@ test('Where', () => {
   });
   const expected = [{id: 'b'}];
 
-  s.add({id: 'a', a: 1, b: 1n, d: false});
-  s.add({id: 'b', a: 2, b: 1n, d: false});
-  s.add({id: 'c', a: 1, b: 2n, d: false});
-  s.add({id: 'd', a: 2, b: 2n, d: false});
+  s.add({id: 'a', a: 1, b: 1, d: false});
+  s.add({id: 'b', a: 2, b: 1, d: false});
+  s.add({id: 'c', a: 1, b: 2, d: false});
+  s.add({id: 'd', a: 2, b: 2, d: false});
   expect(effectRunCount).toBe(1);
 });
 
