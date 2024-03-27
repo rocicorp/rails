@@ -1,5 +1,6 @@
 import {
   AST,
+  Aggregation,
   Condition,
   Primitive,
   SimpleCondition,
@@ -9,7 +10,7 @@ import {Context} from '../context/context.js';
 import {must} from '../error/asserts.js';
 import {Misuse} from '../error/misuse.js';
 import {EntitySchema} from '../schema/entity-schema.js';
-import {AggArray, Aggregate} from './agg.js';
+import {AggArray, Aggregate, Count} from './agg.js';
 import {Statement} from './statement.js';
 
 type FieldValue<
@@ -21,11 +22,11 @@ type AggregateValue<
   S extends EntitySchema,
   K extends Aggregate<AsString<keyof S['fields']>, string>,
 > =
-  // K extends Count<S, string>
-  //   ? number :
-  K extends AggArray<string, string>
-    ? S['fields'][K['field']][]
-    : S['fields'][K['field']];
+  K extends Count<string, string>
+    ? number
+    : K extends AggArray<string, string>
+      ? S['fields'][K['field']][]
+      : S['fields'][K['field']];
 
 export type SelectedFields<
   S extends EntitySchema,
@@ -101,16 +102,20 @@ export class EntityQuery<S extends EntitySchema, Return = []> {
       | Aggregate<AsString<keyof S['fields']>, string>
     )[],
   >(...x: Fields) {
+    // TODO: we should drop the explicit `count` API and use `agg.count` instead
     if (this.#ast.select === 'count') {
       throw new Misuse(
         'A query can either return fields or a count, not both.',
       );
     }
     const select = new Set(this.#ast.select);
+    const aggregate: Aggregation[] = [];
     for (const more of x) {
       if (typeof more !== 'object') {
         select.add(more);
+        continue;
       }
+      aggregate.push(more);
     }
 
     return new EntityQuery<
@@ -120,11 +125,12 @@ export class EntityQuery<S extends EntitySchema, Return = []> {
     >(this.#context, this.#name, {
       ...this.#ast,
       select: [...select],
+      aggregate,
     });
   }
 
   groupBy<K extends keyof S['fields']>(...x: K[]) {
-    return new EntityGroupQuery<S, Return>(this.#context, this.#name, {
+    return new EntityQuery<S, Return>(this.#context, this.#name, {
       ...this.#ast,
       groupBy: x as string[],
     });
@@ -215,172 +221,8 @@ export class EntityQuery<S extends EntitySchema, Return = []> {
   }
 }
 
-const astWeakMap = new WeakMap<
-  EntityQuery<EntitySchema, unknown> | EntityGroupQuery<EntitySchema, unknown>,
-  AST
->();
+const astWeakMap = new WeakMap<EntityQuery<EntitySchema, unknown>, AST>();
 
 export function astForTesting(q: EntityQuery<EntitySchema, unknown>): AST {
   return must(astWeakMap.get(q));
 }
-
-export class EntityGroupQuery<S extends EntitySchema, Return = []> {
-  readonly #ast: AST;
-  readonly #name: string;
-  readonly #context: Context;
-
-  constructor(context: Context, tableName: string, ast?: AST) {
-    this.#ast = ast ?? {
-      table: tableName,
-      alias: aliasCount++,
-      orderBy: [['id'], 'asc'],
-    };
-    this.#name = tableName;
-    this.#context = context;
-    astWeakMap.set(this, this.#ast);
-  }
-
-  count<K extends keyof S['fields']>(
-    field?: K | undefined,
-    alias?: string | undefined,
-  ) {
-    return new EntityGroupQuery<S, number>(this.#context, this.#name, {
-      ...this.#ast,
-      aggregate: [
-        ...(this.#ast.aggregate || []),
-        {
-          field: field as string,
-          alias: alias ?? 'count' + (field ? `_${field as string}` : ''),
-          aggregate: 'count',
-        },
-      ],
-    });
-  }
-
-  sum<K extends keyof S['fields']>(field: K, alias?: string | undefined) {
-    return new EntityGroupQuery<S, number>(this.#context, this.#name, {
-      ...this.#ast,
-      aggregate: [
-        ...(this.#ast.aggregate || []),
-        {
-          field: field as string,
-          alias: alias ?? (field as string),
-          aggregate: 'sum',
-        },
-      ],
-    });
-  }
-
-  avg<K extends keyof S['fields']>(field: K, alias?: string | undefined) {
-    return new EntityGroupQuery<S, number>(this.#context, this.#name, {
-      ...this.#ast,
-      aggregate: [
-        ...(this.#ast.aggregate || []),
-        {
-          field: field as string,
-          alias: alias ?? (field as string),
-          aggregate: 'avg',
-        },
-      ],
-    });
-  }
-
-  min<K extends keyof S['fields']>(field: K, alias?: string | undefined) {
-    return new EntityGroupQuery<S, number>(this.#context, this.#name, {
-      ...this.#ast,
-      aggregate: [
-        ...(this.#ast.aggregate || []),
-        {
-          field: field as string,
-          alias: alias ?? (field as string),
-          aggregate: 'min',
-        },
-      ],
-    });
-  }
-
-  max<K extends keyof S['fields']>(field: K, alias?: string | undefined) {
-    return new EntityGroupQuery<S, number>(this.#context, this.#name, {
-      ...this.#ast,
-      aggregate: [
-        ...(this.#ast.aggregate || []),
-        {
-          field: field as string,
-          alias: alias ?? (field as string),
-          aggregate: 'max',
-        },
-      ],
-    });
-  }
-
-  array<K extends keyof S['fields']>(field: K, alias?: string | undefined) {
-    return new EntityGroupQuery<S, number>(this.#context, this.#name, {
-      ...this.#ast,
-      aggregate: [
-        ...(this.#ast.aggregate || []),
-        {
-          field: field as string,
-          alias: alias ?? (field as string),
-          aggregate: 'array',
-        },
-      ],
-    });
-  }
-
-  limit(n: number) {
-    if (this.#ast.limit !== undefined) {
-      throw new Misuse('Limit already set');
-    }
-
-    return new EntityGroupQuery<S, Return>(this.#context, this.#name, {
-      ...this.#ast,
-      limit: n,
-    });
-  }
-
-  asc(...x: (keyof S['fields'])[]) {
-    if (!x.includes('id')) {
-      x.push('id');
-    }
-
-    return new EntityGroupQuery<S, Return>(this.#context, this.#name, {
-      ...this.#ast,
-      orderBy: [x as string[], 'asc'],
-    });
-  }
-
-  desc(...x: (keyof S['fields'])[]) {
-    if (!x.includes('id')) {
-      x.push('id');
-    }
-
-    return new EntityGroupQuery<S, Return>(this.#context, this.#name, {
-      ...this.#ast,
-      orderBy: [x as string[], 'desc'],
-    });
-  }
-
-  prepare(): Statement<Return> {
-    return new Statement<Return>(this.#context, this.#ast);
-  }
-}
-
-/*
-aggregate ops can take a key for the reduction to apply to?
-Non join result:
-[
-  {...row},
-]
-
-join result:
-[
-  {
-    id,
-    left: {...row},
-    right: {...row},
-  },
-]
-
-group-by application would need to know how to extract join
-details.
-*/

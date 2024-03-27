@@ -6,6 +6,7 @@ import {Replicache, TEST_LICENSE_KEY} from 'replicache';
 import {nanoid} from 'nanoid';
 import fc from 'fast-check';
 import {EntityQuery} from './query/entity-query.js';
+import {agg} from './query/agg.js';
 
 export async function tickAFewTimes(n = 10, time = 0) {
   for (let i = 0; i < n; i++) {
@@ -428,8 +429,11 @@ test('group by', async () => {
   ] as const;
   await Promise.all(issues.map(r.mutate.initIssue));
   await new Promise(resolve => setTimeout(resolve, 0));
-  let stmt = q.select('status').groupBy('status').count().prepare();
-  let rows = await stmt.exec();
+  const stmt = q
+    .select('status', agg.count('status', 'count'))
+    .groupBy('status')
+    .prepare();
+  const rows = await stmt.exec();
 
   expect(rows).toEqual([
     {status: 'open', count: 2},
@@ -438,23 +442,24 @@ test('group by', async () => {
 
   stmt.destroy();
 
-  stmt = q.select('status').groupBy('status').array('assignee').prepare();
-  rows = await stmt.exec();
+  const stmt2 = q
+    .select('status', agg.array('assignee'))
+    .groupBy('status')
+    .prepare();
+  const rows2 = await stmt2.exec();
 
-  expect(rows).toEqual([
+  expect(rows2).toEqual([
     {status: 'open', assignee: ['charles', 'bob']},
     {status: 'closed', assignee: ['alice']},
   ]);
 
-  stmt = q
-    .select('status')
+  const stmt3 = q
+    .select('status', agg.array('assignee'), agg.min('created'))
     .groupBy('status')
-    .array('assignee')
-    .min('created')
     .prepare();
-  rows = await stmt.exec();
+  const rows3 = await stmt3.exec();
 
-  expect(rows).toEqual([
+  expect(rows3).toEqual([
     {
       status: 'open',
       assignee: ['charles', 'bob'],
@@ -467,8 +472,12 @@ test('group by', async () => {
     },
   ]);
 
+  // TODO: aliased groupings
+
   await r.close();
 });
+
+test('sorted groupings', () => {});
 
 test('compound where', async () => {
   const {q, r} = setup();
@@ -521,8 +530,6 @@ test('limit', () => {});
 
 // To be implemented here: `asEntries` in `set-source.ts`
 test('after', () => {});
-
-test('sorted groupings', () => {});
 
 test('adding items late to a source materializes them in the correct order', () => {});
 test('disposing of a subscription causes us to no longer be called back', () => {});
