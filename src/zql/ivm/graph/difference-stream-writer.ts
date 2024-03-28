@@ -93,9 +93,9 @@ export class DifferenceStreamWriter<T> {
    * Notifies any observers that a transaction
    * has completed. Called immediately after transaction commit.
    */
-  notifyCommitted(v: Version) {
+  notifyCommitted(version: Version) {
     for (const r of this.#toNotify) {
-      r.notifyCommitted(v);
+      r.notifyCommitted(version);
     }
   }
 
@@ -141,7 +141,7 @@ export class DifferenceStreamWriter<T> {
 
   destroy() {
     this._downstreamReaders.length = 0;
-    // The root differnce stream will not have an upstream operator
+    // The root difference stream will not have an upstream operator
     this.#upstreamOperator?.destroy();
   }
 }
