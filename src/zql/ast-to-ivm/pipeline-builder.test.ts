@@ -15,10 +15,11 @@ const e1 = z.object({
 type E1 = z.infer<typeof e1>;
 
 const context = makeTestContext();
+const comparator = (l: E1, r: E1) => l.id.localeCompare(r.id);
 test('A simple select', () => {
   const q = new EntityQuery<{fields: E1}>(context, 'e1');
   const m = new Materialite();
-  let s = m.newStatelessSource<E1>();
+  let s = m.newSetSource<E1>(comparator);
   let pipeline = buildPipeline(
     () => s.stream,
     ast(q.select('id', 'a', 'b', 'c', 'd')),
@@ -38,7 +39,7 @@ test('A simple select', () => {
   s.add(expected[1]);
   expect(effectRunCount).toBe(2);
 
-  s = m.newStatelessSource();
+  s = m.newSetSource(comparator);
   pipeline = buildPipeline(() => s.stream, ast(q.select('a', 'd')));
   const expected2 = [
     {a: 1, d: true},
@@ -57,7 +58,7 @@ test('A simple select', () => {
 test('Count', () => {
   const q = new EntityQuery<{fields: E1}>(context, 'e1');
   const m = new Materialite();
-  const s = m.newStatelessSource<E1>();
+  const s = m.newSetSource<E1>(comparator);
   const pipeline = buildPipeline(() => s.stream, ast(q.count()));
 
   let effectRunCount = 0;
@@ -76,7 +77,7 @@ test('Count', () => {
 test('Where', () => {
   const q = new EntityQuery<{fields: E1}>(context, 'e1');
   const m = new Materialite();
-  const s = m.newStatelessSource<E1>();
+  const s = m.newSetSource<E1>(comparator);
   const pipeline = buildPipeline(
     () => s.stream,
     ast(q.select('id').where('a', '>', 1).where('b', '<', 2)),

@@ -20,7 +20,10 @@ export function makeTestContext(): Context {
   const sources = new Map<string, Source<unknown>>();
   const getSource = <T extends Entity>(name: string) => {
     if (!sources.has(name)) {
-      sources.set(name, materialite.newStatelessSource<T>());
+      sources.set(
+        name,
+        materialite.newSetSource<T>((l, r) => l.id.localeCompare(r.id)),
+      );
     }
     return sources.get(name)! as Source<T>;
   };
