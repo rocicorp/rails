@@ -1,4 +1,4 @@
-export type Entry<T> = readonly [T, Multiplicity];
+export type Entry<T> = readonly [value: T, multiplicity: Multiplicity];
 export type Multiplicity = number;
 
 /**

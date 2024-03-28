@@ -1,7 +1,7 @@
 import {expect, test} from 'vitest';
+import {Multiset} from '../../multiset.js';
 import {DifferenceStreamWriter} from '../difference-stream-writer.js';
 import {DifferenceEffectOperator} from './difference-effect-operator.js';
-import {Multiset} from '../../multiset.js';
 
 test('calls effect with raw difference events', () => {
   const inputWriter = new DifferenceStreamWriter<number>();
@@ -10,11 +10,11 @@ test('calls effect with raw difference events', () => {
 
   let called = false;
   let value = 0;
-  let mult = 0;
+  let multiplicity = 0;
   new DifferenceEffectOperator(inputReader, output, (v, m) => {
     called = true;
     value = v;
-    mult = m;
+    multiplicity = m;
   });
 
   inputWriter.queueData([1, new Multiset([[1, 1]])]);
@@ -26,11 +26,11 @@ test('calls effect with raw difference events', () => {
   inputWriter.notifyCommitted(1);
   expect(called).toBe(true);
   expect(value).toBe(1);
-  expect(mult).toBe(1);
+  expect(multiplicity).toBe(1);
 
   called = false;
   value = 0;
-  mult = 0;
+  multiplicity = 0;
   inputWriter.queueData([2, new Multiset([[1, -1]])]);
   inputWriter.notify(2);
 
@@ -40,5 +40,5 @@ test('calls effect with raw difference events', () => {
   inputWriter.notifyCommitted(2);
   expect(called).toBe(true);
   expect(value).toBe(1);
-  expect(mult).toBe(-1);
+  expect(multiplicity).toBe(-1);
 });
