@@ -76,11 +76,3 @@ export type SimpleCondition =
     //   value: AST;
     // };
   };
-
-//  | {
-//   type: 'ref';
-//   value: Ref;
-// } | {
-//   type: 'query';
-//   value: AST;
-// };

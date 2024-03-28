@@ -7,7 +7,10 @@ export interface Source<T> {
   readonly stream: DifferenceStream<T>;
   add(value: T): this;
   delete(value: T): this;
-  processMessage(message: Request, downstream: DifferenceStreamReader<T>): void;
+  processMessage(
+    message: Request,
+    fromDownstream: DifferenceStreamReader<T>,
+  ): void;
   seed(values: Iterable<T>): this;
 }
 

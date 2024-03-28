@@ -1,2 +1,0 @@
-- aliasable select
-- encode fully qualified field into ast for select, group-by, join, where, etc.

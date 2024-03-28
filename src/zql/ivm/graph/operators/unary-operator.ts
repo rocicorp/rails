@@ -4,6 +4,9 @@ import {DifferenceStreamWriter} from '../difference-stream-writer.js';
 import {OperatorBase} from './operator.js';
 import {QueueEntry} from '../queue.js';
 
+/**
+ * Operator that only takes a single argument
+ */
 export class UnaryOperator<I, O> extends OperatorBase<O> {
   constructor(
     input: DifferenceStreamReader<I>,
