@@ -22,7 +22,7 @@ export function makeReplicacheContext(rep: ReplicacheLike): Context {
 }
 
 /**
- * Forwards Replicache changes to Materialite sources so they
+ * Forwards Replicache changes to ZQL sources so they
  * can be fed into any queries that may exist.
  *
  * Maintains derived orderings of sources as well.
@@ -61,7 +61,7 @@ class ReplicacheSourceStore {
 
 class ReplicacheSource {
   readonly #materialite;
-  readonly #sources: Map<string, Source<Entity>> = new Map();
+  readonly #sorts: Map<string, Source<Entity>> = new Map();
   readonly #canonicalSource: MutableSetSource<Entity>;
   #receivedFirstDiff = false;
 
@@ -77,9 +77,10 @@ class ReplicacheSource {
 
   #onReplicacheDiff = (changes: ExperimentalNoIndexDiff) => {
     // The first diff is the set of initial values
-    // to seed the source. We don't process these
-    // through the dataflow graph.
-    // Views will explicitly request historical data as needed.
+    // to seed the source. We call `seed`, rather than add,
+    // to process these. `seed` will only send to changes
+    // to views that have explicitly requested history whereas `add` will
+    // send them to everyone as if they were changes happening _now_.
     if (this.#receivedFirstDiff === false) {
       this.#canonicalSource.seed(
         mapIter(changes, diff => {
@@ -87,7 +88,7 @@ class ReplicacheSource {
           return diff.newValue as Entity;
         }),
       );
-      for (const derived of this.#sources.values()) {
+      for (const derived of this.#sorts.values()) {
         derived.seed(
           mapIter(changes, diff => {
             assert(diff.op === 'add');
@@ -101,24 +102,16 @@ class ReplicacheSource {
     this.#materialite.tx(() => {
       for (const diff of changes) {
         if (diff.op === 'del' || diff.op === 'change') {
-          // This lookup of old was due to seeing `oldValue` values that did not match
-          // what was stored on the client when working on Repliear.
-          // `oldValue` not matching what is on the client is problematic
-          // if there are derived sources with orderings that depend on fields outside the id.
-          // E.g.,
-          // If a derived source is sorted by `modified_time`
-          // and the `oldValue` provided has a different `modified_time` we'll fail to remove
-          // the correct value from the derived source.
           const old = this.#canonicalSource.get(diff.oldValue as Entity);
           assert(old, 'oldValue not found in canonical source');
           this.#canonicalSource.delete(old);
-          for (const derived of this.#sources.values()) {
+          for (const derived of this.#sorts.values()) {
             derived.delete(old);
           }
         }
         if (diff.op === 'add' || diff.op === 'change') {
           this.#canonicalSource.add(diff.newValue as Entity);
-          for (const derived of this.#sources.values()) {
+          for (const derived of this.#sorts.values()) {
             derived.add(diff.newValue as Entity);
           }
         }
@@ -138,11 +131,11 @@ class ReplicacheSource {
     const [keys] = ordering;
     // We do _not_ use the direction to derive a soure. We can iterate backwards for DESC.
     const key = keys.join(',');
-    let derivation = this.#sources.get(key);
+    let derivation = this.#sorts.get(key);
     if (derivation === undefined) {
       const comparator = makeComparator(keys);
       derivation = this.#canonicalSource.withNewOrdering(comparator);
-      this.#sources.set(key, derivation);
+      this.#sorts.set(key, derivation);
     }
 
     return derivation;

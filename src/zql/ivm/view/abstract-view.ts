@@ -65,7 +65,6 @@ export abstract class AbstractView<T, CT> implements View<CT> {
     for (const listener of this.#listeners) {
       listener(d, v);
     }
-    // TODO: we have to notify our derivations too.
   }
 
   on(listener: (s: CT, v: Version) => void) {

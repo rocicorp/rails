@@ -14,9 +14,6 @@ type Node<T> = {
 
 /**
  * Queue between operators in the graph.
- *
- * Methods left out of the current iteration:
- * - prepareForRecompute (for re-fetching data along shared edges of the graph)
  */
 export class Queue<T> {
   #lastSeenVersion = -1;

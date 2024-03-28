@@ -1,4 +1,3 @@
-import {PersistentTreap} from '@vlcn.io/ds-and-algos/PersistentTreap';
 import {Treap} from '@vlcn.io/ds-and-algos/Treap';
 import {Comparator, ITree} from '@vlcn.io/ds-and-algos/types';
 import {DifferenceStream} from '../graph/difference-stream.js';
@@ -19,7 +18,7 @@ import {createPullMessage} from '../graph/message.js';
  * of the tree.
  */
 let id = 0;
-class AbstractTreeView<T> extends AbstractView<T, T[]> {
+export class MutableTreeView<T> extends AbstractView<T, T[]> {
   #data: ITree<T>;
 
   #jsSlice: T[] = [];
@@ -35,14 +34,13 @@ class AbstractTreeView<T> extends AbstractView<T, T[]> {
     materialite: Materialite,
     stream: DifferenceStream<T>,
     comparator: Comparator<T>,
-    tree: ITree<T>,
     order: Ordering | undefined,
     limit?: number | undefined,
     name: string = '',
   ) {
     super(materialite, stream, name);
     this.#limit = limit;
-    this.#data = tree;
+    this.#data = new Treap(comparator);
     this.#comparator = comparator;
     this.#order = order;
     if (limit !== undefined) {
@@ -226,76 +224,3 @@ function removeAll<T>(data: ITree<T>, value: T) {
   // A treap can't have dupes so we can ignore `mult`
   return data.delete(value);
 }
-
-export class PersistentTreeView<T> extends AbstractTreeView<T> {
-  constructor(
-    materialite: Materialite,
-    stream: DifferenceStream<T>,
-    comparator: Comparator<T>,
-    order: Ordering,
-    limit?: number,
-    name: string = '',
-  ) {
-    super(
-      materialite,
-      stream,
-      comparator,
-      new PersistentTreap(comparator),
-      order,
-      limit,
-      name,
-    );
-  }
-}
-
-export class MutableTreeView<T> extends AbstractTreeView<T> {
-  constructor(
-    materialite: Materialite,
-    stream: DifferenceStream<T>,
-    comparator: Comparator<T>,
-    // TODO: type `ordering` so it has a relationship
-    // to `Commparator`
-    order: Ordering | undefined,
-    limit?: number | undefined,
-    name: string = '',
-  ) {
-    super(
-      materialite,
-      stream,
-      comparator,
-      new Treap(comparator),
-      order,
-      limit,
-      name,
-    );
-  }
-}
-
-/**
- * Limited add algorithm:
- *
- * 1. Under limit? Add the thing. Set min and max appropriately.
- * 2. At limit? Only add if less than max. Kick out max. Update max. Update min if needed.
- * 3. Can always _move down_ can never _move up_
- *
- * Removals?
- * 1. Outside min,max window? not present, no removal
- * 2. In window, remove. Update min/max if value we min or max.
- * 3. Under size limit post removal? Ask source for more data.
- *
- * Ask for more data:
- * 1. The view has the least thing
- * 2. And all contiguous least things up till max
- * 3. So we only need to request >= max.
- *
- * ^-- we can ignore the "ask for more data"
- *   - Instead, have the view (1) over-fetch and (2) have a reference to its statement. If
- *    it fulfills limit on first fetch, we then know if we ever fall under limit we can ask for more data.
- *    To ask for more data we ask our statement to re-materialize us and re-run all the things from scratch.
- *    This is a simple first pass solution.
- *
- * Hmm.. Enforce a constraint in the system that all comparators must take primary key into account?
- * That all entries are unique?
- *
- * How about that array problem? Array of numbers problem. They're non-unique and we need to deal with that.
- */
