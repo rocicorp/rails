@@ -17,8 +17,8 @@ export function buildPipeline(
   ast: AST,
 ) {
   // filters first
-  // maps second
-  // order is a param to materialization
+  // select last
+  // order is a param to the source or view
   // as well as limit? How does limit work in materialite again?
   let stream = sourceStreamProvider(
     must(ast.table, 'Table not specified in the AST'),
@@ -119,6 +119,7 @@ function applyWhere(stream: DifferenceStream<Entity>, where: Condition) {
   //        |
   //
   // So `ORs` cause a fork (two branches that need to be evaluated) and then that fork is combined.
+
   if (where.op === 'AND') {
     for (const condition of where.conditions) {
       ret = applyWhere(ret, condition);
@@ -257,7 +258,7 @@ function getOperator(op: SimpleOperator): (l: any, r: any) => boolean {
     case 'LIKE':
       return (l, r) => l.includes(r);
     case 'ILIKE':
-      return (l, r) => l.toLowerCase().includes(r.toLocaleLowerCase());
+      return (l, r) => l.toLowerCase().includes(r.toLowerCase());
     default:
       throw new Error(`Operator ${op} not supported`);
   }

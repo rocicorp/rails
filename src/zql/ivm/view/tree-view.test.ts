@@ -16,7 +16,7 @@ type Entity = {
 type Selected = {id: string; [orderingProp]: Primitive[]};
 test('asc and descComparator on Entities', () => {
   const m = new Materialite();
-  const s = m.newStatelessSource<Entity>();
+  const s = m.newSetSource<Entity>((l, r) => l.id.localeCompare(r.id));
 
   const updatedStream = applySelect(
     s.stream,
@@ -57,7 +57,7 @@ test('add & remove', () => {
   fc.assert(
     fc.property(fc.uniqueArray(fc.integer()), arr => {
       const m = new Materialite();
-      const source = m.newStatelessSource<number>();
+      const source = m.newSetSource<number>((l, r) => l - r);
       const view = new MutableTreeView(
         m,
         source.stream,
@@ -82,7 +82,7 @@ test('replace', () => {
   fc.assert(
     fc.property(fc.uniqueArray(fc.integer()), arr => {
       const m = new Materialite();
-      const source = m.newStatelessSource<number>();
+      const source = m.newSetSource<number>((l, r) => l - r);
       const view = new MutableTreeView(m, source.stream, numberComparator, [
         ['id'],
         'asc',
