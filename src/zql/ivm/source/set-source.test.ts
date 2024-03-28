@@ -2,16 +2,21 @@ import {expect, test} from 'vitest';
 import {Materialite} from '../materialite.js';
 import fc from 'fast-check';
 
+type E = {id: number};
+
+const comparator = (l: E, r: E) => l.id - r.id;
 const numberComparator = (l: number, r: number) => l - r;
 
 test('add', () => {
   fc.assert(
     fc.property(fc.uniqueArray(fc.integer()), arr => {
       const m = new Materialite();
-      const source = m.newSetSource(numberComparator);
+      const source = m.newSetSource(comparator);
 
-      arr.forEach(x => source.add(x));
-      expect([...source.value]).toEqual(arr.sort(numberComparator));
+      arr.forEach(x => source.add({id: x}));
+      expect([...source.value]).toEqual(
+        arr.sort(numberComparator).map(x => ({id: x})),
+      );
     }),
   );
 });
@@ -20,10 +25,10 @@ test('delete', () => {
   fc.assert(
     fc.property(fc.uniqueArray(fc.integer()), arr => {
       const m = new Materialite();
-      const source = m.newSetSource(numberComparator);
+      const source = m.newSetSource(comparator);
 
-      arr.forEach(x => source.add(x));
-      arr.forEach(x => source.delete(x));
+      arr.forEach(x => source.add({id: x}));
+      arr.forEach(x => source.delete({id: x}));
       expect([...source.value]).toEqual([]);
     }),
   );
@@ -31,19 +36,19 @@ test('delete', () => {
 
 test('on', () => {
   const m = new Materialite();
-  const source = m.newSetSource(numberComparator);
+  const source = m.newSetSource(comparator);
 
   let callCount = 0;
   const dispose = source.on(value => {
     expect(value).toEqual(source.value);
     ++callCount;
 
-    expect([...value]).toEqual([2]);
+    expect([...value]).toEqual([{id: 1}, {id: 2}]);
   });
   m.tx(() => {
-    source.add(1);
-    source.add(2);
-    source.delete(1);
+    source.add({id: 1});
+    source.add({id: 2});
+    source.delete({id: 3});
   });
 
   // only called at the end of a transaction.
@@ -52,7 +57,7 @@ test('on', () => {
   dispose();
 
   m.tx(() => {
-    source.add(3);
+    source.add({id: 3});
   });
 
   // not notified if the listener is removed
@@ -64,25 +69,25 @@ test('on', () => {
 
 test('replace', () => {
   fc.assert(
-    fc.property(fc.uniqueArray(fc.integer()), arr => {
+    fc.property(fc.uniqueArray(fc.integer()), (arr): void => {
       const m = new Materialite();
-      const source = m.newSetSource(numberComparator);
+      const source = m.newSetSource(comparator);
 
       m.tx(() => {
-        arr.forEach(x => source.add(x));
+        arr.forEach(id => source.add({id}));
       });
 
       m.tx(() => {
-        arr.forEach(x => {
+        arr.forEach(id => {
           // We have special affordances for deletes immediately followed by adds
           // As those are really replaces.
           // Check that the source handles this correctly.
-          source.delete(x);
-          source.add(x);
+          source.delete({id});
+          source.add({id});
         });
       });
 
-      expect([...source.value]).toEqual(arr.sort(numberComparator));
+      expect([...source.value]).toEqual(arr.map(id => ({id})).sort(comparator));
     }),
   );
 });
@@ -90,11 +95,11 @@ test('replace', () => {
 // the pending items are not included in the next tx
 test('rollback', () => {
   const m = new Materialite();
-  const source = m.newSetSource(numberComparator);
+  const source = m.newSetSource(comparator);
 
   try {
     m.tx(() => {
-      source.add(1);
+      source.add({id: 1});
       throw new Error('rollback');
     });
   } catch (e) {
@@ -103,21 +108,21 @@ test('rollback', () => {
 
   expect([...source.value]).toEqual([]);
 
-  source.add(2);
-  expect([...source.value]).toEqual([2]);
+  source.add({id: 2});
+  expect([...source.value]).toEqual([{id: 2}]);
 });
 
 test('withNewOrdering - we do not update the derived thing / withNewOrdering is not tied to the original. User must do that.', () => {
   const m = new Materialite();
-  const source = m.newSetSource(numberComparator);
-  const derived = source.withNewOrdering((l, r) => r - l);
+  const source = m.newSetSource(comparator);
+  const derived = source.withNewOrdering((l, r) => r.id - l.id);
 
   m.tx(() => {
-    source.add(1);
-    source.add(2);
+    source.add({id: 1});
+    source.add({id: 2});
   });
 
-  expect([...source.value]).toEqual([1, 2]);
+  expect([...source.value]).toEqual([{id: 1}, {id: 2}]);
   expect([...derived.value]).toEqual([]);
 });
 
@@ -125,18 +130,20 @@ test('withNewOrdering - is correctly ordered', () => {
   const m = new Materialite();
 
   fc.assert(
-    fc.property(fc.uniqueArray(fc.integer()), arr => {
-      const source = m.newSetSource(numberComparator);
-      const derived = source.withNewOrdering((l, r) => r - l);
+    fc.property(fc.uniqueArray(fc.integer()), (arr): void => {
+      const source = m.newSetSource(comparator);
+      const derived = source.withNewOrdering((l, r) => r.id - l.id);
       m.tx(() => {
-        arr.forEach(x => {
-          source.add(x);
-          derived.add(x);
+        arr.forEach(id => {
+          source.add({id});
+          derived.add({id});
         });
       });
 
-      expect([...source.value]).toEqual(arr.sort(numberComparator));
-      expect([...derived.value]).toEqual(arr.sort((l, r) => r - l));
+      expect([...source.value]).toEqual(arr.map(id => ({id})).sort(comparator));
+      expect([...derived.value]).toEqual(
+        arr.sort((l, r) => r - l).map(id => ({id})),
+      );
     }),
   );
 });

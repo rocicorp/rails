@@ -4,7 +4,7 @@ import {Version} from '../types.js';
 import {View} from './view.js';
 import {assert} from '../../error/asserts.js';
 
-export abstract class AbstractView<T, CT> implements View<CT> {
+export abstract class AbstractView<T extends object, CT> implements View<CT> {
   readonly #stream;
   protected readonly _materialite: Materialite;
   protected readonly _reader;

@@ -18,7 +18,7 @@ import {createPullMessage} from '../graph/message.js';
  * of the tree.
  */
 let id = 0;
-export class MutableTreeView<T> extends AbstractView<T, T[]> {
+export class MutableTreeView<T extends object> extends AbstractView<T, T[]> {
   #data: ITree<T>;
 
   #jsSlice: T[] = [];

@@ -1,7 +1,6 @@
 import {expect, expectTypeOf, test} from 'vitest';
 import {z} from 'zod';
 import {makeTestContext} from '../context/context.js';
-import {Misuse} from '../error/misuse.js';
 import {EntityQuery, astForTesting as ast} from './entity-query.js';
 import * as agg from './agg.js';
 
@@ -45,7 +44,7 @@ test('query types', () => {
   q.where('id', '=', 1);
 
   expectTypeOf(q.select(agg.count()).prepare().exec()).toMatchTypeOf<
-    Promise<number>
+    Promise<readonly {readonly count: number}[]>
   >();
 
   // @ts-expect-error - Argument of type 'unique symbol' is not assignable to parameter of type '"id" | "str" | "optStr"'.ts(2345)

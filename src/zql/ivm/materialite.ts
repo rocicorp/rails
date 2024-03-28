@@ -33,7 +33,7 @@ export class Materialite {
     };
   }
 
-  newSetSource<T>(comparator: Comparator<T>) {
+  newSetSource<T extends object>(comparator: Comparator<T>) {
     return new MutableSetSource<T>(this.#internal, comparator);
   }
 

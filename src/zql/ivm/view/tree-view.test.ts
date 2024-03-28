@@ -57,21 +57,21 @@ test('add & remove', () => {
   fc.assert(
     fc.property(fc.uniqueArray(fc.integer()), arr => {
       const m = new Materialite();
-      const source = m.newSetSource<number>((l, r) => l - r);
+      const source = m.newSetSource<{x: number}>((l, r) => l.x - r.x);
       const view = new MutableTreeView(
         m,
         source.stream,
-        numberComparator,
+        (l, r) => l.x - r.x,
         undefined,
       );
 
       m.tx(() => {
-        arr.forEach(x => source.add(x));
+        arr.forEach(x => source.add({x}));
       });
-      expect(view.value).toEqual(arr.sort(numberComparator));
+      expect(view.value).toEqual(arr.sort(numberComparator).map(x => ({x})));
 
       m.tx(() => {
-        arr.forEach(x => source.delete(x));
+        arr.forEach(x => source.delete({x}));
       });
       expect(view.value).toEqual([]);
     }),
@@ -82,29 +82,29 @@ test('replace', () => {
   fc.assert(
     fc.property(fc.uniqueArray(fc.integer()), arr => {
       const m = new Materialite();
-      const source = m.newSetSource<number>((l, r) => l - r);
-      const view = new MutableTreeView(m, source.stream, numberComparator, [
+      const source = m.newSetSource<{x: number}>((l, r) => l.x - r.x);
+      const view = new MutableTreeView(m, source.stream, (l, r) => l.x - r.x, [
         ['id'],
         'asc',
       ]);
 
       m.tx(() => {
-        arr.forEach(x => source.add(x));
+        arr.forEach(x => source.add({x}));
       });
-      expect(view.value).toEqual(arr.sort(numberComparator));
+      expect(view.value).toEqual(arr.sort(numberComparator).map(x => ({x})));
       m.tx(() => {
         arr.forEach(x => {
           // We have special affordances for deletes immediately followed by adds
           // As those are really replaces / updates.
           // Check that the source handles this correctly.
-          source.delete(x);
-          source.add(x);
+          source.delete({x});
+          source.add({x});
         });
       });
-      expect(view.value).toEqual(arr.sort(numberComparator));
+      expect(view.value).toEqual(arr.sort(numberComparator).map(x => ({x})));
 
       m.tx(() => {
-        arr.forEach(x => source.delete(x));
+        arr.forEach(x => source.delete({x}));
       });
       expect(view.value).toEqual([]);
     }),

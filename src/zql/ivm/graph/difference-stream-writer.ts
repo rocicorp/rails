@@ -146,9 +146,11 @@ export class DifferenceStreamWriter<T> {
   }
 }
 
-export class RootDifferenceStreamWriter<T> extends DifferenceStreamWriter<T> {
+export class RootDifferenceStreamWriter<
+  T extends object,
+> extends DifferenceStreamWriter<T> {
   readonly #source;
-  constructor(source: Source<unknown>) {
+  constructor(source: Source<object>) {
     super();
     this.#source = source;
   }

@@ -12,7 +12,7 @@ export type Primitive = string | number | boolean | null;
 // to do things not available in the query language itself.
 export type Aggregate = 'sum' | 'avg' | 'min' | 'max' | 'array' | 'count';
 export type Aggregation = {
-  readonly field: string;
+  readonly field?: string | undefined;
   readonly alias: string;
   readonly aggregate: Aggregate;
 };

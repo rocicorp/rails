@@ -7,7 +7,7 @@ export type Aggregate<Field extends string, Alias extends string> =
   | Min<Field, Alias>
   | Max<Field, Alias>
   | Sum<Field, Alias>
-  | Count<Field, Alias>
+  | Count<Alias>
   | Avg<Field, Alias>
   | AggArray<Field, Alias>;
 
@@ -27,9 +27,11 @@ type Avg<Field extends string, Alias extends string> = {
   aggregate: 'avg';
 } & AggregateBase<Field, Alias>;
 
-export type Count<Field extends string, Alias extends string> = {
+export type Count<Alias extends string> = {
   aggregate: 'count';
-} & AggregateBase<Field, Alias>;
+} & {
+  alias: Alias;
+};
 
 export type AggArray<Field extends string, Alias extends string> = {
   aggregate: 'array';
@@ -83,20 +85,14 @@ export function sum<Field extends string, Alias extends string>(
   };
 }
 
-export function count(): Count<'id', 'count'>;
-export function count<Field extends string>(field: Field): Count<Field, Field>;
-export function count<Field extends string, Alias extends string>(
-  field: Field,
-  alias: Alias,
-): Count<Field, Alias>;
-export function count<Field extends string, Alias extends string>(
-  field?: Field | undefined,
+export function count(): Count<'count'>;
+export function count<Alias extends string>(alias: Alias): Count<Alias>;
+export function count<Alias extends string>(
   alias?: Alias | undefined,
-): Count<Field, Alias> {
+): Count<Alias> {
   return {
     aggregate: 'count',
-    field: field ?? ('id' as Field),
-    alias: alias ?? (field as unknown as Alias),
+    alias: alias ?? ('count' as Alias),
   };
 }
 

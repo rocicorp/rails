@@ -19,7 +19,7 @@ import {DifferenceStreamReader} from '../graph/difference-stream-reader.js';
  * exists to be able to receive historical data.
  *
  */
-export abstract class SetSource<T> implements Source<T> {
+export abstract class SetSource<T extends object> implements Source<T> {
   #stream: DifferenceStream<T>;
   readonly #internal: SourceInternal;
   protected readonly _materialite: MaterialiteForSourceInternal;
@@ -199,7 +199,7 @@ export abstract class SetSource<T> implements Source<T> {
   }
 }
 
-export class MutableSetSource<T> extends SetSource<T> {
+export class MutableSetSource<T extends object> extends SetSource<T> {
   constructor(
     materialite: MaterialiteForSourceInternal,
     comparator: Comparator<T>,

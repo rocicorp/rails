@@ -64,10 +64,18 @@ test('Count', () => {
   const pipeline = buildPipeline(() => s.stream, ast(q.select(agg.count())));
 
   let effectRunCount = 0;
-  pipeline.effect(x => {
-    expect(x).toBe(expected[effectRunCount++]);
+  pipeline.effect((x, mult) => {
+    if (mult > 0) {
+      expect(x).toEqual(expected[effectRunCount++]);
+    }
   });
-  const expected = [1, 2, 1, 0];
+  const expected = [1, 2, 1, 0].map(x => ({
+    a: 1,
+    b: 1,
+    count: x,
+    d: false,
+    id: '1',
+  }));
 
   s.add({id: '1', a: 1, b: 1, d: false});
   s.add({id: '2', a: 1, b: 1, d: false});

@@ -428,10 +428,7 @@ test('group by', async () => {
     },
   ] as const;
   await Promise.all(issues.map(r.mutate.initIssue));
-  const stmt = q
-    .select('status', agg.count('status', 'count'))
-    .groupBy('status')
-    .prepare();
+  const stmt = q.select('status', agg.count()).groupBy('status').prepare();
   const rows = await stmt.exec();
 
   expect(rows).toEqual([
