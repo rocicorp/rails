@@ -53,12 +53,11 @@ export class ReduceOperator<
     const inner = (version: Version) => {
       const keysToProcess = new Set<K>();
       const ret: Entry<O>[] = [];
-      for (const entry of this.inputMessages(version)) {
-        for (const [value, mult] of entry[1].entries) {
-          const key = getGroupKey(value);
-          keysToProcess.add(key);
-          this.#addToIndex(key, value, mult);
-        }
+      const entry = this.inputMessages(version);
+      for (const [value, mult] of entry[1].entries) {
+        const key = getGroupKey(value);
+        keysToProcess.add(key);
+        this.#addToIndex(key, value, mult);
       }
 
       for (const k of keysToProcess) {

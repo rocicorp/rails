@@ -32,7 +32,7 @@ export class DifferenceStreamWriter<T> {
   protected readonly _downstreamReaders: DifferenceStreamReader<T>[] = [];
 
   readonly #pendingRecipients = new Map<number, DifferenceStreamReader<T>>();
-  readonly #toNotify: DifferenceStreamReader<T>[] = [];
+  readonly #toNotify: Set<DifferenceStreamReader<T>> = new Set();
 
   setOperator(operator: Operator) {
     invariant(this.#upstreamOperator === null, 'Operator already set!');
@@ -53,7 +53,7 @@ export class DifferenceStreamWriter<T> {
    * 3. then notify its downstream(s)
    */
   queueData(data: QueueEntry<T>) {
-    this.#toNotify.length = 0;
+    this.#toNotify.clear();
     const msg = data[2];
     if (msg) {
       // only go down the path from which the message came.
@@ -64,11 +64,11 @@ export class DifferenceStreamWriter<T> {
       );
       this.#pendingRecipients.delete(msg.replyingTo);
       recipient.enqueue(data);
-      this.#toNotify.push(recipient);
+      this.#toNotify.add(recipient);
     } else {
       for (const r of this._downstreamReaders) {
         r.enqueue(data);
-        this.#toNotify.push(r);
+        this.#toNotify.add(r);
       }
     }
   }

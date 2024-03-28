@@ -4,8 +4,9 @@ import {Version} from '../types.js';
 import {DifferenceStreamWriter} from './difference-stream-writer.js';
 import {Request} from './message.js';
 import {Operator} from './operators/operator.js';
-import {Queue, QueueEntry} from './queue.js';
+import {QueueEntry} from './queue.js';
 
+let id = 0;
 /**
  * Represents the input to an operator.
  *
@@ -21,10 +22,11 @@ import {Queue, QueueEntry} from './queue.js';
  *  o  o  o
  */
 export class DifferenceStreamReader<T = unknown> {
-  protected readonly _queue = new Queue<T>();
+  protected _pending: QueueEntry<T> | undefined = undefined;
   readonly #upstreamWriter;
   #downstreamOperator: Operator | null = null;
   #lastSeenVersion: Version = -1;
+  readonly id = ++id;
 
   constructor(upstream: DifferenceStreamWriter<T>) {
     this.#upstreamWriter = upstream;
@@ -36,7 +38,11 @@ export class DifferenceStreamReader<T = unknown> {
   }
 
   enqueue(data: QueueEntry<T>) {
-    this._queue.enqueue(data);
+    invariant(
+      this._pending === undefined,
+      'queue should be flushed between transactions. id: ' + this.id,
+    );
+    this._pending = data;
   }
 
   run(v: Version) {
@@ -62,28 +68,25 @@ export class DifferenceStreamReader<T = unknown> {
   }
 
   drain(version: Version) {
-    const ret: QueueEntry<T>[] = [];
-    for (;;) {
-      const data = this._queue.peek();
-      if (data === null) {
-        break;
-      }
-      if (data[0] > version) {
-        break;
-      }
-      ret.push(data);
-      this._queue.dequeue();
+    if (this._pending === undefined) {
+      return;
     }
+    if (this._pending[0] > version) {
+      return;
+    }
+    invariant(this._pending[0] === version, 'unexpected version in queue');
+    const ret = this._pending;
+    this._pending = undefined;
     return ret;
   }
 
   isEmpty() {
-    return this._queue.isEmpty();
+    return this._pending === undefined;
   }
 
   destroy() {
     this.#upstreamWriter.removeReaderAndMaybeDestroy(this);
-    this._queue.clear();
+    this._pending = undefined;
   }
 
   messageUpstream(message: Request) {
@@ -95,8 +98,8 @@ export class DifferenceStreamReaderFromRoot<
   T,
 > extends DifferenceStreamReader<T> {
   drain(version: Version) {
-    if (this._queue.isEmpty()) {
-      return [[version, new Multiset<T>([])]] as QueueEntry<T>[];
+    if (this._pending === undefined) {
+      return [version, new Multiset<T>([])] as QueueEntry<T>;
     }
     return super.drain(version);
   }

@@ -15,10 +15,9 @@ export class DebugOperator<T> extends UnaryOperator<T, T> {
     onMessage: (c: QueueEntry<T>) => void,
   ) {
     const inner = (version: Version) => {
-      for (const entry of this.inputMessages(version)) {
-        onMessage(entry);
-        this._output.queueData(entry);
-      }
+      const entry = this.inputMessages(version);
+      onMessage(entry);
+      this._output.queueData(entry);
     };
     super(input, output, inner);
   }
