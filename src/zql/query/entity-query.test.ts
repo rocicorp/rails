@@ -3,7 +3,7 @@ import {z} from 'zod';
 import {makeTestContext} from '../context/context.js';
 import {Misuse} from '../error/misuse.js';
 import {EntityQuery, astForTesting as ast} from './entity-query.js';
-import {agg} from './agg.js';
+import * as agg from './agg.js';
 
 const context = makeTestContext();
 test('query types', () => {
@@ -53,14 +53,18 @@ test('query types', () => {
   q.where(sym, '==', true);
 
   // @ts-expect-error - 'x' is not a field that we can aggregate on
-  q.select(agg.array('x'));
-
-  expectTypeOf(q.select('id', agg.array('str')).prepare().exec()).toMatchTypeOf<
-    Promise<readonly {id: string; str: readonly string[]}[]>
-  >();
+  q.select(agg.array('x')).groupBy('id');
 
   expectTypeOf(
-    q.select('id', agg.array('str', 'alias')).prepare().exec(),
+    q.select('id', agg.array('str')).groupBy('optStr').prepare().exec(),
+  ).toMatchTypeOf<Promise<readonly {id: string; str: readonly string[]}[]>>();
+
+  expectTypeOf(
+    q
+      .select('id', agg.array('str', 'alias'))
+      .groupBy('optStr')
+      .prepare()
+      .exec(),
   ).toMatchTypeOf<Promise<readonly {id: string; alias: readonly string[]}[]>>();
 });
 

@@ -64,7 +64,7 @@ export function applySelect(
   orderBy: Ordering | undefined,
 ) {
   return stream.map(x => {
-    let ret: Partial<Record<string, unknown>>;
+    let ret: Record<string, unknown>;
     if (select.length === 0) {
       ret = {...x};
     } else {

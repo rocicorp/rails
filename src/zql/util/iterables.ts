@@ -8,6 +8,12 @@ export function* mapIter<T, U>(
   }
 }
 
+/**
+ * Flat maps the items returned from the iterable.
+ *
+ * `iter` is a lambda that returns an iterable
+ * so this function can return an `IterableIterator`
+ */
 export function flatMapIter<T, U>(
   iter: () => Iterable<T>,
   f: (t: T, index: number) => Iterable<U>,

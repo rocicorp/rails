@@ -10,7 +10,7 @@ import {Context} from '../context/context.js';
 import {must} from '../error/asserts.js';
 import {Misuse} from '../error/misuse.js';
 import {EntitySchema} from '../schema/entity-schema.js';
-import {AggArray, Aggregate, Count} from './agg.js';
+import {AggArray, Aggregate, Count, isAggregate} from './agg.js';
 import {Statement} from './statement.js';
 
 type FieldValue<
@@ -18,10 +18,7 @@ type FieldValue<
   K extends Selectable<S>,
 > = S['fields'][K] extends Primitive | undefined ? S['fields'][K] : never;
 
-type AggregateValue<
-  S extends EntitySchema,
-  K extends Aggregate<AsString<keyof S['fields']>, string>,
-> =
+type AggregateValue<S extends EntitySchema, K extends Aggregable<S>> =
   K extends Count<string, string>
     ? number
     : K extends AggArray<string, string>
@@ -38,7 +35,7 @@ export type SelectedFields<
 
 type SelectedAggregates<
   S extends EntitySchema,
-  Aggregates extends Aggregate<AsString<keyof S['fields']>, string>[],
+  Aggregates extends Aggregable<S>[],
 > = {
   [K in Aggregates[number]['alias']]: AggregateValue<
     S,
@@ -52,14 +49,19 @@ export type Selectable<S extends EntitySchema> =
   | AsString<keyof S['fields']>
   | 'id';
 
+type Aggregable<S extends EntitySchema> = Aggregate<
+  AsString<keyof S['fields']>,
+  string
+>;
+
 type ToSelectableOnly<T, S extends EntitySchema> = T extends (infer U)[]
   ? U extends Selectable<S>
     ? U[]
     : never
   : never;
 
-type ToAggrableOnly<T, S extends EntitySchema> = T extends (infer U)[]
-  ? U extends Aggregate<AsString<keyof S['fields']>, string>
+type ToAggregableOnly<T, S extends EntitySchema> = T extends (infer U)[]
+  ? U extends Aggregable<S>
     ? U[]
     : never
   : never;
@@ -96,12 +98,7 @@ export class EntityQuery<S extends EntitySchema, Return = []> {
     astWeakMap.set(this, this.#ast);
   }
 
-  select<
-    Fields extends (
-      | Selectable<S>
-      | Aggregate<AsString<keyof S['fields']>, string>
-    )[],
-  >(...x: Fields) {
+  select<Fields extends (Selectable<S> | Aggregable<S>)[]>(...x: Fields) {
     // TODO: we should drop the explicit `count` API and use `agg.count` instead
     if (this.#ast.select === 'count') {
       throw new Misuse(
@@ -111,7 +108,7 @@ export class EntityQuery<S extends EntitySchema, Return = []> {
     const select = new Set(this.#ast.select);
     const aggregate: Aggregation[] = [];
     for (const more of x) {
-      if (typeof more !== 'object') {
+      if (!isAggregate(more)) {
         select.add(more);
         continue;
       }
@@ -121,7 +118,7 @@ export class EntityQuery<S extends EntitySchema, Return = []> {
     return new EntityQuery<
       S,
       (SelectedFields<S, ToSelectableOnly<Fields, S>> &
-        SelectedAggregates<S, ToAggrableOnly<Fields, S>>)[]
+        SelectedAggregates<S, ToAggregableOnly<Fields, S>>)[]
     >(this.#context, this.#name, {
       ...this.#ast,
       select: [...select],
@@ -129,7 +126,7 @@ export class EntityQuery<S extends EntitySchema, Return = []> {
     });
   }
 
-  groupBy<K extends keyof S['fields']>(...x: K[]) {
+  groupBy<K extends Selectable<S>>(...x: K[]) {
     return new EntityQuery<S, Return>(this.#context, this.#name, {
       ...this.#ast,
       groupBy: x as string[],
