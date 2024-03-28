@@ -170,9 +170,7 @@ test('collects all things with the same key', () => {
   function check(expected: [Reduction, number][]) {
     inputWriter.notify(1);
     inputWriter.notifyCommitted(1);
-    const items = outReader.drain(1);
-    expect(items.length).toBe(1);
-    const entry = items[0];
-    expect([...entry[1].entries]).toEqual(expected);
+    const entry = outReader.drain(1);
+    expect([...entry![1].entries]).toEqual(expected);
   }
 });

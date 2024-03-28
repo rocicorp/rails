@@ -17,6 +17,6 @@ export class UnaryOperator<I, O> extends OperatorBase<O> {
   }
 
   inputMessages(version: Version) {
-    return (this._inputs[0]?.drain(version) ?? []) as QueueEntry<I>[];
+    return (this._inputs[0]?.drain(version) ?? []) as QueueEntry<I>;
   }
 }

@@ -60,20 +60,21 @@ export class MutableTreeView<T> extends AbstractView<T, T[]> {
   }
 
   protected _run(version: Version) {
-    const collections = this._reader.drain(version);
+    const entry = this._reader.drain(version);
     let changed = false;
 
-    let newData = this.#data;
-    for (const entry of collections) {
+    if (entry !== undefined) {
+      let newData = this.#data;
       [changed, newData] = this.#sink(entry[1], newData, changed);
+      this.#data = newData;
     }
-    this.#data = newData;
 
     if (!changed) {
       this._notifiedListenersVersion = version;
     } else {
       // idk.. would be more efficient for users to just use the
-      // treap directly.
+      // treap directly. We have a PersistentTreap variant for React users
+      // or places where immutability is important.
       this.#jsSlice = this.#data.toArray();
     }
   }

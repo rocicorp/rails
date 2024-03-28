@@ -103,21 +103,14 @@ test('drain', () => {
   const r = new DifferenceStreamReader(new DifferenceStreamWriter());
 
   // draining empty is not an error
-  expect(r.drain(1)).toEqual([]);
+  expect(r.drain(1)).toEqual(undefined);
 
   // only drains up to version
-  const s1 = new Multiset([[1, 1]]);
-  const s2 = new Multiset([[2, 1]]);
   const s3 = new Multiset([[3, 1]]);
-  r.enqueue([1, s1]);
-  r.enqueue([2, s2]);
   r.enqueue([3, s3]);
-  expect(r.drain(2)).toEqual([
-    [1, s1],
-    [2, s2],
-  ]);
+  expect(r.drain(2)).toEqual(undefined);
 
   // drain leaves the queue empty if we're draining all versions in it
-  expect(r.drain(3)).toEqual([[3, s3]]);
+  expect(r.drain(3)).toEqual([3, s3]);
   expect(r.isEmpty()).toBe(true);
 });
