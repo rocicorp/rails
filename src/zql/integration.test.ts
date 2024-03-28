@@ -1,11 +1,12 @@
-import fc from 'fast-check';
-import {nanoid} from 'nanoid';
-import {Replicache, TEST_LICENSE_KEY} from 'replicache';
 import {expect, test} from 'vitest';
 import {z} from 'zod';
 import {generate} from '../generate.js';
 import {makeReplicacheContext} from './context/replicache-context.js';
-import {EntityQueryImpl} from './query/entity-query.js';
+import {Replicache, TEST_LICENSE_KEY} from 'replicache';
+import {nanoid} from 'nanoid';
+import fc from 'fast-check';
+import {EntityQuery} from './query/entity-query.js';
+import * as agg from './query/agg.js';
 
 export async function tickAFewTimes(n = 10, time = 0) {
   for (let i = 0; i < n; i++) {
@@ -83,7 +84,7 @@ function sampleTenUniqueIssues() {
 function setup() {
   const r = newRep();
   const c = makeReplicacheContext(r);
-  const q = new EntityQueryImpl<{fields: Issue}>(c, 'issue');
+  const q = new EntityQuery<{fields: Issue}>(c, 'issue');
   return {r, c, q};
 }
 
@@ -394,7 +395,112 @@ test('order by optional field', async () => {
 
 test('join', () => {});
 test('having', () => {});
-test('group by', () => {});
+
+test('group by', async () => {
+  const {q, r} = setup();
+  const issues: Issue[] = [
+    {
+      id: 'a',
+      title: 'foo',
+      status: 'open',
+      priority: 'high',
+      assignee: 'charles',
+      created: new Date('2024-01-01').getTime(),
+      updated: Date.now(),
+    },
+    {
+      id: 'b',
+      title: 'bar',
+      status: 'open',
+      priority: 'medium',
+      assignee: 'bob',
+      created: new Date('2024-01-02').getTime(),
+      updated: Date.now(),
+    },
+    {
+      id: 'c',
+      title: 'baz',
+      status: 'closed',
+      priority: 'low',
+      assignee: 'alice',
+      created: new Date('2024-01-03').getTime(),
+      updated: Date.now(),
+    },
+  ] as const;
+  await Promise.all(issues.map(r.mutate.initIssue));
+  const stmt = q
+    .select('status', agg.count('status', 'count'))
+    .groupBy('status')
+    .prepare();
+  const rows = await stmt.exec();
+
+  expect(rows).toEqual([
+    {status: 'open', count: 2},
+    {status: 'closed', count: 1},
+  ]);
+
+  stmt.destroy();
+
+  const stmt2 = q
+    .select('status', agg.array('assignee'))
+    .groupBy('status')
+    .prepare();
+  const rows2 = await stmt2.exec();
+
+  expect(rows2).toEqual([
+    {status: 'open', assignee: ['charles', 'bob']},
+    {status: 'closed', assignee: ['alice']},
+  ]);
+
+  const stmt3 = q
+    .select('status', agg.array('assignee'), agg.min('created'))
+    .groupBy('status')
+    .prepare();
+  const rows3 = await stmt3.exec();
+
+  expect(rows3).toEqual([
+    {
+      status: 'open',
+      assignee: ['charles', 'bob'],
+      created: issues[0].created,
+    },
+    {
+      status: 'closed',
+      assignee: ['alice'],
+      created: issues[2].created,
+    },
+  ]);
+
+  const stmt4 = q
+    .select(
+      'status',
+      agg.array('assignee'),
+      agg.min('created', 'minCreated'),
+      agg.max('created', 'maxCreated'),
+    )
+    .groupBy('status')
+    .prepare();
+  const rows4 = await stmt4.exec();
+
+  expect(rows4).toEqual([
+    {
+      status: 'open',
+      assignee: ['charles', 'bob'],
+      minCreated: issues[0].created,
+      maxCreated: issues[1].created,
+    },
+    {
+      status: 'closed',
+      assignee: ['alice'],
+      minCreated: issues[2].created,
+      maxCreated: issues[2].created,
+    },
+  ]);
+
+  await r.close();
+});
+
+test('sorted groupings', () => {});
 
 test('compound where', async () => {
   const {q, r} = setup();
@@ -447,8 +553,6 @@ test('limit', () => {});
 
 // To be implemented here: `asEntries` in `set-source.ts`
 test('after', () => {});
-
-test('sorted groupings', () => {});
 
 test('adding items late to a source materializes them in the correct order', () => {});
 test('disposing of a subscription causes us to no longer be called back', () => {});

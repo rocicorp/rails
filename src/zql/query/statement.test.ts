@@ -2,7 +2,7 @@ import {expect, test} from 'vitest';
 import {z} from 'zod';
 import {orderingProp} from '../ast-to-ivm/pipeline-builder.js';
 import {makeTestContext} from '../context/context.js';
-import {EntityQueryImpl} from './entity-query.js';
+import {EntityQuery} from './entity-query.js';
 import {ascComparator} from './statement.js';
 
 const e1 = z.object({
@@ -13,7 +13,7 @@ const e1 = z.object({
 type E1 = z.infer<typeof e1>;
 test('basic materialization', () => {
   const context = makeTestContext();
-  const q = new EntityQueryImpl<{fields: E1}>(context, 'e1');
+  const q = new EntityQuery<{fields: E1}>(context, 'e1');
 
   const stmt = q.select('id', 'n').where('n', '>', 100).prepare();
 
@@ -43,7 +43,7 @@ test('basic materialization', () => {
 test('sorted materialization', () => {
   const context = makeTestContext();
   type E1 = z.infer<typeof e1>;
-  const q = new EntityQueryImpl<{fields: E1}>(context, 'e1');
+  const q = new EntityQuery<{fields: E1}>(context, 'e1');
   const ascView = q.select('id').asc('n').prepare().view();
   const descView = q.select('id').desc('n').prepare().view();
 
@@ -67,7 +67,7 @@ test('sorted materialization', () => {
 test('sorting is stable via suffixing the primary key to the order', () => {
   const context = makeTestContext();
   type E1 = z.infer<typeof e1>;
-  const q = new EntityQueryImpl<{fields: E1}>(context, 'e1');
+  const q = new EntityQuery<{fields: E1}>(context, 'e1');
 
   const ascView = q.select('id').asc('n').prepare().view();
   const descView = q.select('id').desc('n').prepare().view();
@@ -115,7 +115,7 @@ test('ascComparator', () => {
 
 test('destroying the statement stops updating the view', async () => {
   const context = makeTestContext();
-  const q = new EntityQueryImpl<{fields: E1}>(context, 'e1');
+  const q = new EntityQuery<{fields: E1}>(context, 'e1');
 
   const stmt = q.select('id', 'n').prepare();
 

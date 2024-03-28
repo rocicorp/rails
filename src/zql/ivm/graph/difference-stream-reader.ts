@@ -1,10 +1,10 @@
 import {invariant, must} from '../../error/asserts.js';
-import {Version} from '../types.js';
-import {Queue, QueueEntry} from './queue.js';
-import {DifferenceStreamWriter} from './difference-stream-writer.js';
-import {Operator} from './operators/operator.js';
-import {Request} from './message.js';
 import {Multiset} from '../multiset.js';
+import {Version} from '../types.js';
+import {DifferenceStreamWriter} from './difference-stream-writer.js';
+import {Request} from './message.js';
+import {Operator} from './operators/operator.js';
+import {Queue, QueueEntry} from './queue.js';
 
 /**
  * Represents the input to an operator.
@@ -21,13 +21,12 @@ import {Multiset} from '../multiset.js';
  *  o  o  o
  */
 export class DifferenceStreamReader<T = unknown> {
-  protected readonly _queue;
+  protected readonly _queue = new Queue<T>();
   readonly #upstreamWriter;
   #downstreamOperator: Operator | null = null;
   #lastSeenVersion: Version = -1;
 
   constructor(upstream: DifferenceStreamWriter<T>) {
-    this._queue = new Queue<T>();
     this.#upstreamWriter = upstream;
   }
 

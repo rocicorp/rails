@@ -1,5 +1,6 @@
 import {
   AST,
+  Aggregation,
   Condition,
   Primitive,
   SimpleCondition,
@@ -9,12 +10,20 @@ import {Context} from '../context/context.js';
 import {must} from '../error/asserts.js';
 import {Misuse} from '../error/misuse.js';
 import {EntitySchema} from '../schema/entity-schema.js';
+import {AggArray, Aggregate, Count, isAggregate} from './agg.js';
 import {Statement} from './statement.js';
 
 type FieldValue<
   S extends EntitySchema,
   K extends Selectable<S>,
 > = S['fields'][K] extends Primitive | undefined ? S['fields'][K] : never;
+
+type AggregateValue<S extends EntitySchema, K extends Aggregable<S>> =
+  K extends Count<string, string>
+    ? number
+    : K extends AggArray<string, string>
+      ? S['fields'][K['field']][]
+      : S['fields'][K['field']];
 
 export type SelectedFields<
   S extends EntitySchema,
@@ -24,11 +33,38 @@ export type SelectedFields<
   Fields[number] extends keyof S['fields'] ? Fields[number] : never
 >;
 
+type SelectedAggregates<
+  S extends EntitySchema,
+  Aggregates extends Aggregable<S>[],
+> = {
+  [K in Aggregates[number]['alias']]: AggregateValue<
+    S,
+    Extract<Aggregates[number], {alias: K}>
+  >;
+};
+
 type AsString<T> = T extends string ? T : never;
 
 export type Selectable<S extends EntitySchema> =
   | AsString<keyof S['fields']>
   | 'id';
+
+type Aggregable<S extends EntitySchema> = Aggregate<
+  AsString<keyof S['fields']>,
+  string
+>;
+
+type ToSelectableOnly<T, S extends EntitySchema> = T extends (infer U)[]
+  ? U extends Selectable<S>
+    ? U[]
+    : never
+  : never;
+
+type ToAggregableOnly<T, S extends EntitySchema> = T extends (infer U)[]
+  ? U extends Aggregable<S>
+    ? U[]
+    : never
+  : never;
 
 /**
  * Have you ever noticed that when you hover over Types in TypeScript, it shows
@@ -42,30 +78,9 @@ export type MakeHumanReadable<T> = {} & {
   readonly [P in keyof T]: T[P] extends string ? T[P] : MakeHumanReadable<T[P]>;
 };
 
-export interface EntityQuery<Schema extends EntitySchema, Return = []> {
-  readonly select: <Fields extends Selectable<Schema>[]>(
-    ...x: Fields
-  ) => EntityQuery<Schema, SelectedFields<Schema, Fields>[]>;
-  readonly count: () => EntityQuery<Schema, number>;
-  readonly where: <Key extends Selectable<Schema>>(
-    f: Key,
-    op: SimpleOperator,
-    value: FieldValue<Schema, Key>,
-  ) => EntityQuery<Schema, Return>;
-  readonly limit: (n: number) => EntityQuery<Schema, Return>;
-  readonly asc: (...x: Selectable<Schema>[]) => EntityQuery<Schema, Return>;
-  readonly desc: (...x: Selectable<Schema>[]) => EntityQuery<Schema, Return>;
-
-  // TODO: we can probably skip the `prepare` step and just have `materialize`
-  // Although we'd need the prepare step in order to get a stmt to change bindings.
-  readonly prepare: () => Statement<Return>;
-}
-
 let aliasCount = 0;
 
-export class EntityQueryImpl<S extends EntitySchema, Return = []>
-  implements EntityQuery<S, Return>
-{
+export class EntityQuery<S extends EntitySchema, Return = []> {
   readonly #ast: AST;
   readonly #name: string;
   readonly #context: Context;
@@ -83,25 +98,39 @@ export class EntityQueryImpl<S extends EntitySchema, Return = []>
     astWeakMap.set(this, this.#ast);
   }
 
-  select<Fields extends Selectable<S>[]>(...x: Fields) {
+  select<Fields extends (Selectable<S> | Aggregable<S>)[]>(...x: Fields) {
+    // TODO: we should drop the explicit `count` API and use `agg.count` instead
     if (this.#ast.select === 'count') {
       throw new Misuse(
         'A query can either return fields or a count, not both.',
       );
     }
     const select = new Set(this.#ast.select);
+    const aggregate: Aggregation[] = [];
     for (const more of x) {
-      select.add(more);
+      if (!isAggregate(more)) {
+        select.add(more);
+        continue;
+      }
+      aggregate.push(more);
     }
 
-    return new EntityQueryImpl<S, SelectedFields<S, Fields>[]>(
-      this.#context,
-      this.#name,
-      {
-        ...this.#ast,
-        select: [...select],
-      },
-    );
+    return new EntityQuery<
+      S,
+      (SelectedFields<S, ToSelectableOnly<Fields, S>> &
+        SelectedAggregates<S, ToAggregableOnly<Fields, S>>)[]
+    >(this.#context, this.#name, {
+      ...this.#ast,
+      select: [...select],
+      aggregate,
+    });
+  }
+
+  groupBy<K extends Selectable<S>>(...x: K[]) {
+    return new EntityQuery<S, Return>(this.#context, this.#name, {
+      ...this.#ast,
+      groupBy: x as string[],
+    });
   }
 
   where<K extends Selectable<S>>(
@@ -133,7 +162,7 @@ export class EntityQueryImpl<S extends EntitySchema, Return = []>
       };
     }
 
-    return new EntityQueryImpl<S, Return>(this.#context, this.#name, {
+    return new EntityQuery<S, Return>(this.#context, this.#name, {
       ...this.#ast,
       where: cond,
     });
@@ -144,7 +173,7 @@ export class EntityQueryImpl<S extends EntitySchema, Return = []>
       throw new Misuse('Limit already set');
     }
 
-    return new EntityQueryImpl<S, Return>(this.#context, this.#name, {
+    return new EntityQuery<S, Return>(this.#context, this.#name, {
       ...this.#ast,
       limit: n,
     });
@@ -155,7 +184,7 @@ export class EntityQueryImpl<S extends EntitySchema, Return = []>
       x.push('id');
     }
 
-    return new EntityQueryImpl<S, Return>(this.#context, this.#name, {
+    return new EntityQuery<S, Return>(this.#context, this.#name, {
       ...this.#ast,
       orderBy: [x, 'asc'],
     });
@@ -166,7 +195,7 @@ export class EntityQueryImpl<S extends EntitySchema, Return = []>
       x.push('id');
     }
 
-    return new EntityQueryImpl<S, Return>(this.#context, this.#name, {
+    return new EntityQuery<S, Return>(this.#context, this.#name, {
       ...this.#ast,
       orderBy: [x, 'desc'],
     });
@@ -178,7 +207,7 @@ export class EntityQueryImpl<S extends EntitySchema, Return = []>
         'Selection set already set. Will not change to a count query.',
       );
     }
-    return new EntityQueryImpl<S, number>(this.#context, this.#name, {
+    return new EntityQuery<S, number>(this.#context, this.#name, {
       ...this.#ast,
       select: 'count',
     });
@@ -189,8 +218,8 @@ export class EntityQueryImpl<S extends EntitySchema, Return = []>
   }
 }
 
-const astWeakMap = new WeakMap<EntityQueryImpl<EntitySchema, unknown>, AST>();
+const astWeakMap = new WeakMap<EntityQuery<EntitySchema, unknown>, AST>();
 
-export function astForTesting(q: EntityQueryImpl<EntitySchema, unknown>): AST {
+export function astForTesting(q: EntityQuery<EntitySchema, unknown>): AST {
   return must(astWeakMap.get(q));
 }

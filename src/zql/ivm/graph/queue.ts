@@ -4,8 +4,8 @@ import {Version} from '../types.js';
 import {Reply} from './message.js';
 
 export type QueueEntry<T> =
-  | readonly [Version, Multiset<T>, Reply]
-  | readonly [Version, Multiset<T>];
+  | readonly [version: Version, multiset: Multiset<T>, reply: Reply]
+  | readonly [version: Version, multiset: Multiset<T>];
 
 type Node<T> = {
   data: QueueEntry<T>;

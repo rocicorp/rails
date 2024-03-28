@@ -1,17 +1,19 @@
+import {Entity} from '../../generate.js';
 import {
   AST,
+  Aggregation,
   Condition,
   Ordering,
   SimpleCondition,
   SimpleOperator,
 } from '../ast/ast.js';
-import {assert, must} from '../error/asserts.js';
+import {must} from '../error/asserts.js';
 import {DifferenceStream} from '../ivm/graph/difference-stream.js';
 
 export const orderingProp = Symbol();
 
 export function buildPipeline(
-  sourceStreamProvider: (sourceName: string) => DifferenceStream<unknown>,
+  sourceStreamProvider: (sourceName: string) => DifferenceStream<Entity>,
   ast: AST,
 ) {
   // filters first
@@ -26,12 +28,29 @@ export function buildPipeline(
     stream = applyWhere(stream, ast.where);
   }
 
-  let ret: DifferenceStream<unknown>;
-  assert(ast.select, 'No select clause');
+  let ret: DifferenceStream<unknown> = stream;
+  if (ast.groupBy) {
+    ret = applyGroupBy(
+      ret as DifferenceStream<Entity>,
+      ast.groupBy,
+      ast.aggregate ?? [],
+      Array.isArray(ast.select) ? ast.select : [],
+      ast.orderBy,
+    );
+  } else if (ast.aggregate && ast.aggregate.length > 0) {
+    throw new Error(
+      'Aggregates (other than count) without a group-by are not supported',
+    );
+  }
+
   if (ast.select === 'count') {
-    ret = stream.linearCount();
-  } else {
-    ret = applySelect(stream, ast.select, ast.orderBy);
+    ret = ret.linearCount();
+  } else if (ast.groupBy === undefined) {
+    ret = applySelect(
+      ret as DifferenceStream<Entity>,
+      ast.select ?? [],
+      ast.orderBy,
+    );
   }
 
   // Note: the stream is technically attached at this point.
@@ -40,35 +59,48 @@ export function buildPipeline(
 }
 
 export function applySelect(
-  stream: DifferenceStream<unknown>,
+  stream: DifferenceStream<Entity>,
   select: string[],
   orderBy: Ordering | undefined,
 ) {
   return stream.map(x => {
-    const ret: Partial<Record<string, unknown>> = {};
-    for (const field of select) {
-      ret[field] = (x as Record<string, unknown>)[field];
-    }
-
-    const orderingValues: unknown[] = [];
-    if (orderBy !== undefined) {
-      for (const field of orderBy[0]) {
-        orderingValues.push((x as Record<string, unknown>)[field]);
+    let ret: Record<string, unknown>;
+    if (select.length === 0) {
+      ret = {...x};
+    } else {
+      ret = {};
+      for (const field of select) {
+        ret[field] = (x as Record<string, unknown>)[field];
       }
     }
 
-    Object.defineProperty(ret, orderingProp, {
-      enumerable: false,
-      writable: false,
-      configurable: false,
-      value: orderingValues,
-    });
+    addOrdering(ret, x, orderBy);
 
     return ret;
   });
 }
 
-function applyWhere(stream: DifferenceStream<unknown>, where: Condition) {
+function addOrdering(
+  ret: Record<string, unknown>,
+  row: Record<string, unknown>,
+  orderBy: Ordering | undefined,
+) {
+  const orderingValues: unknown[] = [];
+  if (orderBy !== undefined) {
+    for (const field of orderBy[0]) {
+      orderingValues.push(row[field]);
+    }
+  }
+
+  Object.defineProperty(ret, orderingProp, {
+    enumerable: false,
+    writable: false,
+    configurable: false,
+    value: orderingValues,
+  });
+}
+
+function applyWhere(stream: DifferenceStream<Entity>, where: Condition) {
   let ret = stream;
   // We'll handle `OR` and parentheticals like so:
   // OR: We'll create a new stream for the LHS and RHS of the OR then merge together.
@@ -99,7 +131,7 @@ function applyWhere(stream: DifferenceStream<unknown>, where: Condition) {
 }
 
 function applySimpleCondition(
-  stream: DifferenceStream<unknown>,
+  stream: DifferenceStream<Entity>,
   condition: SimpleCondition,
 ) {
   const operator = getOperator(condition.op);
@@ -107,6 +139,102 @@ function applySimpleCondition(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     operator((x as any)[condition.field], condition.value.value),
   );
+}
+
+function applyGroupBy<T extends Entity>(
+  stream: DifferenceStream<T>,
+  columns: string[],
+  aggregations: Aggregation[],
+  select: string[],
+  orderBy: Ordering | undefined,
+) {
+  const keyFunction = makeKeyFunction(columns);
+  return stream.reduce(
+    keyFunction,
+    value => value.id as string,
+    values => {
+      const first = values[Symbol.iterator]().next().value;
+      const ret: Record<string, unknown> = {};
+      for (const column of select) {
+        ret[column] = first[column];
+      }
+      addOrdering(ret, first, orderBy);
+
+      for (const aggregation of aggregations) {
+        switch (aggregation.aggregate) {
+          case 'count': {
+            let count = 0;
+            for (const _ of values) {
+              count++;
+            }
+            ret[aggregation.alias] = count;
+            break;
+          }
+          case 'sum': {
+            let sum = 0;
+            for (const value of values) {
+              sum += value[aggregation.field as keyof T] as number;
+            }
+            ret[aggregation.alias] = sum;
+            break;
+          }
+          case 'avg': {
+            let sum = 0;
+            let count = 0;
+            for (const value of values) {
+              sum += value[aggregation.field as keyof T] as number;
+              count++;
+            }
+            ret[aggregation.alias] = sum / count;
+            break;
+          }
+          case 'min': {
+            let min = Infinity;
+            for (const value of values) {
+              min = Math.min(
+                min,
+                value[aggregation.field as keyof T] as number,
+              );
+            }
+            ret[aggregation.alias] = min;
+            break;
+          }
+          case 'max': {
+            let max = -Infinity;
+            for (const value of values) {
+              max = Math.max(
+                max,
+                value[aggregation.field as keyof T] as number,
+              );
+            }
+            ret[aggregation.alias] = max;
+            break;
+          }
+          case 'array': {
+            ret[aggregation.alias] = Array.from(values).map(
+              x => x[aggregation.field as keyof T],
+            );
+            break;
+          }
+          default:
+            throw new Error(`Unknown aggregation ${aggregation.aggregate}`);
+        }
+      }
+      return ret;
+    },
+  );
+}
+
+function makeKeyFunction(columns: string[]) {
+  return (x: Record<string, unknown>) => {
+    const ret: unknown[] = [];
+    for (const column of columns) {
+      ret.push(x[column]);
+    }
+    // Would it be better to come up with someh hash function
+    // which can handle complex types?
+    return JSON.stringify(ret);
+  };
 }
 
 // We're well-typed in the query builder so once we're down here

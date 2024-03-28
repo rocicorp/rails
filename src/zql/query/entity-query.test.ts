@@ -2,7 +2,8 @@ import {expect, expectTypeOf, test} from 'vitest';
 import {z} from 'zod';
 import {makeTestContext} from '../context/context.js';
 import {Misuse} from '../error/misuse.js';
-import {EntityQueryImpl, astForTesting as ast} from './entity-query.js';
+import {EntityQuery, astForTesting as ast} from './entity-query.js';
+import * as agg from './agg.js';
 
 const context = makeTestContext();
 test('query types', () => {
@@ -14,7 +15,7 @@ test('query types', () => {
     [sym]: boolean;
   };
 
-  const q = new EntityQueryImpl<{fields: E1}>(context, 'e1');
+  const q = new EntityQuery<{fields: E1}>(context, 'e1');
 
   // @ts-expect-error - selecting fields that do not exist in the schema is a type error
   q.select('does-not-exist');
@@ -33,16 +34,6 @@ test('query types', () => {
   >();
 
   // where/order/limit do not change return type
-  expectTypeOf(
-    q
-      .select('id', 'str')
-      .where('id', '<', '123')
-      .limit(1)
-      .asc('id')
-      .prepare()
-      .exec(),
-  ).toMatchTypeOf<Promise<readonly {id: string; str: string}[]>>();
-
   expectTypeOf(q.where).toBeCallableWith('id', '=', 'foo');
   expectTypeOf(q.where).toBeCallableWith('str', '<', 'foo');
   expectTypeOf(q.where).toBeCallableWith('optStr', '>', 'foo');
@@ -60,6 +51,21 @@ test('query types', () => {
 
   // @ts-expect-error - Argument of type 'unique symbol' is not assignable to parameter of type 'FieldName<{ fields: E1; }>'.ts(2345)
   q.where(sym, '==', true);
+
+  // @ts-expect-error - 'x' is not a field that we can aggregate on
+  q.select(agg.array('x')).groupBy('id');
+
+  expectTypeOf(
+    q.select('id', agg.array('str')).groupBy('optStr').prepare().exec(),
+  ).toMatchTypeOf<Promise<readonly {id: string; str: readonly string[]}[]>>();
+
+  expectTypeOf(
+    q
+      .select('id', agg.array('str', 'alias'))
+      .groupBy('optStr')
+      .prepare()
+      .exec(),
+  ).toMatchTypeOf<Promise<readonly {id: string; alias: readonly string[]}[]>>();
 });
 
 const e1 = z.object({
@@ -80,7 +86,7 @@ const dummyObject: E1 = {
 };
 
 test('ast: select', () => {
-  const q = new EntityQueryImpl<{fields: E1}>(context, 'e1');
+  const q = new EntityQuery<{fields: E1}>(context, 'e1');
 
   // each individual field is selectable on its own
   Object.keys(dummyObject).forEach(k => {
@@ -114,19 +120,19 @@ test('ast: count', () => {
   // Cannot select fields in addition to a count.
   // A query is one or the other: count query or selection query.
   expect(() =>
-    new EntityQueryImpl<{fields: E1}>(context, 'e1').select('id').count(),
+    new EntityQuery<{fields: E1}>(context, 'e1').select('id').count(),
   ).toThrow(Misuse);
   expect(() =>
-    new EntityQueryImpl<{fields: E1}>(context, 'e1').count().select('id'),
+    new EntityQuery<{fields: E1}>(context, 'e1').count().select('id'),
   ).toThrow(Misuse);
 
   // selection set is the literal `count`, not an array of fields
-  const q = new EntityQueryImpl<{fields: E1}>(context, 'e1').count();
+  const q = new EntityQuery<{fields: E1}>(context, 'e1').count();
   expect(ast(q).select).toEqual('count');
 });
 
 test('ast: where', () => {
-  let q = new EntityQueryImpl<{fields: E1}>(context, 'e1');
+  let q = new EntityQuery<{fields: E1}>(context, 'e1');
 
   // where is applied
   q = q.where('id', '=', 'a');
@@ -214,7 +220,7 @@ test('ast: where', () => {
 });
 
 test('ast: limit', () => {
-  const q = new EntityQueryImpl<{fields: E1}>(context, 'e1');
+  const q = new EntityQuery<{fields: E1}>(context, 'e1');
   expect({...ast(q.limit(10)), alias: 0}).toEqual({
     orderBy: [['id'], 'asc'],
     alias: 0,
@@ -224,7 +230,7 @@ test('ast: limit', () => {
 });
 
 test('ast: asc/desc', () => {
-  const q = new EntityQueryImpl<{fields: E1}>(context, 'e1');
+  const q = new EntityQuery<{fields: E1}>(context, 'e1');
 
   // order methods update the ast
   expect({...ast(q.asc('id')), alias: 0}).toEqual({
@@ -245,7 +251,7 @@ test('ast: asc/desc', () => {
 });
 
 test('ast: independent of method call order', () => {
-  const base = new EntityQueryImpl<{fields: E1}>(context, 'e1');
+  const base = new EntityQuery<{fields: E1}>(context, 'e1');
 
   const calls = {
     select(q: typeof base) {
