@@ -19,11 +19,13 @@ type FieldValue<
 > = S['fields'][K] extends Primitive | undefined ? S['fields'][K] : never;
 
 type AggregateValue<S extends EntitySchema, K extends Aggregable<S>> =
-  K extends Count<string, string>
+  K extends Count<string>
     ? number
     : K extends AggArray<string, string>
       ? S['fields'][K['field']][]
-      : S['fields'][K['field']];
+      : K extends Exclude<Aggregable<S>, Count<string>>
+        ? S['fields'][K['field']]
+        : never;
 
 export type SelectedFields<
   S extends EntitySchema,

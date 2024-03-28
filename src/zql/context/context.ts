@@ -18,7 +18,7 @@ export type Context = {
 
 export function makeTestContext(): Context {
   const materialite = new Materialite();
-  const sources = new Map<string, Source<unknown>>();
+  const sources = new Map<string, Source<object>>();
   const getSource = <T extends Entity>(name: string) => {
     if (!sources.has(name)) {
       sources.set(

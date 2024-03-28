@@ -6,7 +6,12 @@ import {
   DifferenceStreamWriter,
   RootDifferenceStreamWriter,
 } from './difference-stream-writer.js';
-import {LinearCountOperator} from './operators/full-agg-operators.js';
+import {
+  AggregateOut,
+  FullAvgOperator,
+  FullCountOperator,
+  FullSumOperator,
+} from './operators/full-agg-operators.js';
 import {DebugOperator} from './operators/debug-operator.js';
 import {DifferenceEffectOperator} from './operators/difference-effect-operator.js';
 import {FilterOperator} from './operators/filter-operator.js';
@@ -15,19 +20,36 @@ import {ReduceOperator} from './operators/reduce-operator.js';
 import {QueueEntry} from './queue.js';
 
 /**
- * Used to build up a computation pipeline against a stream and then materialize it.
- * (Note: materialization of the stream is not yet implemented).
+ * Holds a reference to a `DifferenceStreamWriter` and allows users
+ * to add operators onto it.
  *
- * Encapsulates all the details of wiring together operators, readers, and writers.
+ * E.g.,
+ * s = new DifferenceStream();
+ *
+ * mapped = s.map();
+ * filtered = s.filter();
+ *
+ *       s
+ *    /     \
+ *  mapped filtered
+ *
+ * mappedAndFiltered = s.map().filter();
+ *
+ *     s
+ *     |
+ *    mapped
+ *     |
+ *   filtered
  */
-export class DifferenceStream<T> {
+// T extends object: I believe in the context of ZQL we only deal with object.
+export class DifferenceStream<T extends object> {
   readonly #upstreamWriter;
 
   constructor(upstreamWriter?: DifferenceStreamWriter<T> | undefined) {
     this.#upstreamWriter = upstreamWriter ?? new DifferenceStreamWriter<T>();
   }
 
-  map<O>(f: (value: T) => O): DifferenceStream<O> {
+  map<O extends object>(f: (value: T) => O): DifferenceStream<O> {
     const ret = new DifferenceStream<O>();
     new MapOperator<T, O>(
       this.#upstreamWriter.newReader(),
@@ -49,7 +71,7 @@ export class DifferenceStream<T> {
     return ret;
   }
 
-  reduce<K extends Primitive, O>(
+  reduce<K extends Primitive, O extends object>(
     getKey: (value: T) => K,
     getIdentity: (value: T) => string,
     f: (input: Iterable<T>) => O,
@@ -70,11 +92,37 @@ export class DifferenceStream<T> {
    * stream whereas `count` counts the number of times each key appears.
    * @returns returns the size of the stream
    */
-  linearCount() {
-    const ret = new DifferenceStream<number>();
-    new LinearCountOperator(
+  count<Alias extends string>(alias: Alias) {
+    const ret = new DifferenceStream<AggregateOut<T, [[Alias, number]]>>();
+    new FullCountOperator(
       this.#upstreamWriter.newReader(),
       ret.#upstreamWriter,
+      alias,
+    );
+    return ret;
+  }
+
+  average<Field extends keyof T, Alias extends string>(
+    field: Field,
+    alias: Alias,
+  ) {
+    const ret = new DifferenceStream<AggregateOut<T, [[Alias, number]]>>();
+    new FullAvgOperator(
+      this.#upstreamWriter.newReader(),
+      ret.#upstreamWriter,
+      field,
+      alias,
+    );
+    return ret;
+  }
+
+  sum<Field extends keyof T, Alias extends string>(field: Field, alias: Alias) {
+    const ret = new DifferenceStream<AggregateOut<T, [[Alias, number]]>>();
+    new FullSumOperator(
+      this.#upstreamWriter.newReader(),
+      ret.#upstreamWriter,
+      field,
+      alias,
     );
     return ret;
   }
@@ -126,7 +174,9 @@ export class DifferenceStream<T> {
   }
 }
 
-export class RootDifferenceStream<T> extends DifferenceStream<T> {
+export class RootDifferenceStream<
+  T extends object,
+> extends DifferenceStream<T> {
   constructor(source: Source<T>) {
     super(new RootDifferenceStreamWriter<T>(source));
   }

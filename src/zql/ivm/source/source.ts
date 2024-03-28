@@ -3,7 +3,7 @@ import {DifferenceStream} from '../graph/difference-stream.js';
 import {Version} from '../types.js';
 import {Request} from '../graph/message.js';
 
-export interface Source<T> {
+export interface Source<T extends object> {
   readonly stream: DifferenceStream<T>;
   add(value: T): this;
   delete(value: T): this;

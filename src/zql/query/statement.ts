@@ -5,7 +5,6 @@ import {Context} from '../context/context.js';
 import {invariant, must} from '../error/asserts.js';
 import {compareEntityFields} from '../ivm/compare.js';
 import {DifferenceStream} from '../ivm/graph/difference-stream.js';
-import {ValueView} from '../ivm/view/primitive-view.js';
 import {MutableTreeView} from '../ivm/view/tree-view.js';
 import {View} from '../ivm/view/view.js';
 import {MakeHumanReadable} from './entity-query.js';
@@ -38,26 +37,17 @@ export class Statement<Return> implements IStatement<Return> {
   view(): View<Return> {
     // TODO: invariants to throw if the statement is not completely bound before materialization.
     if (this.#materialization === null) {
-      if (this.#ast.select === 'count') {
-        // materialize primitive
-        this.#materialization = new ValueView<number>(
-          this.#context.materialite,
-          this.#pipeline as DifferenceStream<number>,
-          0,
-        ) as unknown as View<Return extends [] ? Return[number] : Return>;
-      } else {
-        this.#materialization = new MutableTreeView<
+      this.#materialization = new MutableTreeView<
+        Return extends [] ? Return[number] : never
+      >(
+        this.#context.materialite,
+        this.#pipeline as DifferenceStream<
           Return extends [] ? Return[number] : never
-        >(
-          this.#context.materialite,
-          this.#pipeline as DifferenceStream<
-            Return extends [] ? Return[number] : never
-          >,
-          this.#ast.orderBy[1] === 'asc' ? ascComparator : descComparator,
-          this.#ast.orderBy,
-          this.#ast.limit,
-        ) as unknown as View<Return extends [] ? Return[number] : Return>;
-      }
+        >,
+        this.#ast.orderBy[1] === 'asc' ? ascComparator : descComparator,
+        this.#ast.orderBy,
+        this.#ast.limit,
+      ) as unknown as View<Return extends [] ? Return[number] : Return>;
     }
 
     // TODO: we'll want some ability to let a caller await
