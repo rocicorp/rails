@@ -45,7 +45,16 @@ export interface Operator {
 }
 
 export class NoOp implements Operator {
-  run(_version: Version) {}
+  readonly #inputs;
+
+  constructor(...input: DifferenceStreamReader<unknown>[]) {
+    this.#inputs = input;
+  }
+  run(version: Version) {
+    for (const input of this.#inputs) {
+      input.drain(version);
+    }
+  }
   notify(_v: Version) {}
   notifyCommitted(_v: Version): void {}
   messageUpstream(): void {}

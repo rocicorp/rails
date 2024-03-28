@@ -6,7 +6,6 @@ import {
   DifferenceStreamWriter,
   RootDifferenceStreamWriter,
 } from './difference-stream-writer.js';
-import {IDifferenceStream} from './idifference-stream.js';
 import {LinearCountOperator} from './operators/count-operator.js';
 import {DebugOperator} from './operators/debug-operator.js';
 import {DifferenceEffectOperator} from './operators/difference-effect-operator.js';
@@ -21,7 +20,7 @@ import {QueueEntry} from './queue.js';
  *
  * Encapsulates all the details of wiring together operators, readers, and writers.
  */
-export class DifferenceStream<T> implements IDifferenceStream<T> {
+export class DifferenceStream<T> {
   readonly #upstreamWriter;
 
   constructor(upstreamWriter?: DifferenceStreamWriter<T> | undefined) {

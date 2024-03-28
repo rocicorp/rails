@@ -1,7 +1,6 @@
 import {Comparator} from '@vlcn.io/ds-and-algos/types';
 import {SourceInternal} from './source/source.js';
 import {MutableSetSource} from './source/set-source.js';
-import {StatelessSource} from './source/stateless-source.js';
 import {Version} from './types.js';
 import {must} from '../error/asserts.js';
 
@@ -32,10 +31,6 @@ export class Materialite {
         }
       },
     };
-  }
-
-  newStatelessSource<T>() {
-    return new StatelessSource<T>(this.#internal);
   }
 
   newSetSource<T>(comparator: Comparator<T>) {

@@ -2,7 +2,6 @@ import {Materialite} from '../materialite.js';
 import {DifferenceStream} from '../graph/difference-stream.js';
 import {Version} from '../types.js';
 import {AbstractView} from './abstract-view.js';
-import {must} from '../../error/asserts.js';
 import {createPullMessage} from '../graph/message.js';
 
 /**
@@ -29,12 +28,12 @@ export class ValueView<T> extends AbstractView<T, T | null> {
   }
 
   protected _run(version: Version) {
-    const collections = this._reader.drain(version);
-    if (collections.length === 0) {
+    const collection = this._reader.drain(version);
+    if (collection === undefined) {
       return;
     }
 
-    const lastCollection = must(collections[collections.length - 1])[1];
+    const lastCollection = collection[1];
     let lastValue = undefined;
     for (const [value, mult] of lastCollection.entries) {
       if (mult > 0) {

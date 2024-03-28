@@ -54,6 +54,22 @@ test('notify committed readers', () => {
 });
 
 test('replying to a message only notifies along the requesting path', () => {
+  /*
+  Creates a graph of the shape:
+
+       w
+     / | \
+    r  r  r
+    |  |  |
+    d  d  d
+    |  |  |
+    n  n  n
+
+    w = writer
+    r = reader
+    d = debug operator
+    n = no-op operator
+  */
   const w = new DifferenceStreamWriter<number>();
   const readers = Array.from({length: 3}, () => w.newReader());
   const notifications = readers.map(() => false);
@@ -62,7 +78,7 @@ test('replying to a message only notifies along the requesting path', () => {
   readers.forEach((r, i) => {
     const outputWriter = new DifferenceStreamWriter<number>();
     const outputReader = outputWriter.newReader();
-    outputReader.setOperator(new NoOp());
+    outputReader.setOperator(new NoOp(outputReader));
     outputs.push(outputReader);
     new DebugOperator(r, outputWriter, () => (notifications[i] = true));
   });

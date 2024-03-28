@@ -35,7 +35,7 @@ test('lazy', () => {
 
   const items = outReader.drain(1);
   // consume all the rows
-  [...items[0][1].entries];
+  [...items![1].entries];
   expect(called).toBe(true);
 });
 
@@ -62,8 +62,7 @@ test('applies to rows', () => {
   inputWriter.notifyCommitted(1);
   const items = outReader.drain(1);
 
-  expect(items.length).toBe(1);
-  const entries = [...items[0][1].entries];
+  const entries = [...items![1].entries];
   expect(entries).toMatchObject([
     [2, 1],
     [4, 2],

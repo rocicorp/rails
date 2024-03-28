@@ -5,7 +5,8 @@ import {QueueEntry} from '../queue.js';
 import {UnaryOperator} from './unary-operator.js';
 
 /**
- * Runs an effect _after_ a transaction has been committed.
+ * Allows someone to observe all data flowing through a spot
+ * in a pipeline. Forwards the data with no changes made to it.
  */
 export class DebugOperator<T> extends UnaryOperator<T, T> {
   constructor(
@@ -14,10 +15,9 @@ export class DebugOperator<T> extends UnaryOperator<T, T> {
     onMessage: (c: QueueEntry<T>) => void,
   ) {
     const inner = (version: Version) => {
-      for (const entry of this.inputMessages(version)) {
-        onMessage(entry);
-        this._output.queueData(entry);
-      }
+      const entry = this.inputMessages(version);
+      onMessage(entry);
+      this._output.queueData(entry);
     };
     super(input, output, inner);
   }
