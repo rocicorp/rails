@@ -6,7 +6,7 @@ import {Replicache, TEST_LICENSE_KEY} from 'replicache';
 import {nanoid} from 'nanoid';
 import fc from 'fast-check';
 import {EntityQuery} from './query/entity-query.js';
-import {agg} from './query/agg.js';
+import * as agg from './query/agg.js';
 
 export async function tickAFewTimes(n = 10, time = 0) {
   for (let i = 0; i < n; i++) {
@@ -406,7 +406,7 @@ test('group by', async () => {
       priority: 'high',
       assignee: 'charles',
       created: new Date('2024-01-01').getTime(),
-      updated: new Date().getTime(),
+      updated: Date.now(),
     },
     {
       id: 'b',
@@ -415,7 +415,7 @@ test('group by', async () => {
       priority: 'medium',
       assignee: 'bob',
       created: new Date('2024-01-02').getTime(),
-      updated: new Date().getTime(),
+      updated: Date.now(),
     },
     {
       id: 'c',
@@ -424,11 +424,10 @@ test('group by', async () => {
       priority: 'low',
       assignee: 'alice',
       created: new Date('2024-01-03').getTime(),
-      updated: new Date().getTime(),
+      updated: Date.now(),
     },
   ] as const;
   await Promise.all(issues.map(r.mutate.initIssue));
-  await new Promise(resolve => setTimeout(resolve, 0));
   const stmt = q
     .select('status', agg.count('status', 'count'))
     .groupBy('status')
