@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import {Entity} from '../../../../generate.js';
 import {Multiset} from '../../multiset.js';
 import {Version} from '../../types.js';
@@ -70,7 +71,6 @@ export class DistinctOperator<T extends Entity> extends UnaryOperator<T, T> {
     }
 
     const values = [...state.values()];
-    console.log(`values(${this.id})`, values);
 
     let emitted = this.#emitted.get(version);
     if (!emitted) {
@@ -80,32 +80,22 @@ export class DistinctOperator<T extends Entity> extends UnaryOperator<T, T> {
 
     const mv = values
       .filter(v => v[1] !== 0)
-      // .filter(([value]) => !emitted!.has(value.id))
-      .map(([data, multiplicity]) => {
-        console.log(
-          `DistinctOperator(${this.id})`,
-          'data',
-          data,
-          'multiplicity',
-          multiplicity,
-        );
-
-        return [data, Math.sign(multiplicity)];
-      });
-
-    console.log(`mv(${this.id})`, mv);
+      .filter(([value]) => !emitted!.has(value.id))
+      .map(([data, multiplicity]) => [data, Math.sign(multiplicity)]);
 
     // Create a new Multiset with the distinct values.
     const distinctMultiset = new Multiset(mv as any);
 
     // Mark the values as emitted.
     for (const [value] of distinctMultiset.entries) {
-      emitted.add(value.id);
+      emitted.add((value as any).id);
     }
 
-    console.log(`emitted(${this.id})`, [...emitted]);
-
     // TODO(arv): What about the Reply?
-    this._output.queueData([version, distinctMultiset]);
+    this._output.queueData([version, distinctMultiset as any]);
+  }
+
+  notify(v: Version) {
+    super.notify(v);
   }
 }

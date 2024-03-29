@@ -129,7 +129,7 @@ function applySimpleCondition(
 function getOperator(op: SimpleOperator): (l: any, r: any) => boolean {
   switch (op) {
     case '=':
-      return (l, r) => (console.log('EQ', l, r), l === r);
+      return (l, r) => l === r;
     case '<':
       return (l, r) => l < r;
     case '>':
@@ -169,34 +169,19 @@ function applyOr<T extends Entity>(
   const branches = conditions.map(c =>
     applyWhere(stream, c),
   ) as DifferenceStream<T>[];
-  const [first, ...rest] = branches.map((b, i) =>
-    b.debug(([version, multiset]) => {
-      console.log(
-        'OR branch',
-        '`' + conditionToString(conditions[i]) + '`',
-        version,
-        [...multiset.entries],
-      );
-    }),
-  );
+  const [first, ...rest] = branches;
   return (
     first
       .concat(...rest)
-      .debug(([version, multiset]) => {
-        console.log('CONCAT result', version, [...multiset.entries]);
-      })
       // distinct should not let the same message through twice.
       .distinct()
-      .debug(([version, multiset]) => {
-        console.log('DISTINCT result', version, [...multiset.entries]);
-      })
   );
 }
 
-function conditionToString(c: Condition): string {
-  if (c.op === 'AND' || c.op === 'OR') {
-    return `(${c.conditions.map(conditionToString).join(` ${c.op} `)})`;
-  }
+// function conditionToString(c: Condition): string {
+//   if (c.op === 'AND' || c.op === 'OR') {
+//     return `(${c.conditions.map(conditionToString).join(` ${c.op} `)})`;
+//   }
 
-  return `${(c as {field: string}).field} ${c.op} ${(c as {value: {value: unknown}}).value.value}`;
-}
+//   return `${(c as {field: string}).field} ${c.op} ${(c as {value: {value: unknown}}).value.value}`;
+// }

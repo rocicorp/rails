@@ -1,6 +1,9 @@
 import {MaterialiteForSourceInternal} from '../materialite.js';
 import {Entry, Multiset} from '../multiset.js';
-import {DifferenceStream} from '../graph/difference-stream.js';
+import {
+  DifferenceStream,
+  RootDifferenceStream,
+} from '../graph/difference-stream.js';
 import {Source, SourceInternal} from './source.js';
 import {Version} from '../types.js';
 import {createPullResponseMessage} from '../graph/message.js';
@@ -19,7 +22,7 @@ export class StatelessSource<T> implements Source<T> {
 
   constructor(materialite: MaterialiteForSourceInternal) {
     this.#materialite = materialite;
-    this.#stream = new DifferenceStream<T>();
+    this.#stream = new RootDifferenceStream<T>(this);
     this.#internal = {
       // add values to queues, add values to the set
       onCommitEnqueue: (version: Version) => {

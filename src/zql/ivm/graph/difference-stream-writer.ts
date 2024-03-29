@@ -1,4 +1,5 @@
 import {assert, invariant, must} from '../../error/asserts.js';
+import {tab} from '../../util/print.js';
 import {Source} from '../source/source.js';
 import {Version} from '../types.js';
 import {
@@ -27,12 +28,14 @@ import {QueueEntry} from './queue.js';
  * w = writer
  * r = reader
  */
+let id = 0;
 export class DifferenceStreamWriter<T> {
+  readonly id = id++;
   #upstreamOperator: Operator | null = null;
   protected readonly _downstreamReaders: DifferenceStreamReader<T>[] = [];
 
   readonly #pendingRecipients = new Map<number, DifferenceStreamReader<T>>();
-  readonly #toNotify: DifferenceStreamReader<T>[] = [];
+  readonly #toNotify: Set<DifferenceStreamReader<T>> = new Set();
 
   setOperator(operator: Operator) {
     invariant(this.#upstreamOperator === null, 'Operator already set!');
@@ -53,7 +56,7 @@ export class DifferenceStreamWriter<T> {
    * 3. then notify its downstream(s)
    */
   queueData(data: QueueEntry<T>) {
-    this.#toNotify.length = 0;
+    this.#toNotify.clear();
     const msg = data[2];
     if (msg) {
       // only go down the path from which the message came.
@@ -64,11 +67,11 @@ export class DifferenceStreamWriter<T> {
       );
       this.#pendingRecipients.delete(msg.replyingTo);
       recipient.enqueue(data);
-      this.#toNotify.push(recipient);
+      this.#toNotify.add(recipient);
     } else {
       for (const r of this._downstreamReaders) {
         r.enqueue(data);
-        this.#toNotify.push(r);
+        this.#toNotify.add(r);
       }
     }
   }
@@ -144,6 +147,15 @@ export class DifferenceStreamWriter<T> {
     // The root difference stream will not have an upstream operator
     this.#upstreamOperator?.destroy();
   }
+
+  toString(tabs = 0) {
+    return tab(
+      tabs,
+      `DifferenceStreamWriter(${this.id}) {
+upstreamOperator: ${this.#upstreamOperator?.toString(tabs + 1)}
+}`,
+    );
+  }
 }
 
 export class RootDifferenceStreamWriter<T> extends DifferenceStreamWriter<T> {
@@ -165,5 +177,9 @@ export class RootDifferenceStreamWriter<T> extends DifferenceStreamWriter<T> {
       new DifferenceStreamReaderFromRoot(this);
     this._downstreamReaders.push(reader);
     return reader;
+  }
+
+  toString(tabs = 0): string {
+    return tab(tabs, `RootDifferenceStreamWriter(${this.id})`);
   }
 }

@@ -23,7 +23,9 @@ import {QueueEntry} from './queue.js';
  *
  * Encapsulates all the details of wiring together operators, readers, and writers.
  */
+let id = 0;
 export class DifferenceStream<T> implements IDifferenceStream<T> {
+  readonly id = id++;
   readonly #upstreamWriter: DifferenceStreamWriter<T>;
 
   constructor(upstreamWriter?: DifferenceStreamWriter<T> | undefined) {
@@ -140,6 +142,12 @@ export class DifferenceStream<T> implements IDifferenceStream<T> {
 
   destroy() {
     this.#upstreamWriter.destroy();
+  }
+
+  toString() {
+    return `DifferenceStream(${this.id}) {
+  writer: ${this.#upstreamWriter.toString(1)},
+}`;
   }
 }
 

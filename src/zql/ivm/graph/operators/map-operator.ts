@@ -9,7 +9,9 @@ export class MapOperator<I, O> extends LinearUnaryOperator<I, O> {
     output: DifferenceStreamWriter<O>,
     f: (input: I) => O,
   ) {
-    const inner = (collection: Multiset<I>) => collection.map(f);
+    const inner = (collection: Multiset<I>) => {
+      return collection.map(f);
+    };
     super(input, output, inner);
   }
 }

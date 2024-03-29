@@ -5,6 +5,7 @@ import {DifferenceStreamWriter} from './difference-stream-writer.js';
 import {Operator} from './operators/operator.js';
 import {Request} from './message.js';
 import {Multiset} from '../multiset.js';
+import {tab} from '../../util/print.js';
 
 /**
  * Represents the input to an operator.
@@ -20,7 +21,9 @@ import {Multiset} from '../multiset.js';
  *  |  |  |
  *  o  o  o
  */
+let id = 0;
 export class DifferenceStreamReader<T = unknown> {
+  readonly id = ++id;
   protected readonly _queue;
   readonly #upstreamWriter;
   #downstreamOperator: Operator | null = null;
@@ -89,6 +92,15 @@ export class DifferenceStreamReader<T = unknown> {
 
   messageUpstream(message: Request) {
     this.#upstreamWriter.messageUpstream(message, this);
+  }
+
+  toString(tabs = 0): string {
+    return tab(
+      tabs,
+      `DifferenceStreamReader(${this.id}) {
+upstream: ${this.#upstreamWriter.toString(tabs + 1)},
+}`,
+    );
   }
 }
 

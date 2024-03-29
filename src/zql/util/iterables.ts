@@ -4,7 +4,6 @@ export function* mapIter<T, U>(
 ): Iterable<U> {
   let index = 0;
   for (const t of iter) {
-    console.log('mapIter', t);
     yield f(t, index++);
   }
 }

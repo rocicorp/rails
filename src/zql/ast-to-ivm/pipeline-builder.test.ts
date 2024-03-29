@@ -119,77 +119,77 @@ describe.only('OR', () => {
   ] as const;
 
   const cases: Case[] = [
-    // {
-    //   name: 'basic (2) OR conditions',
-    //   where: {
-    //     op: 'OR',
-    //     conditions: [
-    //       {op: '=', field: 'a', value: {type: 'literal', value: 1}},
-    //       {op: '=', field: 'b', value: {type: 'literal', value: 2}},
-    //     ],
-    //   },
-    //   expected: ['a', 'c', 'd'],
-    // },
-    // {
-    //   name: 'basic (1) OR condition',
-    //   where: {
-    //     op: 'OR',
-    //     conditions: [{op: '=', field: 'a', value: {type: 'literal', value: 1}}],
-    //   },
-    //   expected: ['a', 'c'],
-    // },
-    // {
-    //   name: 'basic (3) OR condition',
-    //   where: {
-    //     op: 'OR',
-    //     conditions: [
-    //       {op: '=', field: 'a', value: {type: 'literal', value: 1}},
-    //       {op: '=', field: 'b', value: {type: 'literal', value: 2}},
-    //       {op: '=', field: 'a', value: {type: 'literal', value: 2}},
-    //     ],
-    //   },
-    //   values: [
-    //     {id: 'a', a: 1, b: 1},
-    //     {id: 'b', a: 2, b: 1},
-    //     {id: 'c', a: 1, b: 2},
-    //     {id: 'd', a: 3, b: 3},
-    //   ],
-    //   expected: ['a', 'b', 'c'],
-    // },
-    // {
-    //   name: 'two branches with same condition',
-    //   where: {
-    //     op: 'OR',
-    //     conditions: [
-    //       {op: '=', field: 'a', value: {type: 'literal', value: 1}},
-    //       {op: '=', field: 'a', value: {type: 'literal', value: 1}},
-    //     ],
-    //   },
-    //   expected: ['a', 'c'],
-    // },
-    // {
-    //   name: 'WHERE (a = 1 AND b = 1) OR (a = 2 AND b = 2)',
-    //   where: {
-    //     op: 'OR',
-    //     conditions: [
-    //       {
-    //         op: 'AND',
-    //         conditions: [
-    //           {op: '=', field: 'a', value: {type: 'literal', value: 1}},
-    //           {op: '=', field: 'b', value: {type: 'literal', value: 1}},
-    //         ],
-    //       },
-    //       {
-    //         op: 'AND',
-    //         conditions: [
-    //           {op: '=', field: 'a', value: {type: 'literal', value: 2}},
-    //           {op: '=', field: 'b', value: {type: 'literal', value: 2}},
-    //         ],
-    //       },
-    //     ],
-    //   },
-    //   expected: ['a', 'd'],
-    // },
+    {
+      name: 'basic (2) OR conditions',
+      where: {
+        op: 'OR',
+        conditions: [
+          {op: '=', field: 'a', value: {type: 'literal', value: 1}},
+          {op: '=', field: 'b', value: {type: 'literal', value: 2}},
+        ],
+      },
+      expected: ['a', 'c', 'd'],
+    },
+    {
+      name: 'basic (1) OR condition',
+      where: {
+        op: 'OR',
+        conditions: [{op: '=', field: 'a', value: {type: 'literal', value: 1}}],
+      },
+      expected: ['a', 'c'],
+    },
+    {
+      name: 'basic (3) OR condition',
+      where: {
+        op: 'OR',
+        conditions: [
+          {op: '=', field: 'a', value: {type: 'literal', value: 1}},
+          {op: '=', field: 'b', value: {type: 'literal', value: 2}},
+          {op: '=', field: 'a', value: {type: 'literal', value: 2}},
+        ],
+      },
+      values: [
+        {id: 'a', a: 1, b: 1},
+        {id: 'b', a: 2, b: 1},
+        {id: 'c', a: 1, b: 2},
+        {id: 'd', a: 3, b: 3},
+      ],
+      expected: ['a', 'c', 'b'],
+    },
+    {
+      name: 'two branches with same condition',
+      where: {
+        op: 'OR',
+        conditions: [
+          {op: '=', field: 'a', value: {type: 'literal', value: 1}},
+          {op: '=', field: 'a', value: {type: 'literal', value: 1}},
+        ],
+      },
+      expected: ['a', 'c'],
+    },
+    {
+      name: 'WHERE (a = 1 AND b = 1) OR (a = 2 AND b = 2)',
+      where: {
+        op: 'OR',
+        conditions: [
+          {
+            op: 'AND',
+            conditions: [
+              {op: '=', field: 'a', value: {type: 'literal', value: 1}},
+              {op: '=', field: 'b', value: {type: 'literal', value: 1}},
+            ],
+          },
+          {
+            op: 'AND',
+            conditions: [
+              {op: '=', field: 'a', value: {type: 'literal', value: 2}},
+              {op: '=', field: 'b', value: {type: 'literal', value: 2}},
+            ],
+          },
+        ],
+      },
+      expected: ['a', 'd'],
+    },
     {
       name: 'WHERE (a = 1 OR b = 1) AND (a = 2 OR b = 2)',
       where: {
@@ -229,16 +229,25 @@ describe.only('OR', () => {
 
       const pipeline = buildPipeline(() => s.stream, ast);
 
+      // console.log(pipeline.toString());
+
       const log: unknown[] = [];
-      pipeline.effect(x => {
-        log.push((x as Entity).id);
+
+      // why in the world is effect not notified but debug is?!?!?!?!?!
+      // pipeline.effect(x => {
+      //   console.log('WTF!');
+      //   log.push((x as Entity).id);
+      // });
+
+      pipeline.debug(c => {
+        for (const x of c[1].entries) {
+          log.push((x[0] as unknown as Entity).id);
+        }
       });
 
-      // for (const value of values) {
-      // console.log('-----------------------------------');
-      // console.log('adding', value);
-      s.addAll(values);
-      // }
+      m.tx(() => {
+        s.addAll(values);
+      });
 
       expect(log).toEqual(c.expected);
     });

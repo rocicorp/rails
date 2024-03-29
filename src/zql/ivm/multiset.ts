@@ -34,6 +34,16 @@ export class Multiset<T> {
     return this.#entries;
   }
 
+  // TODO: do this lazily
+  extend(other: Multiset<T>) {
+    if (!Array.isArray(this.#entries)) {
+      this.#entries = [...this.#entries];
+    }
+    for (const e of other.entries) {
+      (this.#entries as Entry<T>[]).push(e);
+    }
+  }
+
   negate(): Multiset<T> {
     return new Multiset(
       // Kind of weird/useless to negate zero, but 0 and -0 are === in

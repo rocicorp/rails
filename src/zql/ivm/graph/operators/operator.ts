@@ -1,4 +1,5 @@
 import {invariant} from '../../../error/asserts.js';
+import {tab} from '../../../util/print.js';
 import {Version} from '../../types.js';
 import {DifferenceStreamReader} from '../difference-stream-reader.js';
 import {DifferenceStreamWriter} from '../difference-stream-writer.js';
@@ -42,6 +43,7 @@ export interface Operator {
   notifyCommitted(v: Version): void;
   messageUpstream(message: Request): void;
   destroy(): void;
+  toString(tabs?: number): string;
 }
 
 export class NoOp implements Operator {
@@ -55,8 +57,10 @@ export class NoOp implements Operator {
 /**
  * A dataflow operator (node) that has many incoming edges (read handles) and one outgoing edge (write handle).
  */
+let id = 0;
 export abstract class OperatorBase<O> implements Operator {
   readonly #fn;
+  readonly id = id++;
   #lastRunVersion: Version = -1;
   #lastNotifyVersion: Version = -1;
   // upstream inputs
@@ -107,5 +111,14 @@ export abstract class OperatorBase<O> implements Operator {
     for (const input of this._inputs) {
       input.messageUpstream(message);
     }
+  }
+
+  toString(tabs = 0) {
+    return tab(
+      tabs,
+      `Operator(${this.id}, ${this.constructor.name}) {
+inputs: ${this._inputs.map(i => i.toString(tabs + 1)).join('\n')},
+}`,
+    );
   }
 }
