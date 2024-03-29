@@ -15,8 +15,12 @@ export class ConcatOperator<T> extends OperatorBase<T> {
     output: DifferenceStreamWriter<T>,
   ) {
     const inner = (version: Version) => {
+      // console.log('ConcatOperator inner', {version});
       for (const input of this._inputs) {
         for (const entry of input.drain(version)) {
+          // console.log('ConcatOperator entry', 'version', entry[0], 'entries', [
+          //   ...entry[1].entries,
+          // ]);
           this._output.queueData(
             entry.length === 3
               ? ([version, entry[1], entry[2]] as QueueEntry<T>)

@@ -1,26 +1,30 @@
+import {Entity} from '../../../generate.js';
 import {Multiset} from '../multiset.js';
 import {Source} from '../source/source.js';
 import {Version} from '../types.js';
+import {DifferenceStreamReader} from './difference-stream-reader.js';
 import {
   DifferenceStreamWriter,
   RootDifferenceStreamWriter,
 } from './difference-stream-writer.js';
 import {IDifferenceStream} from './idifference-stream.js';
+import {BranchOperator} from './operators/branch-operator.js';
+import {ConcatOperator} from './operators/concat-operator.js';
 import {LinearCountOperator} from './operators/count-operator.js';
 import {DebugOperator} from './operators/debug-operator.js';
 import {DifferenceEffectOperator} from './operators/difference-effect-operator.js';
+import {DistinctOperator} from './operators/distinct-operator.js';
 import {FilterOperator} from './operators/filter-operator.js';
 import {MapOperator} from './operators/map-operator.js';
 import {QueueEntry} from './queue.js';
 
 /**
  * Used to build up a computation pipeline against a stream and then materialize it.
- * (Note: materialization of the stream is not yet implemented).
  *
  * Encapsulates all the details of wiring together operators, readers, and writers.
  */
 export class DifferenceStream<T> implements IDifferenceStream<T> {
-  readonly #upstreamWriter;
+  readonly #upstreamWriter: DifferenceStreamWriter<T>;
 
   constructor(upstreamWriter?: DifferenceStreamWriter<T> | undefined) {
     this.#upstreamWriter = upstreamWriter ?? new DifferenceStreamWriter<T>();
@@ -44,6 +48,36 @@ export class DifferenceStream<T> implements IDifferenceStream<T> {
       this.#upstreamWriter.newReader(),
       ret.#upstreamWriter,
       f,
+    );
+    return ret;
+  }
+
+  concat(...streams: DifferenceStream<T>[]): DifferenceStream<T> {
+    const ret = new DifferenceStream<T>();
+    const first = this.#upstreamWriter.newReader();
+    const inputs = streams.map(s => s.#upstreamWriter.newReader());
+    new ConcatOperator<T>([first, ...inputs], ret.#upstreamWriter);
+    return ret;
+  }
+
+  distinct(): DifferenceStream<T> {
+    const ret = new DifferenceStream<Entity>();
+    new DistinctOperator(
+      this.#upstreamWriter.newReader() as DifferenceStreamReader<Entity>,
+      ret.#upstreamWriter,
+    );
+    // TODO(arv): T should really `extends Entity` but I'm not sure how to factor this.
+    return ret as DifferenceStream<T>;
+  }
+
+  branch(branchCount: number): DifferenceStream<T>[] {
+    const ret = Array.from(
+      {length: branchCount},
+      () => new DifferenceStream<T>(),
+    );
+    new BranchOperator(
+      this.#upstreamWriter.newReader(),
+      ret.map(s => s.#upstreamWriter),
     );
     return ret;
   }

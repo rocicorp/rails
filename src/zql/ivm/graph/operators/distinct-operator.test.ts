@@ -5,9 +5,12 @@ import {DistinctOperator} from './distinct-operator.js';
 import {NoOp} from './operator.js';
 
 test('calls effect with raw difference events', () => {
-  const inputWriter = new DifferenceStreamWriter<string>();
+  type E = {
+    id: string;
+  };
+  const inputWriter = new DifferenceStreamWriter<E>();
   const inputReader = inputWriter.newReader();
-  const output = new DifferenceStreamWriter<string>();
+  const output = new DifferenceStreamWriter<E>();
   const outputReader = output.newReader();
   outputReader.setOperator(new NoOp());
   new DistinctOperator(inputReader, output);
@@ -16,10 +19,10 @@ test('calls effect with raw difference events', () => {
   inputWriter.queueData([
     version,
     new Multiset([
-      ['a', 1],
-      ['b', 2],
-      ['a', -1],
-      ['c', 1],
+      [{id: 'a'}, 1],
+      [{id: 'b'}, 2],
+      [{id: 'a'}, -1],
+      [{id: 'c'}, 1],
     ]),
   ]);
   inputWriter.notify(version);
@@ -28,8 +31,8 @@ test('calls effect with raw difference events', () => {
     [
       version,
       new Multiset([
-        ['b', 1],
-        ['c', 1],
+        [{id: 'b'}, 1],
+        [{id: 'c'}, 1],
       ]),
     ],
   ]);
@@ -38,14 +41,14 @@ test('calls effect with raw difference events', () => {
   inputWriter.queueData([
     version,
     new Multiset([
-      ['a', -1],
-      ['b', 2],
-      ['a', 1],
-      ['c', -1],
+      [{id: 'a'}, -1],
+      [{id: 'b'}, 2],
+      [{id: 'a'}, 1],
+      [{id: 'c'}, -1],
     ]),
   ]);
-  inputWriter.queueData([version, new Multiset([['a', 1]])]);
-  inputWriter.queueData([version, new Multiset([['b', -2]])]);
+  inputWriter.queueData([version, new Multiset([[{id: 'a'}, 1]])]);
+  inputWriter.queueData([version, new Multiset([[{id: 'b'}, -2]])]);
   inputWriter.notify(version);
   inputWriter.notifyCommitted(version);
 
@@ -53,7 +56,7 @@ test('calls effect with raw difference events', () => {
   expect(items.length).toBe(1);
   const entries = [...items[0][1].entries];
   expect(entries).toEqual([
-    ['a', 1],
-    ['c', -1],
+    [{id: 'a'}, 1],
+    [{id: 'c'}, -1],
   ]);
 });

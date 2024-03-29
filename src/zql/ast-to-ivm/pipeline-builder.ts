@@ -1,3 +1,4 @@
+import {Entity} from '../../generate.js';
 import {
   AST,
   Condition,
@@ -45,7 +46,7 @@ export function applySelect(
   orderBy: Ordering | undefined,
 ) {
   return stream.map(x => {
-    const ret: Partial<Record<string, unknown>> = {};
+    const ret: Record<string, unknown> = {};
     for (const field of select) {
       ret[field] = (x as Record<string, unknown>)[field];
     }
@@ -68,7 +69,10 @@ export function applySelect(
   });
 }
 
-function applyWhere(stream: DifferenceStream<unknown>, where: Condition) {
+function applyWhere(
+  stream: DifferenceStream<unknown>,
+  where: Condition,
+): DifferenceStream<unknown> {
   let ret = stream;
   // We'll handle `OR` and parentheticals like so:
   // OR: We'll create a new stream for the LHS and RHS of the OR then merge together.
@@ -87,15 +91,25 @@ function applyWhere(stream: DifferenceStream<unknown>, where: Condition) {
   //        |
   //
   // So `ORs` cause a fork (two branches that need to be evaluated) and then that fork is combined.
-  if (where.op === 'AND') {
-    for (const condition of where.conditions) {
-      ret = applyWhere(ret, condition);
-    }
-  } else {
-    ret = applySimpleCondition(ret, where);
+  switch (where.op) {
+    case 'AND':
+      ret = applyAnd(ret, where.conditions);
+      break;
+    case 'OR':
+      ret = applyOr(ret, where.conditions);
+      break;
+    default:
+      ret = applySimpleCondition(ret, where);
   }
 
   return ret;
+}
+
+function applyAnd(stream: DifferenceStream<unknown>, conditions: Condition[]) {
+  for (const condition of conditions) {
+    stream = applyWhere(stream, condition);
+  }
+  return stream;
 }
 
 function applySimpleCondition(
@@ -115,7 +129,7 @@ function applySimpleCondition(
 function getOperator(op: SimpleOperator): (l: any, r: any) => boolean {
   switch (op) {
     case '=':
-      return (l, r) => l === r;
+      return (l, r) => (console.log('EQ', l, r), l === r);
     case '<':
       return (l, r) => l < r;
     case '>':
@@ -133,4 +147,56 @@ function getOperator(op: SimpleOperator): (l: any, r: any) => boolean {
     default:
       throw new Error(`Operator ${op} not supported`);
   }
+}
+
+function applyOr<T extends Entity>(
+  stream: DifferenceStream<unknown>,
+  conditions: Condition[],
+): DifferenceStream<T> {
+  // Or is done by branching the stream and then apply the conditions to each branch.
+  // Then we merge the branches back together.
+  // At this point we need to ensure we do not get duplicate entries.
+
+  //   const branches = stream.branch(conditions.length);
+  //   const [first, ...rest] = conditions.map((c, i) =>
+  //     applyWhere(branches[i], c),
+  //   ) as DifferenceStream<T>[];
+  //   return first.concat(...rest).distinct();
+  // }
+
+  // (a = 1 OR b = 1) AND (a = 2 OR b = 2)
+
+  const branches = conditions.map(c =>
+    applyWhere(stream, c),
+  ) as DifferenceStream<T>[];
+  const [first, ...rest] = branches.map((b, i) =>
+    b.debug(([version, multiset]) => {
+      console.log(
+        'OR branch',
+        '`' + conditionToString(conditions[i]) + '`',
+        version,
+        [...multiset.entries],
+      );
+    }),
+  );
+  return (
+    first
+      .concat(...rest)
+      .debug(([version, multiset]) => {
+        console.log('CONCAT result', version, [...multiset.entries]);
+      })
+      // distinct should not let the same message through twice.
+      .distinct()
+      .debug(([version, multiset]) => {
+        console.log('DISTINCT result', version, [...multiset.entries]);
+      })
+  );
+}
+
+function conditionToString(c: Condition): string {
+  if (c.op === 'AND' || c.op === 'OR') {
+    return `(${c.conditions.map(conditionToString).join(` ${c.op} `)})`;
+  }
+
+  return `${(c as {field: string}).field} ${c.op} ${(c as {value: {value: unknown}}).value.value}`;
 }
