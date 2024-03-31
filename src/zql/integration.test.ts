@@ -1,4 +1,4 @@
-import {expect, test} from 'vitest';
+import {expect, test, vi} from 'vitest';
 import {z} from 'zod';
 import {generate} from '../generate.js';
 import {makeReplicacheContext} from './context/replicache-context.js';

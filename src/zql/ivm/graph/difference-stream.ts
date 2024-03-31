@@ -1,11 +1,5 @@
 import {Primitive} from '../../ast/ast.js';
-import {Multiset} from '../multiset.js';
-import {Source} from '../source/source.js';
 import {Version} from '../types.js';
-import {
-  DifferenceStreamWriter,
-  RootDifferenceStreamWriter,
-} from './difference-stream-writer.js';
 import {
   AggregateOut,
   FullAvgOperator,
@@ -17,7 +11,19 @@ import {DifferenceEffectOperator} from './operators/difference-effect-operator.j
 import {FilterOperator} from './operators/filter-operator.js';
 import {MapOperator} from './operators/map-operator.js';
 import {ReduceOperator} from './operators/reduce-operator.js';
-import {QueueEntry} from './queue.js';
+import {Operator} from './operators/operator.js';
+import {invariant} from '../../error/asserts.js';
+import {Entry} from '../multiset.js';
+import {Reply, Request} from './message.js';
+
+export type Listener<T> = {
+  newData: (
+    version: Version,
+    data: Iterable<Entry<T>>,
+    reply?: Reply | undefined,
+  ) => void;
+  commit: (version: Version) => void;
+};
 
 /**
  * Holds a reference to a `DifferenceStreamWriter` and allows users
@@ -43,32 +49,72 @@ import {QueueEntry} from './queue.js';
  */
 // T extends object: I believe in the context of ZQL we only deal with object.
 export class DifferenceStream<T extends object> {
-  readonly #upstreamWriter;
+  readonly #downstreams: Set<Listener<T>> = new Set();
+  #upstream: Operator | undefined;
+  readonly #requestors = new Set<Listener<T>>();
 
-  constructor(upstreamWriter?: DifferenceStreamWriter<T> | undefined) {
-    this.#upstreamWriter = upstreamWriter ?? new DifferenceStreamWriter<T>();
+  addDownstream(listener: Listener<T>) {
+    this.#downstreams.add(listener);
+  }
+
+  setUpstream(operator: Operator) {
+    invariant(this.#upstream === undefined, 'upstream already set');
+    this.#upstream = operator;
+    return this;
+  }
+
+  newData(
+    version: Version,
+    data: Iterable<Entry<T>>,
+    reply?: Reply | undefined,
+  ) {
+    if (reply) {
+      for (const requestor of this.#requestors) {
+        requestor.newData(version, data, reply);
+      }
+    } else {
+      for (const listener of this.#downstreams) {
+        listener.newData(version, data, reply);
+      }
+    }
+  }
+
+  messageUpstream(message: Request, downstream: Listener<T>): void {
+    this.#requestors.add(downstream);
+    this.#upstream?.messageUpstream(message);
+  }
+
+  commit(version: Version) {
+    if (this.#requestors.size > 0) {
+      this.#requestors;
+      for (const requestor of this.#requestors) {
+        try {
+          requestor.commit(version);
+        } catch (e) {
+          this.#requestors.clear();
+          throw e;
+        }
+      }
+      this.#requestors.clear();
+    } else {
+      for (const listener of this.#downstreams) {
+        listener.commit(version);
+      }
+    }
   }
 
   map<O extends object>(f: (value: T) => O): DifferenceStream<O> {
-    const ret = new DifferenceStream<O>();
-    new MapOperator<T, O>(
-      this.#upstreamWriter.newReader(),
-      ret.#upstreamWriter,
-      f,
-    );
-    return ret;
+    const stream = new DifferenceStream<O>();
+    return stream.setUpstream(new MapOperator<T, O>(this, stream, f));
   }
 
   filter<S extends T>(f: (x: T) => x is S): DifferenceStream<S>;
   filter(f: (x: T) => boolean): DifferenceStream<T>;
   filter<S extends T>(f: (x: T) => boolean): DifferenceStream<S> {
-    const ret = new DifferenceStream<S>();
-    new FilterOperator<T>(
-      this.#upstreamWriter.newReader(),
-      ret.#upstreamWriter,
-      f,
+    const stream = new DifferenceStream<S>();
+    return stream.setUpstream(
+      new FilterOperator<T>(this, stream as unknown as DifferenceStream<T>, f),
     );
-    return ret;
   }
 
   reduce<K extends Primitive, O extends object>(
@@ -76,15 +122,10 @@ export class DifferenceStream<T extends object> {
     getIdentity: (value: T) => string,
     f: (input: Iterable<T>) => O,
   ): DifferenceStream<O> {
-    const ret = new DifferenceStream<O>();
-    new ReduceOperator<K, T, O>(
-      this.#upstreamWriter.newReader(),
-      ret.#upstreamWriter,
-      getIdentity,
-      getKey,
-      f,
+    const stream = new DifferenceStream<O>();
+    return stream.setUpstream(
+      new ReduceOperator<K, T, O>(this, stream, getIdentity, getKey, f),
     );
-    return ret;
   }
 
   /**
@@ -93,38 +134,22 @@ export class DifferenceStream<T extends object> {
    * @returns returns the size of the stream
    */
   count<Alias extends string>(alias: Alias) {
-    const ret = new DifferenceStream<AggregateOut<T, [[Alias, number]]>>();
-    new FullCountOperator(
-      this.#upstreamWriter.newReader(),
-      ret.#upstreamWriter,
-      alias,
-    );
-    return ret;
+    const stream = new DifferenceStream<AggregateOut<T, [[Alias, number]]>>();
+    return stream.setUpstream(new FullCountOperator(this, stream, alias));
   }
 
   average<Field extends keyof T, Alias extends string>(
     field: Field,
     alias: Alias,
   ) {
-    const ret = new DifferenceStream<AggregateOut<T, [[Alias, number]]>>();
-    new FullAvgOperator(
-      this.#upstreamWriter.newReader(),
-      ret.#upstreamWriter,
-      field,
-      alias,
-    );
-    return ret;
+    const stream = new DifferenceStream<AggregateOut<T, [[Alias, number]]>>();
+    return stream.setUpstream(new FullAvgOperator(this, stream, field, alias));
   }
 
   sum<Field extends keyof T, Alias extends string>(field: Field, alias: Alias) {
-    const ret = new DifferenceStream<AggregateOut<T, [[Alias, number]]>>();
-    new FullSumOperator(
-      this.#upstreamWriter.newReader(),
-      ret.#upstreamWriter,
-      field,
-      alias,
-    );
-    return ret;
+    const stream = new DifferenceStream<AggregateOut<T, [[Alias, number]]>>();
+    stream.setUpstream(new FullSumOperator(this, stream, field, alias));
+    return stream;
   }
 
   /**
@@ -134,54 +159,28 @@ export class DifferenceStream<T extends object> {
    * `mult === 0` is a no-op and can be ignored. Generally shouldn't happen.
    */
   effect(f: (i: T, mult: number) => void) {
-    const ret = new DifferenceStream<T>();
-    new DifferenceEffectOperator(
-      this.#upstreamWriter.newReader(),
-      ret.#upstreamWriter,
-      f,
-    );
-    return ret;
+    const stream = new DifferenceStream<T>();
+    stream.setUpstream(new DifferenceEffectOperator(this, stream, f));
+    return stream;
   }
 
-  debug(onMessage: (c: QueueEntry<T>) => void) {
-    const ret = new DifferenceStream<T>();
-    new DebugOperator(
-      this.#upstreamWriter.newReader(),
-      ret.#upstreamWriter,
-      onMessage,
-    );
-    return ret;
-  }
-
-  queueData(data: [Version, Multiset<T>]) {
-    this.#upstreamWriter.queueData(data);
-  }
-
-  notify(v: Version) {
-    this.#upstreamWriter.notify(v);
-  }
-
-  notifyCommitted(v: Version) {
-    this.#upstreamWriter.notifyCommitted(v);
-  }
-
-  newReader() {
-    return this.#upstreamWriter.newReader();
+  debug(onMessage: (v: Version, data: Iterable<Entry<T>>) => void) {
+    const stream = new DifferenceStream<T>();
+    stream.setUpstream(new DebugOperator(this, stream, onMessage));
+    return stream;
   }
 
   destroy() {
-    this.#upstreamWriter.destroy();
-  }
-}
-
-export class RootDifferenceStream<
-  T extends object,
-> extends DifferenceStream<T> {
-  constructor(source: Source<T>) {
-    super(new RootDifferenceStreamWriter<T>(source));
+    this.#upstream?.destroy();
+    this.#downstreams.clear();
+    this.#requestors.clear();
   }
 
-  get stream() {
-    return this;
+  removeDownstream(listener: Listener<T>) {
+    this.#downstreams.delete(listener);
+    this.#requestors.delete(listener);
+    if (this.#downstreams.size === 0) {
+      this.destroy();
+    }
   }
 }

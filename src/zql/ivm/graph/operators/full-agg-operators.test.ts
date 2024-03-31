@@ -1,48 +1,33 @@
 import {expect, test} from 'vitest';
-import {Multiset} from '../../multiset.js';
-import {NoOp} from './operator.js';
-import {DifferenceStreamWriter} from '../difference-stream-writer.js';
-import {
-  FullAvgOperator,
-  FullCountOperator,
-  FullSumOperator,
-} from './full-agg-operators.js';
+import {DifferenceStream} from '../difference-stream.js';
 
 test('count', () => {
-  const inputWriter = new DifferenceStreamWriter<{x: string}>();
-  const inputReader = inputWriter.newReader();
-  const output = new DifferenceStreamWriter<{x: string; count: number}>();
-
-  new FullCountOperator(inputReader, output, 'count');
-
-  const outReader = output.newReader();
-  outReader.setOperator(new NoOp());
+  const input = new DifferenceStream<{x: string}>();
+  const output = input.count('count');
+  const items: [{x: string}, number][] = [];
+  output.effect((e, m) => {
+    items.push([e, m]);
+  });
 
   // does not count things that do not exist
-  inputWriter.queueData([
-    1,
-    new Multiset([
-      [
-        {
-          x: 'foo',
-        },
-        0,
-      ],
-    ]),
+  input.newData(1, [
+    [
+      {
+        x: 'foo',
+      },
+      0,
+    ],
   ]);
   check(1, [[{x: 'foo', count: 0}, 1]]);
 
   // counts multiplicity of 1
-  inputWriter.queueData([
-    2,
-    new Multiset([
-      [
-        {
-          x: 'foo',
-        },
-        1,
-      ],
-    ]),
+  input.newData(2, [
+    [
+      {
+        x: 'foo',
+      },
+      1,
+    ],
   ]);
   check(2, [
     [{x: 'foo', count: 0}, -1],
@@ -50,16 +35,13 @@ test('count', () => {
   ]);
 
   // decrements if an item is removed
-  inputWriter.queueData([
-    3,
-    new Multiset([
-      [
-        {
-          x: 'foo',
-        },
-        -1,
-      ],
-    ]),
+  input.newData(3, [
+    [
+      {
+        x: 'foo',
+      },
+      -1,
+    ],
   ]);
   check(3, [
     [{x: 'foo', count: 1}, -1],
@@ -67,16 +49,13 @@ test('count', () => {
   ]);
 
   // double counts doubly present items
-  inputWriter.queueData([
-    4,
-    new Multiset([
-      [
-        {
-          x: 'foo',
-        },
-        2,
-      ],
-    ]),
+  input.newData(4, [
+    [
+      {
+        x: 'foo',
+      },
+      2,
+    ],
   ]);
   check(4, [
     [{x: 'foo', count: 0}, -1],
@@ -87,61 +66,51 @@ test('count', () => {
     version: number,
     expected: [{x: string; count: number}, number][],
   ) {
-    inputWriter.notify(version);
-    inputWriter.notifyCommitted(version);
-
-    const items = outReader.drain(version);
-    expect([...items![1].entries]).toEqual(expected);
+    items.length = 0;
+    input.commit(version);
+    expect(items).toEqual(expected);
   }
 });
 
 test('average', () => {
-  const inputWriter = new DifferenceStreamWriter<{x: number}>();
-  const inputReader = inputWriter.newReader();
-  const output = new DifferenceStreamWriter<{x: number}>();
-
-  new FullAvgOperator(inputReader, output, 'x', 'x');
-
-  const outReader = output.newReader();
-  outReader.setOperator(new NoOp());
+  const input = new DifferenceStream<{x: number}>();
+  const output = input.average('x', 'x');
+  const items: [{x: number}, number][] = [];
+  output.effect((e, m) => {
+    items.push([e, m]);
+  });
 
   // does not avg things that do not exist
-  inputWriter.queueData([
-    1,
-    new Multiset([
-      [
-        {
-          x: 1,
-        },
-        0,
-      ],
-    ]),
+  input.newData(1, [
+    [
+      {
+        x: 1,
+      },
+      0,
+    ],
   ]);
   check(1, [[{x: 0}, 1]]);
 
   // averages things that exist
-  inputWriter.queueData([
-    1,
-    new Multiset([
-      [
-        {
-          x: 1,
-        },
-        1,
-      ],
-      [
-        {
-          x: 2,
-        },
-        1,
-      ],
-      [
-        {
-          x: 3,
-        },
-        1,
-      ],
-    ]),
+  input.newData(1, [
+    [
+      {
+        x: 1,
+      },
+      1,
+    ],
+    [
+      {
+        x: 2,
+      },
+      1,
+    ],
+    [
+      {
+        x: 3,
+      },
+      1,
+    ],
   ]);
   check(1, [
     [{x: 0}, -1],
@@ -149,22 +118,19 @@ test('average', () => {
   ]);
 
   // updates the average when new items enter
-  inputWriter.queueData([
-    1,
-    new Multiset([
-      [
-        {
-          x: 4,
-        },
-        1,
-      ],
-      [
-        {
-          x: 5,
-        },
-        1,
-      ],
-    ]),
+  input.newData(1, [
+    [
+      {
+        x: 4,
+      },
+      1,
+    ],
+    [
+      {
+        x: 5,
+      },
+      1,
+    ],
   ]);
   check(1, [
     [{x: 2}, -1],
@@ -172,22 +138,19 @@ test('average', () => {
   ]);
 
   // updates the average when items leave
-  inputWriter.queueData([
-    1,
-    new Multiset([
-      [
-        {
-          x: 4,
-        },
-        -1,
-      ],
-      [
-        {
-          x: 5,
-        },
-        -1,
-      ],
-    ]),
+  input.newData(1, [
+    [
+      {
+        x: 4,
+      },
+      -1,
+    ],
+    [
+      {
+        x: 5,
+      },
+      -1,
+    ],
   ]);
   check(1, [
     [{x: 3}, -1],
@@ -195,61 +158,51 @@ test('average', () => {
   ]);
 
   function check(version: number, expected: [{x: number}, number][]) {
-    inputWriter.notify(version);
-    inputWriter.notifyCommitted(version);
-
-    const items = outReader.drain(version);
-    expect([...items![1].entries]).toEqual(expected);
+    items.length = 0;
+    input.commit(version);
+    expect(items).toEqual(expected);
   }
 });
 
 test('sum', () => {
-  const inputWriter = new DifferenceStreamWriter<{x: number}>();
-  const inputReader = inputWriter.newReader();
-  const output = new DifferenceStreamWriter<{x: number}>();
-
-  new FullSumOperator(inputReader, output, 'x', 'x');
-
-  const outReader = output.newReader();
-  outReader.setOperator(new NoOp());
+  const input = new DifferenceStream<{x: number}>();
+  const output = input.sum('x', 'x');
+  const items: [{x: number}, number][] = [];
+  output.effect((e, m) => {
+    items.push([e, m]);
+  });
 
   // does not sum things that do not exist
-  inputWriter.queueData([
-    1,
-    new Multiset([
-      [
-        {
-          x: 1,
-        },
-        0,
-      ],
-    ]),
+  input.newData(1, [
+    [
+      {
+        x: 1,
+      },
+      0,
+    ],
   ]);
   check(1, [[{x: 0}, 1]]);
 
   // sums things that exist
-  inputWriter.queueData([
-    1,
-    new Multiset([
-      [
-        {
-          x: 1,
-        },
-        1,
-      ],
-      [
-        {
-          x: 2,
-        },
-        1,
-      ],
-      [
-        {
-          x: 3,
-        },
-        1,
-      ],
-    ]),
+  input.newData(1, [
+    [
+      {
+        x: 1,
+      },
+      1,
+    ],
+    [
+      {
+        x: 2,
+      },
+      1,
+    ],
+    [
+      {
+        x: 3,
+      },
+      1,
+    ],
   ]);
   check(1, [
     [{x: 0}, -1],
@@ -257,22 +210,19 @@ test('sum', () => {
   ]);
 
   // updates the sum when new items enter
-  inputWriter.queueData([
-    1,
-    new Multiset([
-      [
-        {
-          x: 4,
-        },
-        1,
-      ],
-      [
-        {
-          x: 5,
-        },
-        1,
-      ],
-    ]),
+  input.newData(1, [
+    [
+      {
+        x: 4,
+      },
+      1,
+    ],
+    [
+      {
+        x: 5,
+      },
+      1,
+    ],
   ]);
   check(1, [
     [{x: 6}, -1],
@@ -280,22 +230,19 @@ test('sum', () => {
   ]);
 
   // updates the sum when items leave
-  inputWriter.queueData([
-    1,
-    new Multiset([
-      [
-        {
-          x: 4,
-        },
-        -1,
-      ],
-      [
-        {
-          x: 5,
-        },
-        -1,
-      ],
-    ]),
+  input.newData(1, [
+    [
+      {
+        x: 4,
+      },
+      -1,
+    ],
+    [
+      {
+        x: 5,
+      },
+      -1,
+    ],
   ]);
   check(1, [
     [{x: 15}, -1],
@@ -303,10 +250,8 @@ test('sum', () => {
   ]);
 
   function check(version: number, expected: [{x: number}, number][]) {
-    inputWriter.notify(version);
-    inputWriter.notifyCommitted(version);
-
-    const items = outReader.drain(version);
-    expect([...items![1].entries]).toEqual(expected);
+    items.length = 0;
+    input.commit(version);
+    expect(items).toEqual(expected);
   }
 });

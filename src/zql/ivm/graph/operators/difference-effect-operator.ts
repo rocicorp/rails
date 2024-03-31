@@ -1,7 +1,6 @@
-import {Multiset} from '../../multiset.js';
+import {Entry} from '../../multiset.js';
 import {Version} from '../../types.js';
-import {DifferenceStreamReader} from '../difference-stream-reader.js';
-import {DifferenceStreamWriter} from '../difference-stream-writer.js';
+import {DifferenceStream} from '../difference-stream.js';
 import {UnaryOperator} from './unary-operator.js';
 
 /**
@@ -11,31 +10,34 @@ import {UnaryOperator} from './unary-operator.js';
  * to be run on changes to a query without having to materialize the query
  * results.
  */
-export class DifferenceEffectOperator<T> extends UnaryOperator<T, T> {
+export class DifferenceEffectOperator<T extends object> extends UnaryOperator<
+  T,
+  T
+> {
   readonly #f: (input: T, mult: number) => void;
-  #collected: Multiset<T>[] = [];
+  #collected: Iterable<Entry<T>>[] = [];
 
   constructor(
-    input: DifferenceStreamReader<T>,
-    output: DifferenceStreamWriter<T>,
+    input: DifferenceStream<T>,
+    output: DifferenceStream<T>,
     f: (input: T, mult: number) => void,
   ) {
-    const inner = (version: Version) => {
-      this.#collected = [];
-      const entry = this.inputMessages(version);
-      this.#collected.push(entry[1]);
-      this._output.queueData(entry);
+    const inner = (_version: Version, data: Iterable<Entry<T>>) => {
+      this.#collected.push(data);
+      return data;
     };
     super(input, output, inner);
     this.#f = f;
   }
 
-  notifyCommitted(v: number): void {
-    for (const collection of this.#collected) {
-      for (const [val, mult] of collection.entries) {
+  commit(v: number): void {
+    const collected = this.#collected;
+    this.#collected = [];
+    for (const collection of collected) {
+      for (const [val, mult] of collection) {
         this.#f(val, mult);
       }
     }
-    this._output.notifyCommitted(v);
+    this._output.commit(v);
   }
 }

@@ -1,15 +1,21 @@
-import {Multiset} from '../../multiset.js';
-import {DifferenceStreamReader} from '../difference-stream-reader.js';
-import {DifferenceStreamWriter} from '../difference-stream-writer.js';
+import {Entry, genMap} from '../../multiset.js';
+import {DifferenceStream} from '../difference-stream.js';
 import {LinearUnaryOperator} from './linear-unary-operator.js';
 
-export class MapOperator<I, O> extends LinearUnaryOperator<I, O> {
+export class MapOperator<
+  I extends object,
+  O extends object,
+> extends LinearUnaryOperator<I, O> {
   constructor(
-    input: DifferenceStreamReader<I>,
-    output: DifferenceStreamWriter<O>,
+    input: DifferenceStream<I>,
+    output: DifferenceStream<O>,
     f: (input: I) => O,
   ) {
-    const inner = (collection: Multiset<I>) => collection.map(f);
+    const inner = (collection: Iterable<Entry<I>>) =>
+      genMap(
+        collection,
+        ([value, multiplicity]) => [f(value), multiplicity] as const,
+      );
     super(input, output, inner);
   }
 }

@@ -1,23 +1,21 @@
+import {Entry} from '../../multiset.js';
 import {Version} from '../../types.js';
-import {DifferenceStreamReader} from '../difference-stream-reader.js';
-import {DifferenceStreamWriter} from '../difference-stream-writer.js';
-import {QueueEntry} from '../queue.js';
+import {DifferenceStream} from '../difference-stream.js';
 import {UnaryOperator} from './unary-operator.js';
 
 /**
  * Allows someone to observe all data flowing through a spot
  * in a pipeline. Forwards the data with no changes made to it.
  */
-export class DebugOperator<T> extends UnaryOperator<T, T> {
+export class DebugOperator<T extends object> extends UnaryOperator<T, T> {
   constructor(
-    input: DifferenceStreamReader<T>,
-    output: DifferenceStreamWriter<T>,
-    onMessage: (c: QueueEntry<T>) => void,
+    input: DifferenceStream<T>,
+    output: DifferenceStream<T>,
+    onMessage: (v: Version, data: Iterable<Entry<T>>) => void,
   ) {
-    const inner = (version: Version) => {
-      const entry = this.inputMessages(version);
-      onMessage(entry);
-      this._output.queueData(entry);
+    const inner = (version: Version, data: Iterable<Entry<T>>) => {
+      onMessage(version, data);
+      return data;
     };
     super(input, output, inner);
   }

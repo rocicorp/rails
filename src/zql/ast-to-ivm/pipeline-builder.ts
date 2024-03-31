@@ -28,7 +28,7 @@ export function buildPipeline(
     stream = applyWhere(stream, ast.where);
   }
 
-  let ret: DifferenceStream<object> = stream;
+  let ret: DifferenceStream<Entity> = stream;
   // groupBy also applied aggregations
   if (ast.groupBy) {
     ret = applyGroupBy(
@@ -37,7 +37,7 @@ export function buildPipeline(
       ast.aggregate ?? [],
       Array.isArray(ast.select) ? ast.select : [],
       ast.orderBy,
-    );
+    ) as unknown as DifferenceStream<Entity>;
   }
   // if there was no group-by then we could be aggregating the entire table
   else if (ast.aggregate) {
@@ -80,7 +80,7 @@ export function applySelect(
     addOrdering(ret, x, orderBy);
 
     return ret;
-  });
+  }) as unknown as DifferenceStream<Entity>;
 }
 
 function addOrdering(
@@ -233,7 +233,8 @@ function applyFullTableAggregation<T extends Entity>(
   stream: DifferenceStream<T>,
   aggregations: Aggregation[],
 ) {
-  let ret = stream;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let ret: DifferenceStream<any> = stream;
   for (const agg of aggregations) {
     switch (agg.aggregate) {
       case 'array':

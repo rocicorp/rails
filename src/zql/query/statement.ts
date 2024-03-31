@@ -28,7 +28,7 @@ export class Statement<Return> implements IStatement<Return> {
     this.#pipeline = buildPipeline(
       <T extends Entity>(sourceName: string) =>
         context.getSource(sourceName, this.#ast.orderBy)
-          .stream as DifferenceStream<T>,
+          .stream as unknown as DifferenceStream<T>,
       ast,
     );
     this.#context = context;
@@ -41,7 +41,7 @@ export class Statement<Return> implements IStatement<Return> {
         Return extends [] ? Return[number] : never
       >(
         this.#context.materialite,
-        this.#pipeline as DifferenceStream<
+        this.#pipeline as unknown as DifferenceStream<
           Return extends [] ? Return[number] : never
         >,
         this.#ast.orderBy[1] === 'asc' ? ascComparator : descComparator,
@@ -50,8 +50,6 @@ export class Statement<Return> implements IStatement<Return> {
       ) as unknown as View<Return extends [] ? Return[number] : Return>;
     }
 
-    // TODO: we'll want some ability to let a caller await
-    // the response of historical data.
     this.#materialization.pullHistoricalData();
 
     return this.#materialization as View<Return>;

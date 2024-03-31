@@ -47,7 +47,7 @@ test('getSource - no ordering', async () => {
   await r.mutate.initE1({id: '2', str: 'a'});
 
   // source is ordered by id
-  expect([...(source as SetSource<E1>).value]).toEqual([
+  expect([...(source as unknown as SetSource<E1>).value]).toEqual([
     {id: '1', str: 'a'},
     {id: '2', str: 'a'},
     {id: '3', str: 'a'},
@@ -55,14 +55,14 @@ test('getSource - no ordering', async () => {
 
   await r.mutate.deleteE1('1');
 
-  expect([...(source as SetSource<E1>).value]).toEqual([
+  expect([...(source as unknown as SetSource<E1>).value]).toEqual([
     {id: '2', str: 'a'},
     {id: '3', str: 'a'},
   ]);
 
   await r.mutate.updateE1({id: '3', str: 'z'});
 
-  expect([...(source as SetSource<E1>).value]).toEqual([
+  expect([...(source as unknown as SetSource<E1>).value]).toEqual([
     {id: '2', str: 'a'},
     {id: '3', str: 'z'},
   ]);
@@ -77,7 +77,7 @@ test('getSource - with ordering', async () => {
   await r.mutate.initE1({id: '3', str: 'z'});
   await r.mutate.initE1({id: '2', str: 'a'});
 
-  expect([...(source as SetSource<E1>).value]).toEqual([
+  expect([...(source as unknown as SetSource<E1>).value]).toEqual([
     {id: '2', str: 'a'},
     {id: '1', str: 'c'},
     {id: '3', str: 'z'},
@@ -90,11 +90,15 @@ test('getSource - with ordering', async () => {
   await r.mutate.deleteE1('1');
   await r.mutate.deleteE1('3');
 
-  expect([...(source as SetSource<E1>).value]).toEqual([{id: '2', str: 'a'}]);
+  expect([...(source as unknown as SetSource<E1>).value]).toEqual([
+    {id: '2', str: 'a'},
+  ]);
 
   await r.mutate.updateE1({id: '2', str: 'z'});
 
-  expect([...(source as SetSource<E1>).value]).toEqual([{id: '2', str: 'z'}]);
+  expect([...(source as unknown as SetSource<E1>).value]).toEqual([
+    {id: '2', str: 'z'},
+  ]);
 });
 
 declare function setTimeout(callback: () => void, ms: number): number;
@@ -118,12 +122,12 @@ test('derived sources are correctly seeded', async () => {
     setTimeout(resolve, 0);
   });
 
-  expect([...(s1 as SetSource<E1>).value]).toEqual([
+  expect([...(s1 as unknown as SetSource<E1>).value]).toEqual([
     {id: '2', str: 'a'},
     {id: '1', str: 'c'},
     {id: '3', str: 'z'},
   ]);
-  expect([...(s2 as SetSource<E1>).value]).toEqual([
+  expect([...(s2 as unknown as SetSource<E1>).value]).toEqual([
     {id: '1', str: 'c'},
     {id: '2', str: 'a'},
     {id: '3', str: 'z'},

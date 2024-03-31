@@ -1,7 +1,6 @@
-import {Multiset} from '../../multiset.js';
+import {Entry} from '../../multiset.js';
 import {Version} from '../../types.js';
-import {DifferenceStreamReader} from '../difference-stream-reader.js';
-import {DifferenceStreamWriter} from '../difference-stream-writer.js';
+import {DifferenceStream} from '../difference-stream.js';
 import {UnaryOperator} from './unary-operator.js';
 
 /**
@@ -16,20 +15,15 @@ import {UnaryOperator} from './unary-operator.js';
  * Reduce and join are non-linear since they must use the prior state `a`, not just the diff `b - a`, in their
  * computations.
  */
-export class LinearUnaryOperator<I, O> extends UnaryOperator<I, O> {
+export class LinearUnaryOperator<
+  I extends object,
+  O extends object,
+> extends UnaryOperator<I, O> {
   constructor(
-    input: DifferenceStreamReader<I>,
-    output: DifferenceStreamWriter<O>,
-    f: (input: Multiset<I>) => Multiset<O>,
+    input: DifferenceStream<I>,
+    output: DifferenceStream<O>,
+    f: (input: Iterable<Entry<I>>) => Iterable<Entry<O>>,
   ) {
-    const inner = (v: Version) => {
-      const entry = this.inputMessages(v);
-      if (entry.length === 3) {
-        this._output.queueData([v, f(entry[1]), entry[2]]);
-      } else {
-        this._output.queueData([v, f(entry[1])]);
-      }
-    };
-    super(input, output, inner);
+    super(input, output, (_v: Version, data: Iterable<Entry<I>>) => f(data));
   }
 }

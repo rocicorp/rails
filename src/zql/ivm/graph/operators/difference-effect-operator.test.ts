@@ -1,44 +1,41 @@
 import {expect, test} from 'vitest';
-import {DifferenceStreamWriter} from '../difference-stream-writer.js';
 import {DifferenceEffectOperator} from './difference-effect-operator.js';
-import {Multiset} from '../../multiset.js';
+import {DifferenceStream} from '../difference-stream.js';
 
+type E = {x: number};
 test('calls effect with raw difference events', () => {
-  const inputWriter = new DifferenceStreamWriter<number>();
-  const inputReader = inputWriter.newReader();
-  const output = new DifferenceStreamWriter<number>();
+  const input = new DifferenceStream<E>();
+  const output = new DifferenceStream<E>();
 
   let called = false;
-  let value = 0;
+  let value;
   let mult = 0;
-  new DifferenceEffectOperator(inputReader, output, (v, m) => {
+  new DifferenceEffectOperator(input, output, (v, m) => {
     called = true;
     value = v;
     mult = m;
   });
 
-  inputWriter.queueData([1, new Multiset([[1, 1]])]);
-  inputWriter.notify(1);
+  input.newData(1, [[{x: 1}, 1]]);
 
   // effect not run until commit
   expect(called).toBe(false);
 
-  inputWriter.notifyCommitted(1);
+  input.commit(1);
   expect(called).toBe(true);
-  expect(value).toBe(1);
+  expect(value).toEqual({x: 1});
   expect(mult).toBe(1);
 
   called = false;
   value = 0;
   mult = 0;
-  inputWriter.queueData([2, new Multiset([[1, -1]])]);
-  inputWriter.notify(2);
+  input.newData(2, [[{x: 1}, -1]]);
 
   // effect not run until commit
   expect(called).toBe(false);
 
-  inputWriter.notifyCommitted(2);
+  input.commit(2);
   expect(called).toBe(true);
-  expect(value).toBe(1);
+  expect(value).toEqual({x: 1});
   expect(mult).toBe(-1);
 });

@@ -1,13 +1,13 @@
 import {Materialite} from '../materialite.js';
-import {DifferenceStream} from '../graph/difference-stream.js';
+import {DifferenceStream, Listener} from '../graph/difference-stream.js';
 import {Version} from '../types.js';
 import {View} from './view.js';
-import {assert} from '../../error/asserts.js';
+import {Entry} from '../multiset.js';
 
 export abstract class AbstractView<T extends object, CT> implements View<CT> {
   readonly #stream;
   protected readonly _materialite: Materialite;
-  protected readonly _reader;
+  protected readonly _listener: Listener<T>;
   protected _notifiedListenersVersion = -1;
   readonly #listeners: Set<(s: CT, v: Version) => void> = new Set();
   readonly name;
@@ -27,24 +27,16 @@ export abstract class AbstractView<T extends object, CT> implements View<CT> {
     this.name = name;
     this._materialite = materialite;
     this.#stream = stream;
-    this._reader = this.#stream.newReader();
-    this._reader.setOperator({
-      run: (v: Version) => {
-        this._run(v);
+    this._listener = {
+      newData: (v: Version, data: Iterable<Entry<T>>) => {
+        this._newData(v, data);
       },
-      notify(_v: Version) {},
-      notifyCommitted: (v: Version) => {
+      commit: (v: Version) => {
         this.#hydrated = true;
         this._notifyCommitted(this.value, v);
       },
-      destroy() {},
-      messageUpstream: _ => {
-        assert(
-          false,
-          'Message Upstream should not be called in a view operator',
-        );
-      },
-    });
+    };
+    this.#stream.addDownstream(this._listener);
   }
 
   get stream() {
@@ -88,5 +80,5 @@ export abstract class AbstractView<T extends object, CT> implements View<CT> {
     this.#listeners.clear();
   }
 
-  protected abstract _run(v: Version): void;
+  protected abstract _newData(v: Version, data: Iterable<Entry<T>>): void;
 }

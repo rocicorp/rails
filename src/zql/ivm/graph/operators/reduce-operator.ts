@@ -1,10 +1,9 @@
 import {Primitive} from '../../../ast/ast.js';
 import {assert} from '../../../error/asserts.js';
 import {flatMapIter} from '../../../util/iterables.js';
-import {Entry, Multiset} from '../../multiset.js';
+import {Entry} from '../../multiset.js';
 import {Version} from '../../types.js';
-import {DifferenceStreamReader} from '../difference-stream-reader.js';
-import {DifferenceStreamWriter} from '../difference-stream-writer.js';
+import {DifferenceStream} from '../difference-stream.js';
 import {UnaryOperator} from './unary-operator.js';
 
 /**
@@ -21,8 +20,8 @@ import {UnaryOperator} from './unary-operator.js';
  */
 export class ReduceOperator<
   K extends Primitive,
-  V,
-  O = V,
+  V extends object,
+  O extends object = V,
 > extends UnaryOperator<V, O> {
   /**
    * The set of all values that have been seen for a given key.
@@ -44,17 +43,16 @@ export class ReduceOperator<
   readonly #getValueIdentity: (value: V) => string;
 
   constructor(
-    input: DifferenceStreamReader<V>,
-    output: DifferenceStreamWriter<O>,
+    input: DifferenceStream<V>,
+    output: DifferenceStream<O>,
     getValueIdentity: (value: V) => string,
     getGroupKey: (value: V) => K,
     f: (input: Iterable<V>) => O,
   ) {
-    const inner = (version: Version) => {
+    const inner = (_: Version, data: Iterable<Entry<V>>) => {
       const keysToProcess = new Set<K>();
       const ret: Entry<O>[] = [];
-      const entry = this.inputMessages(version);
-      for (const [value, mult] of entry[1].entries) {
+      for (const [value, mult] of data) {
         const key = getGroupKey(value);
         keysToProcess.add(key);
         this.#addToIndex(key, value, mult);
@@ -90,7 +88,7 @@ export class ReduceOperator<
         this.#outIndex.set(k, reduction);
       }
 
-      this._output.queueData([version, new Multiset(ret)]);
+      return ret;
     };
     super(input, output, inner);
     this.#getValueIdentity = getValueIdentity;

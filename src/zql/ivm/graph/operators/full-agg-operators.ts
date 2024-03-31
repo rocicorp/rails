@@ -1,6 +1,5 @@
-import {Multiset} from '../../multiset.js';
-import {DifferenceStreamReader} from '../difference-stream-reader.js';
-import {DifferenceStreamWriter} from '../difference-stream-writer.js';
+import {Entry} from '../../multiset.js';
+import {DifferenceStream} from '../difference-stream.js';
 import {LinearUnaryOperator} from './linear-unary-operator.js';
 
 export type AggregateOut<
@@ -17,22 +16,22 @@ class FullAggregateOperator<
   #lastOutput: AggregateOut<V, AggregateResult> | undefined;
 
   constructor(
-    input: DifferenceStreamReader<V>,
-    output: DifferenceStreamWriter<AggregateOut<V, AggregateResult>>,
+    input: DifferenceStream<V>,
+    output: DifferenceStream<AggregateOut<V, AggregateResult>>,
     fn: (
-      collection: Multiset<V>,
+      collection: Iterable<Entry<V>>,
       last: AggregateOut<V, AggregateResult> | V,
     ) => AggregateOut<V, AggregateResult>,
   ) {
     const inner = (
-      collection: Multiset<V>,
-    ): Multiset<AggregateOut<V, AggregateResult>> => {
+      collection: Iterable<Entry<V>>,
+    ): Iterable<Entry<AggregateOut<V, AggregateResult>>> => {
       let last: V | AggregateOut<V, AggregateResult>;
       if (this.#lastOutput === undefined) {
-        const iter = collection.entries[Symbol.iterator]();
+        const iter = collection[Symbol.iterator]();
         const first = iter.next().value;
         if (!first) {
-          return new Multiset([]);
+          return [];
         }
         last = {
           ...first[0],
@@ -44,12 +43,12 @@ class FullAggregateOperator<
 
       let ret;
       if (this.#lastOutput !== undefined) {
-        ret = new Multiset([
+        ret = [
           [this.#lastOutput, -1],
           [next, 1],
-        ]);
+        ] as const;
       } else {
-        ret = new Multiset([[next, 1]]);
+        ret = [[next, 1]] as const;
       }
       this.#lastOutput = next;
       return ret;
@@ -65,18 +64,18 @@ export class FullCountOperator<
   #count = 0;
 
   constructor(
-    input: DifferenceStreamReader<V>,
-    output: DifferenceStreamWriter<AggregateOut<V, [[Alias, number]]>>,
+    input: DifferenceStream<V>,
+    output: DifferenceStream<AggregateOut<V, [[Alias, number]]>>,
     alias: Alias,
   ) {
     super(
       input,
       output,
       (
-        collection: Multiset<V>,
+        collection: Iterable<Entry<V>>,
         last: AggregateOut<V, [[Alias, number]]> | V,
       ): AggregateOut<V, [[Alias, number]]> => {
-        for (const entry of collection.entries) {
+        for (const entry of collection) {
           this.#count += entry[1];
         }
         return {
@@ -97,8 +96,8 @@ export class FullAvgOperator<
   #avg = 0;
 
   constructor(
-    input: DifferenceStreamReader<V>,
-    output: DifferenceStreamWriter<AggregateOut<V, [[Alias, number]]>>,
+    input: DifferenceStream<V>,
+    output: DifferenceStream<AggregateOut<V, [[Alias, number]]>>,
     field: Field,
     alias: Alias,
   ) {
@@ -106,12 +105,12 @@ export class FullAvgOperator<
       input,
       output,
       (
-        collection: Multiset<V>,
+        collection: Iterable<Entry<V>>,
         last: AggregateOut<V, [[Alias, number]]> | V,
       ): AggregateOut<V, [[Alias, number]]> => {
         let numElements = 0;
         let sum = 0;
-        for (const entry of collection.entries) {
+        for (const entry of collection) {
           numElements += entry[1];
           sum += (entry[0][field] as number) * entry[1];
         }
@@ -142,8 +141,8 @@ export class FullSumOperator<
   #sum = 0;
 
   constructor(
-    input: DifferenceStreamReader<V>,
-    output: DifferenceStreamWriter<AggregateOut<V, [[Alias, number]]>>,
+    input: DifferenceStream<V>,
+    output: DifferenceStream<AggregateOut<V, [[Alias, number]]>>,
     field: Field,
     alias: Alias,
   ) {
@@ -151,10 +150,10 @@ export class FullSumOperator<
       input,
       output,
       (
-        collection: Multiset<V>,
+        collection: Iterable<Entry<V>>,
         last: AggregateOut<V, [[Alias, number]]> | V,
       ): AggregateOut<V, [[Alias, number]]> => {
-        for (const entry of collection.entries) {
+        for (const entry of collection) {
           this.#sum += (entry[0][field] as number) * entry[1];
         }
 

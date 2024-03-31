@@ -17,7 +17,7 @@ export function makeReplicacheContext(rep: ReplicacheLike): Context {
   return {
     materialite,
     getSource: <T extends Entity>(name: string, ordering?: Ordering) =>
-      sourceStore.getSource(name, ordering) as Source<T>,
+      sourceStore.getSource(name, ordering) as unknown as Source<T>,
   };
 }
 
