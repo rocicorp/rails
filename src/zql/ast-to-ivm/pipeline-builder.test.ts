@@ -6,6 +6,8 @@ import {EntityQuery, astForTesting as ast} from '../query/entity-query.js';
 import {buildPipeline} from './pipeline-builder.js';
 import {compareUTF8} from 'compare-utf8';
 import * as agg from '../query/agg.js';
+import {DifferenceStream} from '../ivm/graph/difference-stream.js';
+import {Entity} from '../../generate.js';
 
 const e1 = z.object({
   id: z.string(),
@@ -23,7 +25,7 @@ test('A simple select', () => {
   const m = new Materialite();
   let s = m.newSetSource<E1>(comparator);
   let pipeline = buildPipeline(
-    () => s.stream,
+    () => s.stream as unknown as DifferenceStream<Entity>,
     ast(q.select('id', 'a', 'b', 'c', 'd')),
   );
 
@@ -42,7 +44,10 @@ test('A simple select', () => {
   expect(effectRunCount).toBe(2);
 
   s = m.newSetSource(comparator);
-  pipeline = buildPipeline(() => s.stream, ast(q.select('a', 'd')));
+  pipeline = buildPipeline(
+    () => s.stream as unknown as DifferenceStream<Entity>,
+    ast(q.select('a', 'd')),
+  );
   const expected2 = [
     {a: 1, d: true},
     {a: 2, d: false},
@@ -61,7 +66,10 @@ test('Count', () => {
   const q = new EntityQuery<{fields: E1}>(context, 'e1');
   const m = new Materialite();
   const s = m.newSetSource<E1>(comparator);
-  const pipeline = buildPipeline(() => s.stream, ast(q.select(agg.count())));
+  const pipeline = buildPipeline(
+    () => s.stream as unknown as DifferenceStream<Entity>,
+    ast(q.select(agg.count())),
+  );
 
   let effectRunCount = 0;
   pipeline.effect((x, mult) => {
@@ -89,7 +97,7 @@ test('Where', () => {
   const m = new Materialite();
   const s = m.newSetSource<E1>(comparator);
   const pipeline = buildPipeline(
-    () => s.stream,
+    () => s.stream as unknown as DifferenceStream<Entity>,
     ast(q.select('id').where('a', '>', 1).where('b', '<', 2)),
   );
 

@@ -1,15 +1,18 @@
-import {Multiset} from '../../multiset.js';
-import {DifferenceStreamReader} from '../difference-stream-reader.js';
-import {DifferenceStreamWriter} from '../difference-stream-writer.js';
+import {Entry, genFilter} from '../../multiset.js';
+import {DifferenceStream} from '../difference-stream.js';
 import {LinearUnaryOperator} from './linear-unary-operator.js';
 
-export class FilterOperator<I> extends LinearUnaryOperator<I, I> {
+export class FilterOperator<I extends object> extends LinearUnaryOperator<
+  I,
+  I
+> {
   constructor(
-    input: DifferenceStreamReader<I>,
-    output: DifferenceStreamWriter<I>,
+    input: DifferenceStream<I>,
+    output: DifferenceStream<I>,
     f: (input: I) => boolean,
   ) {
-    const inner = (collection: Multiset<I>) => collection.filter(f);
-    super(input, output, inner);
+    super(input, output, (data: Iterable<Entry<I>>) =>
+      genFilter(data, ([value, _]) => f(value)),
+    );
   }
 }

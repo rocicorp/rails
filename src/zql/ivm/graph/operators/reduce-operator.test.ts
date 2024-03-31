@@ -1,8 +1,5 @@
 import {expect, test} from 'vitest';
-import {Multiset} from '../../multiset.js';
-import {DifferenceStreamWriter} from '../difference-stream-writer.js';
-import {NoOp} from './operator.js';
-import {ReduceOperator} from './reduce-operator.js';
+import {DifferenceStream} from '../difference-stream.js';
 
 type Thing = {
   id: string;
@@ -16,22 +13,16 @@ type Reduction = {
 };
 
 test('collects all things with the same key', () => {
-  const inputWriter = new DifferenceStreamWriter<Thing>();
-  const inputReader = inputWriter.newReader();
-  const output = new DifferenceStreamWriter<Reduction>();
-
+  const input = new DifferenceStream<Thing>();
   function getGroupKey(t: Thing) {
     return t.groupKey;
   }
   function getValueIdentity(t: Thing) {
     return t.id;
   }
-
-  new ReduceOperator(
-    inputReader,
-    output,
-    getValueIdentity,
+  const output = input.reduce(
     getGroupKey,
+    getValueIdentity,
     (group: Iterable<Thing>) => {
       let sum = 0;
       let id = '';
@@ -47,45 +38,41 @@ test('collects all things with the same key', () => {
     },
   );
 
-  const outReader = output.newReader();
-  outReader.setOperator(new NoOp());
+  const items: [Reduction, number][] = [];
+  output.effect((e, m) => {
+    items.push([e, m]);
+  });
 
-  inputWriter.queueData([
-    1,
-    new Multiset([
-      [
-        {
-          id: 'a',
-          value: 1,
-          groupKey: 'x',
-        },
-        1,
-      ],
-      [
-        {
-          id: 'b',
-          value: 2,
-          groupKey: 'x',
-        },
-        2,
-      ],
-    ]),
+  input.newData(1, [
+    [
+      {
+        id: 'a',
+        value: 1,
+        groupKey: 'x',
+      },
+      1,
+    ],
+    [
+      {
+        id: 'b',
+        value: 2,
+        groupKey: 'x',
+      },
+      2,
+    ],
   ]);
   check([[{id: 'x', sum: 5}, 1]]);
 
   // retract an item
-  inputWriter.queueData([
-    1,
-    new Multiset([
-      [
-        {
-          id: 'a',
-          value: 1,
-          groupKey: 'x',
-        },
-        -1,
-      ],
-    ]),
+  input.newData(1, [
+    [
+      {
+        id: 'a',
+        value: 1,
+        groupKey: 'x',
+      },
+      -1,
+    ],
   ]);
   check([
     [{id: 'x', sum: 5}, -1],
@@ -93,74 +80,62 @@ test('collects all things with the same key', () => {
   ]);
 
   // fully retract items that constitute a grouping
-  inputWriter.queueData([
-    1,
-    new Multiset([
-      [
-        {
-          id: 'b',
-          value: 2,
-          groupKey: 'x',
-        },
-        -2,
-      ],
-    ]),
+  input.newData(1, [
+    [
+      {
+        id: 'b',
+        value: 2,
+        groupKey: 'x',
+      },
+      -2,
+    ],
   ]);
   check([[{id: 'x', sum: 4}, -1]]);
 
   // add more entries
-  inputWriter.queueData([
-    1,
-    new Multiset([
-      [
-        {
-          id: 'a',
-          value: 1,
-          groupKey: 'c',
-        },
-        1,
-      ],
-    ]),
+  input.newData(1, [
+    [
+      {
+        id: 'a',
+        value: 1,
+        groupKey: 'c',
+      },
+      1,
+    ],
   ]);
   check([[{id: 'c', sum: 1}, 1]]);
-  inputWriter.queueData([
-    1,
-    new Multiset([
-      [
-        {
-          id: 'b',
-          value: 2,
-          groupKey: 'c',
-        },
-        1,
-      ],
-    ]),
+  input.newData(1, [
+    [
+      {
+        id: 'b',
+        value: 2,
+        groupKey: 'c',
+      },
+      1,
+    ],
   ]);
   check([
     [{id: 'c', sum: 1}, -1],
     [{id: 'c', sum: 3}, 1],
   ]);
 
-  inputWriter.queueData([
-    1,
-    new Multiset([
-      [
-        {
-          id: 'a',
-          value: 1,
-          groupKey: 'c',
-        },
-        -1,
-      ],
-      [
-        {
-          id: 'a',
-          value: 2,
-          groupKey: 'c',
-        },
-        1,
-      ],
-    ]),
+  input.newData(1, [
+    [
+      {
+        id: 'a',
+        value: 1,
+        groupKey: 'c',
+      },
+      -1,
+    ],
+    [
+      {
+        id: 'a',
+        value: 2,
+        groupKey: 'c',
+      },
+      1,
+    ],
   ]);
   check([
     [{id: 'c', sum: 3}, -1],
@@ -168,9 +143,8 @@ test('collects all things with the same key', () => {
   ]);
 
   function check(expected: [Reduction, number][]) {
-    inputWriter.notify(1);
-    inputWriter.notifyCommitted(1);
-    const entry = outReader.drain(1);
-    expect([...entry![1].entries]).toEqual(expected);
+    input.commit(1);
+    expect(items).toEqual(expected);
+    items.length = 0;
   }
 });

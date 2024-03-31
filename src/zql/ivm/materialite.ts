@@ -91,9 +91,6 @@ export class Materialite {
       source.onCommitEnqueue(this.#version);
     }
     for (const source of this.#dirtySources) {
-      source.onCommitRun(this.#version);
-    }
-    for (const source of this.#dirtySources) {
       source.onCommitted(this.#version);
     }
   }

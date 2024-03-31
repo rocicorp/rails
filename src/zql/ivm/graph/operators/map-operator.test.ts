@@ -1,72 +1,60 @@
 import {expect, test} from 'vitest';
-import {MapOperator} from './map-operator.js';
-import {DifferenceStreamWriter} from '../difference-stream-writer.js';
-import {NoOp} from './operator.js';
-import {Multiset} from '../../multiset.js';
+import {Entry} from '../../multiset.js';
+import {DifferenceStream} from '../difference-stream.js';
 
+type E = {id: number};
 test('lazy', () => {
-  const inputWriter = new DifferenceStreamWriter<number>();
-  const inputReader = inputWriter.newReader();
-  const output = new DifferenceStreamWriter<number>();
-
+  const input = new DifferenceStream<E>();
   let called = false;
-  new MapOperator(inputReader, output, x => {
+  const output = input.map(x => {
     called = true;
     return x;
   });
+  const items: Iterable<Entry<E>>[] = [];
+  output.debug((_, d) => {
+    items.push(d);
+  });
 
-  const outReader = output.newReader();
-  outReader.setOperator(new NoOp());
-
-  inputWriter.queueData([
-    1,
-    new Multiset([
-      [1, 1],
-      [2, 2],
-      [1, -1],
-      [2, -2],
-    ]),
+  input.newData(1, [
+    [{id: 1}, 1],
+    [{id: 2}, 2],
+    [{id: 1}, -1],
+    [{id: 2}, -2],
   ]);
-  inputWriter.notify(1);
-  inputWriter.notifyCommitted(1);
+  input.commit(1);
 
   // we run the graph but the mapper is not run until we pull on it
   expect(called).toBe(false);
 
-  const items = outReader.drain(1);
-  // consume all the rows
-  [...items![1].entries];
+  // drain the output
+  for (const item of items) {
+    [...item];
+  }
   expect(called).toBe(true);
 });
 
 test('applies to rows', () => {
-  const inputWriter = new DifferenceStreamWriter<number>();
-  const inputReader = inputWriter.newReader();
-  const output = new DifferenceStreamWriter<number>();
+  const input = new DifferenceStream<E>();
+  const output = input.map(x => ({
+    id: x.id * 2,
+  }));
+  const items: [E, number][] = [];
+  output.effect((e, m) => {
+    items.push([e, m]);
+  });
 
-  new MapOperator(inputReader, output, x => x * 2);
-
-  const outReader = output.newReader();
-  outReader.setOperator(new NoOp());
-
-  inputWriter.queueData([
-    1,
-    new Multiset([
-      [1, 1],
-      [2, 2],
-      [1, -1],
-      [2, -2],
-    ]),
+  input.newData(1, [
+    [{id: 1}, 1],
+    [{id: 2}, 2],
+    [{id: 1}, -1],
+    [{id: 2}, -2],
   ]);
-  inputWriter.notify(1);
-  inputWriter.notifyCommitted(1);
-  const items = outReader.drain(1);
+  input.commit(1);
 
-  const entries = [...items![1].entries];
-  expect(entries).toMatchObject([
-    [2, 1],
-    [4, 2],
-    [2, -1],
-    [4, -2],
+  expect(items).toEqual([
+    [{id: 2}, 1],
+    [{id: 4}, 2],
+    [{id: 2}, -1],
+    [{id: 4}, -2],
   ]);
 });

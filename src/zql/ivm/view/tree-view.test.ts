@@ -6,13 +6,10 @@ import {ascComparator, descComparator} from '../../query/statement.js';
 import {DifferenceStream} from '../graph/difference-stream.js';
 import fc from 'fast-check';
 import {Primitive} from '../../ast/ast.js';
+import {Entity} from '../../../generate.js';
 
 const numberComparator = (l: number, r: number) => l - r;
 
-type Entity = {
-  id: string;
-  n: number;
-};
 type Selected = {id: string; [orderingProp]: Primitive[]};
 test('asc and descComparator on Entities', () => {
   const m = new Materialite();
@@ -22,7 +19,7 @@ test('asc and descComparator on Entities', () => {
     s.stream,
     ['id'],
     [['n', 'id'], 'asc'],
-  ) as DifferenceStream<Selected>;
+  ) as unknown as DifferenceStream<Selected>;
 
   const view = new MutableTreeView<Selected>(m, updatedStream, ascComparator, [
     ['n', 'id'],
@@ -31,10 +28,10 @@ test('asc and descComparator on Entities', () => {
   const descView = new MutableTreeView<Selected>(
     m,
     applySelect(
-      s.stream,
+      s.stream as unknown as DifferenceStream<Entity>,
       ['id'],
       [['n', 'id'], 'desc'],
-    ) as DifferenceStream<Selected>,
+    ) as unknown as DifferenceStream<Selected>,
     descComparator,
     [['n', 'id'], 'desc'],
   );

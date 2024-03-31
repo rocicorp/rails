@@ -1,98 +1,81 @@
 import {expect, test} from 'vitest';
-import {FilterOperator} from './filter-operator.js';
-import {DifferenceStreamWriter} from '../difference-stream-writer.js';
-import {Multiset} from '../../multiset.js';
-import {NoOp} from './operator.js';
+import {Entry} from '../../multiset.js';
+import {DifferenceStream} from '../difference-stream.js';
+import {Version} from '../../types.js';
+
+type E = {id: number};
 
 test('does not emit any rows that fail the filter', () => {
-  const inputWriter = new DifferenceStreamWriter<number>();
-  const inputReader = inputWriter.newReader();
-  const output = new DifferenceStreamWriter<number>();
+  const input = new DifferenceStream<E>();
 
-  new FilterOperator(inputReader, output, _ => false);
+  const out = input.filter(_ => false);
+  const items: E[] = [];
+  out.effect((e: E) => {
+    items.push(e);
+  });
 
-  const outReader = output.newReader();
-  outReader.setOperator(new NoOp());
-
-  inputWriter.queueData([
-    1,
-    new Multiset([
-      [1, 1],
-      [2, 2],
-      [1, -1],
-      [2, -2],
-    ]),
+  input.newData(1, [
+    [{id: 1}, 1],
+    [{id: 2}, 2],
+    [{id: 1}, -1],
+    [{id: 2}, -2],
   ]);
-  inputWriter.notify(1);
-  inputWriter.notifyCommitted(1);
-  const items = outReader.drain(1);
+  input.commit(1);
 
-  expect([...items![1].entries].length).toBe(0);
+  expect(items.length).toBe(0);
 });
 
 test('emits all rows that pass the filter (including deletes / retractions)', () => {
-  const inputWriter = new DifferenceStreamWriter<number>();
-  const inputReader = inputWriter.newReader();
-  const output = new DifferenceStreamWriter<number>();
+  const input = new DifferenceStream<E>();
+  const out = input.filter(_ => true);
 
-  new FilterOperator(inputReader, output, _ => true);
+  const items: Entry<E>[] = [];
+  out.effect((e: E, mult: number) => {
+    items.push([e, mult]);
+  });
 
-  const outReader = output.newReader();
-  outReader.setOperator(new NoOp());
-
-  inputWriter.queueData([
-    1,
-    new Multiset([
-      [1, 1],
-      [2, 2],
-      [1, -1],
-      [2, -2],
-    ]),
+  input.newData(1, [
+    [{id: 1}, 1],
+    [{id: 2}, 2],
+    [{id: 1}, -1],
+    [{id: 2}, -2],
   ]);
-  inputWriter.notify(1);
-  inputWriter.notifyCommitted(1);
-  const items = outReader.drain(1);
+  input.commit(1);
 
-  const entries = [...items![1].entries];
-  expect(entries).toEqual([
-    [1, 1],
-    [2, 2],
-    [1, -1],
-    [2, -2],
+  expect(items).toEqual([
+    [{id: 1}, 1],
+    [{id: 2}, 2],
+    [{id: 1}, -1],
+    [{id: 2}, -2],
   ]);
 });
 
 test('test that filter is lazy / the filter is not actually run until we pull on it', () => {
-  const inputWriter = new DifferenceStreamWriter<number>();
-  const inputReader = inputWriter.newReader();
-  const output = new DifferenceStreamWriter<number>();
-
+  const input = new DifferenceStream<E>();
   let called = false;
-  new FilterOperator(inputReader, output, _ => {
+  const out = input.filter(_ => {
     called = true;
     return true;
   });
+  const msgs: Iterable<Entry<E>>[] = [];
+  out.debug((_: Version, data: Iterable<Entry<E>>) => {
+    msgs.push(data);
+  });
 
-  const outReader = output.newReader();
-  outReader.setOperator(new NoOp());
-
-  inputWriter.queueData([
-    1,
-    new Multiset([
-      [1, 1],
-      [2, 2],
-      [1, -1],
-      [2, -2],
-    ]),
+  input.newData(1, [
+    [{id: 1}, 1],
+    [{id: 2}, 2],
+    [{id: 1}, -1],
+    [{id: 2}, -2],
   ]);
-  inputWriter.notify(1);
-  inputWriter.notifyCommitted(1);
+  input.commit(1);
 
   // we run the graph but the filter is not run until we pull on it
   expect(called).toBe(false);
 
-  const items = outReader.drain(1);
   // consume all the rows
-  [...items![1].entries];
+  for (const m of msgs) {
+    [...m];
+  }
   expect(called).toBe(true);
 });
