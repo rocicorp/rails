@@ -45,7 +45,7 @@ export interface Operator {
 }
 
 export class NoOp implements Operator {
-  readonly #inputs;
+  readonly #inputs: DifferenceStreamReader<unknown>[];
 
   constructor(...input: DifferenceStreamReader<unknown>[]) {
     this.#inputs = input;
