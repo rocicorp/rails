@@ -4,6 +4,7 @@ import {makeTestContext} from '../context/context.js';
 import {Materialite} from '../ivm/materialite.js';
 import {EntityQuery, astForTesting as ast} from '../query/entity-query.js';
 import {buildPipeline} from './pipeline-builder.js';
+import {compareUTF8} from 'compare-utf8';
 
 const e1 = z.object({
   id: z.string(),
@@ -15,7 +16,7 @@ const e1 = z.object({
 type E1 = z.infer<typeof e1>;
 
 const context = makeTestContext();
-const comparator = (l: E1, r: E1) => l.id.localeCompare(r.id);
+const comparator = (l: E1, r: E1) => compareUTF8(l.id, r.id);
 test('A simple select', () => {
   const q = new EntityQuery<{fields: E1}>(context, 'e1');
   const m = new Materialite();

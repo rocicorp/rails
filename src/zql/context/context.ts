@@ -2,6 +2,7 @@ import {Materialite} from '../ivm/materialite.js';
 import {Source} from '../ivm/source/source.js';
 import {Entity} from '../../generate.js';
 import {Ordering} from '../ast/ast.js';
+import {compareUTF8} from 'compare-utf8';
 
 /**
  * Used to integrate with the host environment.
@@ -22,7 +23,7 @@ export function makeTestContext(): Context {
     if (!sources.has(name)) {
       sources.set(
         name,
-        materialite.newSetSource<T>((l, r) => l.id.localeCompare(r.id)),
+        materialite.newSetSource<T>((l, r) => compareUTF8(l.id, r.id)),
       );
     }
     return sources.get(name)! as Source<T>;
