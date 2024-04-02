@@ -1,25 +1,28 @@
+import {Entity} from '../../../generate.js';
 import {Primitive} from '../../ast/ast.js';
+import {invariant} from '../../error/asserts.js';
+import {Multiset} from '../multiset.js';
 import {Version} from '../types.js';
+import {Reply, Request} from './message.js';
+import {ConcatOperator} from './operators/concat-operator.js';
+import {DebugOperator} from './operators/debug-operator.js';
+import {DifferenceEffectOperator} from './operators/difference-effect-operator.js';
+import {DistinctOperator} from './operators/distinct-operator.js';
+import {FilterOperator} from './operators/filter-operator.js';
 import {
   AggregateOut,
   FullAvgOperator,
   FullCountOperator,
   FullSumOperator,
 } from './operators/full-agg-operators.js';
-import {DebugOperator} from './operators/debug-operator.js';
-import {DifferenceEffectOperator} from './operators/difference-effect-operator.js';
-import {FilterOperator} from './operators/filter-operator.js';
 import {MapOperator} from './operators/map-operator.js';
-import {ReduceOperator} from './operators/reduce-operator.js';
 import {Operator} from './operators/operator.js';
-import {invariant} from '../../error/asserts.js';
-import {Multiset} from '../multiset.js';
-import {Reply, Request} from './message.js';
+import {ReduceOperator} from './operators/reduce-operator.js';
 
 export type Listener<T> = {
   newDifference: (
     version: Version,
-    data: Multiset<T>,
+    multiset: Multiset<T>,
     reply?: Reply | undefined,
   ) => void;
   commit: (version: Version) => void;
@@ -121,6 +124,21 @@ export class DifferenceStream<T extends object> {
     const stream = new DifferenceStream<S>();
     return stream.setUpstream(
       new FilterOperator<T>(this, stream as unknown as DifferenceStream<T>, f),
+    );
+  }
+
+  concat(...others: DifferenceStream<T>[]): DifferenceStream<T> {
+    const stream = new DifferenceStream<T>();
+    return stream.setUpstream(new ConcatOperator([this, ...others], stream));
+  }
+
+  distinct(): DifferenceStream<T> {
+    const stream = new DifferenceStream<T>();
+    return stream.setUpstream(
+      new DistinctOperator<Entity>(
+        this as unknown as DifferenceStream<Entity>,
+        stream as unknown as DifferenceStream<Entity>,
+      ),
     );
   }
 
