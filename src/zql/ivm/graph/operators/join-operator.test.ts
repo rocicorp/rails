@@ -417,23 +417,3 @@ test('join through a junction table', () => {
   ]);
   items.length = 0;
 });
-
-/*
-fast-check join...
-
-1. create tables
-2. join in different directions
-3. add items
-
-*/
-
-test('join followed by reduction to gather playlists and their artists', () => {
-  /**
-   * For a user:
-   * - Join their playlists
-   * - Join their tracks
-   * - Join their albums
-   * - Join their atrists
-   *
-   */
-});
