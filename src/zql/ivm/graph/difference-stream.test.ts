@@ -194,7 +194,6 @@ test('replying to a message only notifies along the requesting path', () => {
   const s3 = stream.debug(() => notified.push(3));
 
   s1.debug(() => notified.push(4));
-  // s2.debug
   const x = new DifferenceStream();
   const s2Dbg = new DebugOperator(s2, x, () => notified.push(5));
   x.setUpstream(s2Dbg);

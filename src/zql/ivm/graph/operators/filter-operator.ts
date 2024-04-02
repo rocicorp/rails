@@ -12,8 +12,6 @@ export class FilterOperator<I extends object> extends LinearUnaryOperator<
     output: DifferenceStream<I>,
     f: (input: I) => boolean,
   ) {
-    super(input, output, (data: Multiset<I>) =>
-      genFilter(data, ([value, _]) => f(value)),
-    );
+    super(input, output, (data: Multiset<I>) => genFilter(data, e => f(e[0])));
   }
 }

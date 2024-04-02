@@ -75,7 +75,13 @@ test('test that filter is lazy / the filter is not actually run until we pull on
 
   // consume all the rows
   for (const m of msgs) {
-    [...m];
+    expect([...m]).toEqual([
+      [{id: 1}, 1],
+      [{id: 2}, 2],
+      [{id: 1}, -1],
+      [{id: 2}, -2],
+    ]);
   }
+
   expect(called).toBe(true);
 });

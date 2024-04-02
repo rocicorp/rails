@@ -49,8 +49,17 @@ export type Listener<T> = {
  */
 // T extends object: I believe in the context of ZQL we only deal with object.
 export class DifferenceStream<T extends object> {
+  /**
+   * Operators that are listening to this stream.
+   */
   readonly #downstreams: Set<Listener<T>> = new Set();
+  /**
+   * The operator that is sending data to this stream.
+   */
   #upstream: Operator | undefined;
+  /**
+   * Downstreams that requested historical data.
+   */
   readonly #requestors = new Set<Listener<T>>();
 
   addDownstream(listener: Listener<T>) {
@@ -82,11 +91,13 @@ export class DifferenceStream<T extends object> {
 
   commit(version: Version) {
     if (this.#requestors.size > 0) {
-      this.#requestors;
       for (const requestor of this.#requestors) {
         try {
           requestor.commit(version);
         } catch (e) {
+          // `commit` notifies client code
+          // If client code throws we'll put IVM back into a consistent state
+          // by clearing the requestors.
           this.#requestors.clear();
           throw e;
         }
