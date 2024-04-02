@@ -46,6 +46,7 @@ export type SimpleOperator =
   | 'IN'
   | 'LIKE'
   | 'ILIKE';
+
 export type SimpleCondition =
   // | ConditionList
   {

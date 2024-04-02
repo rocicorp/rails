@@ -1,10 +1,4 @@
-import {
-  AST,
-  Condition,
-  Primitive,
-  SimpleCondition,
-  SimpleOperator,
-} from '../ast/ast.js';
+import {AST, Condition, Primitive, SimpleOperator} from '../ast/ast.js';
 import {Context} from '../context/context.js';
 import {must} from '../error/asserts.js';
 import {Misuse} from '../error/misuse.js';
@@ -43,22 +37,90 @@ export type MakeHumanReadable<T> = {} & {
 };
 
 export interface EntityQuery<Schema extends EntitySchema, Return = []> {
-  readonly select: <Fields extends Selectable<Schema>[]>(
+  select<Fields extends Selectable<Schema>[]>(
     ...x: Fields
-  ) => EntityQuery<Schema, SelectedFields<Schema, Fields>[]>;
-  readonly count: () => EntityQuery<Schema, number>;
-  readonly where: <Key extends Selectable<Schema>>(
+  ): EntityQuery<Schema, SelectedFields<Schema, Fields>[]>;
+  count(): EntityQuery<Schema, number>;
+  where<Key extends Selectable<Schema>>(
     f: Key,
     op: SimpleOperator,
     value: FieldValue<Schema, Key>,
-  ) => EntityQuery<Schema, Return>;
-  readonly limit: (n: number) => EntityQuery<Schema, Return>;
-  readonly asc: (...x: Selectable<Schema>[]) => EntityQuery<Schema, Return>;
-  readonly desc: (...x: Selectable<Schema>[]) => EntityQuery<Schema, Return>;
+  ): EntityQuery<Schema, Return>;
+  where(expr: WhereExpression<Schema>): EntityQuery<Schema, Return>;
+  limit(n: number): EntityQuery<Schema, Return>;
+  asc(...x: Selectable<Schema>[]): EntityQuery<Schema, Return>;
+  desc(...x: Selectable<Schema>[]): EntityQuery<Schema, Return>;
 
   // TODO: we can probably skip the `prepare` step and just have `materialize`
   // Although we'd need the prepare step in order to get a stmt to change bindings.
-  readonly prepare: () => Statement<Return>;
+  prepare(): Statement<Return>;
+}
+
+type WhereExpression<S extends EntitySchema> =
+  | {
+      op: 'AND' | 'OR';
+      conditions: WhereExpression<S>[];
+    }
+  | SimpleExpression<S, Selectable<S>>;
+
+type SimpleExpression<S extends EntitySchema, F extends Selectable<S>> = {
+  op: SimpleOperator;
+  field: F;
+  value: {
+    type: 'literal';
+    value: FieldValue<S, F>;
+  };
+};
+
+export function or<S extends EntitySchema>(
+  ...conditions: [
+    WhereExpression<S>,
+    WhereExpression<S>,
+    ...WhereExpression<S>[],
+  ]
+): WhereExpression<S> {
+  return flatten('OR', conditions);
+}
+
+export function and<S extends EntitySchema>(
+  ...conditions: [
+    WhereExpression<S>,
+    WhereExpression<S>,
+    ...WhereExpression<S>[],
+  ]
+): WhereExpression<S> {
+  return flatten('AND', conditions);
+}
+
+function flatten<S extends EntitySchema>(
+  op: 'AND' | 'OR',
+  conditions: WhereExpression<S>[],
+): WhereExpression<S> {
+  const flattened: WhereExpression<S>[] = [];
+  for (const c of conditions) {
+    if (c.op === op) {
+      flattened.push(...c.conditions);
+    } else {
+      flattened.push(c);
+    }
+  }
+
+  return {op, conditions: flattened};
+}
+
+export function expression<S extends EntitySchema, K extends Selectable<S>>(
+  field: K,
+  op: SimpleOperator,
+  value: FieldValue<S, K>,
+): WhereExpression<S> {
+  return {
+    op,
+    field,
+    value: {
+      type: 'literal',
+      value,
+    },
+  };
 }
 
 let aliasCount = 0;
@@ -104,32 +166,37 @@ export class EntityQueryImpl<S extends EntitySchema, Return = []>
     );
   }
 
+  where(expr: WhereExpression<S>): EntityQueryImpl<S, Return>;
   where<K extends Selectable<S>>(
     field: K,
     op: SimpleOperator,
     value: FieldValue<S, K>,
-  ) {
-    const leaf: SimpleCondition = {
-      field,
-      op,
-      value: {
-        type: 'literal',
-        value: value as Primitive,
-      },
-    };
+  ): EntityQueryImpl<S, Return>;
+  where(
+    fieldOrExpression: Selectable<S> | WhereExpression<S>,
+    op?: SimpleOperator,
+    value?: FieldValue<S, Selectable<S>>,
+  ): EntityQueryImpl<S, Return> {
+    let exp: Condition;
+    if (typeof fieldOrExpression === 'string') {
+      exp = expression(fieldOrExpression, op!, value!);
+    } else {
+      exp = fieldOrExpression as Condition;
+    }
 
     let cond: Condition;
     if (!this.#ast.where) {
-      cond = leaf;
+      cond = exp;
     } else if (this.#ast.where.op === 'AND') {
-      cond = {
-        op: 'AND',
-        conditions: [...this.#ast.where.conditions, leaf],
-      };
+      const {conditions} = this.#ast.where;
+      cond = flatten('AND', [
+        ...(conditions as WhereExpression<S>[]),
+        exp as WhereExpression<S>,
+      ]) as Condition;
     } else {
       cond = {
         op: 'AND',
-        conditions: [this.#ast.where, leaf],
+        conditions: [this.#ast.where, exp],
       };
     }
 
@@ -189,8 +256,8 @@ export class EntityQueryImpl<S extends EntitySchema, Return = []>
   }
 }
 
-const astWeakMap = new WeakMap<EntityQueryImpl<EntitySchema, unknown>, AST>();
+const astWeakMap = new WeakMap<WeakKey, AST>();
 
-export function astForTesting(q: EntityQueryImpl<EntitySchema, unknown>): AST {
+export function astForTesting(q: WeakKey): AST {
   return must(astWeakMap.get(q));
 }
