@@ -1,4 +1,4 @@
-import {Entry} from '../../multiset.js';
+import {Multiset} from '../../multiset.js';
 import {Version} from '../../types.js';
 import {DifferenceStream} from '../difference-stream.js';
 import {UnaryOperator} from './unary-operator.js';
@@ -11,9 +11,9 @@ export class DebugOperator<T extends object> extends UnaryOperator<T, T> {
   constructor(
     input: DifferenceStream<T>,
     output: DifferenceStream<T>,
-    onMessage: (v: Version, data: Iterable<Entry<T>>) => void,
+    onMessage: (v: Version, data: Multiset<T>) => void,
   ) {
-    const inner = (version: Version, data: Iterable<Entry<T>>) => {
+    const inner = (version: Version, data: Multiset<T>) => {
       onMessage(version, data);
       return data;
     };

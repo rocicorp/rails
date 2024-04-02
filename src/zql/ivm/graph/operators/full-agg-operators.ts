@@ -1,4 +1,4 @@
-import {Entry} from '../../multiset.js';
+import {Multiset} from '../../multiset.js';
 import {DifferenceStream} from '../difference-stream.js';
 import {LinearUnaryOperator} from './linear-unary-operator.js';
 
@@ -19,13 +19,13 @@ class FullAggregateOperator<
     input: DifferenceStream<V>,
     output: DifferenceStream<AggregateOut<V, AggregateResult>>,
     fn: (
-      collection: Iterable<Entry<V>>,
+      collection: Multiset<V>,
       last: AggregateOut<V, AggregateResult> | V,
     ) => AggregateOut<V, AggregateResult>,
   ) {
     const inner = (
-      collection: Iterable<Entry<V>>,
-    ): Iterable<Entry<AggregateOut<V, AggregateResult>>> => {
+      collection: Multiset<V>,
+    ): Multiset<AggregateOut<V, AggregateResult>> => {
       let last: V | AggregateOut<V, AggregateResult>;
       if (this.#lastOutput === undefined) {
         const iter = collection[Symbol.iterator]();
@@ -72,7 +72,7 @@ export class FullCountOperator<
       input,
       output,
       (
-        collection: Iterable<Entry<V>>,
+        collection: Multiset<V>,
         last: AggregateOut<V, [[Alias, number]]> | V,
       ): AggregateOut<V, [[Alias, number]]> => {
         for (const entry of collection) {
@@ -105,7 +105,7 @@ export class FullAvgOperator<
       input,
       output,
       (
-        collection: Iterable<Entry<V>>,
+        collection: Multiset<V>,
         last: AggregateOut<V, [[Alias, number]]> | V,
       ): AggregateOut<V, [[Alias, number]]> => {
         let numElements = 0;
@@ -150,7 +150,7 @@ export class FullSumOperator<
       input,
       output,
       (
-        collection: Iterable<Entry<V>>,
+        collection: Multiset<V>,
         last: AggregateOut<V, [[Alias, number]]> | V,
       ): AggregateOut<V, [[Alias, number]]> => {
         for (const entry of collection) {

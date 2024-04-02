@@ -1,7 +1,7 @@
 import {Primitive} from '../../../ast/ast.js';
 import {assert} from '../../../error/asserts.js';
 import {flatMapIter} from '../../../util/iterables.js';
-import {Entry} from '../../multiset.js';
+import {Entry, Multiset} from '../../multiset.js';
 import {Version} from '../../types.js';
 import {DifferenceStream} from '../difference-stream.js';
 import {UnaryOperator} from './unary-operator.js';
@@ -49,7 +49,7 @@ export class ReduceOperator<
     getGroupKey: (value: V) => K,
     f: (input: Iterable<V>) => O,
   ) {
-    const inner = (_: Version, data: Iterable<Entry<V>>) => {
+    const inner = (_: Version, data: Multiset<V>) => {
       const keysToProcess = new Set<K>();
       const ret: Entry<O>[] = [];
       for (const [value, mult] of data) {

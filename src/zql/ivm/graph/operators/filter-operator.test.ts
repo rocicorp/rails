@@ -1,5 +1,5 @@
 import {expect, test} from 'vitest';
-import {Entry} from '../../multiset.js';
+import {Entry, Multiset} from '../../multiset.js';
 import {DifferenceStream} from '../difference-stream.js';
 import {Version} from '../../types.js';
 
@@ -57,8 +57,8 @@ test('test that filter is lazy / the filter is not actually run until we pull on
     called = true;
     return true;
   });
-  const msgs: Iterable<Entry<E>>[] = [];
-  out.debug((_: Version, data: Iterable<Entry<E>>) => {
+  const msgs: Multiset<E>[] = [];
+  out.debug((_: Version, data: Multiset<E>) => {
     msgs.push(data);
   });
 
