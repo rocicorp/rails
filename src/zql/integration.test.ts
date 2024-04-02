@@ -320,6 +320,7 @@ test('order by single field', async () => {
     fc.asyncProperty(uniqueNonEmptyIssuesArbitrary, async issues => {
       const {q, r} = setup();
       await Promise.all(issues.map(r.mutate.initIssue));
+      await new Promise(resolve => setTimeout(resolve, 0));
 
       const compareAssignees = makeComparator('assignee', 'id');
       const stmt = q.select('id', 'assignee').asc('assignee').prepare();
