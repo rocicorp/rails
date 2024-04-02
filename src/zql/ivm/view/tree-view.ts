@@ -2,7 +2,7 @@ import {Treap} from '@vlcn.io/ds-and-algos/Treap';
 import {Comparator, ITree} from '@vlcn.io/ds-and-algos/types';
 import {DifferenceStream} from '../graph/difference-stream.js';
 import {Materialite} from '../materialite.js';
-import {Entry} from '../multiset.js';
+import {Multiset} from '../multiset.js';
 import {Version} from '../types.js';
 import {AbstractView} from './abstract-view.js';
 import {Ordering} from '../../ast/ast.js';
@@ -59,7 +59,7 @@ export class MutableTreeView<T extends object> extends AbstractView<T, T[]> {
     return this.#jsSlice;
   }
 
-  protected _newData(version: Version, data: Iterable<Entry<T>>) {
+  protected _newData(version: Version, data: Multiset<T>) {
     let changed = false;
 
     let newData = this.#data;
@@ -76,11 +76,7 @@ export class MutableTreeView<T extends object> extends AbstractView<T, T[]> {
     }
   }
 
-  #sink(
-    c: Iterable<Entry<T>>,
-    data: ITree<T>,
-    changed: boolean,
-  ): [boolean, ITree<T>] {
+  #sink(c: Multiset<T>, data: ITree<T>, changed: boolean): [boolean, ITree<T>] {
     const iterator = c[Symbol.iterator]();
     let next;
 

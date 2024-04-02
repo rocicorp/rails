@@ -2,7 +2,7 @@ import {Comparator, ITree} from '@vlcn.io/ds-and-algos/types';
 import {MaterialiteForSourceInternal} from '../materialite.js';
 import {DifferenceStream} from '../graph/difference-stream.js';
 import {SourceInternal, Source} from './source.js';
-import {Entry} from '../multiset.js';
+import {Entry, Multiset} from '../multiset.js';
 import {Version} from '../types.js';
 import {Treap} from '@vlcn.io/ds-and-algos/Treap';
 import {must} from '../../error/asserts.js';
@@ -196,7 +196,7 @@ export class MutableSetSource<T extends object> extends SetSource<T> {
   }
 }
 
-function asEntries<T>(m: ITree<T>, _message: Request): Iterable<Entry<T>> {
+function asEntries<T>(m: ITree<T>, _message: Request): Multiset<T> {
   // message will contain hoisted expressions so we can do relevant
   // index selection against the source.
   // const after = hoisted.expressions.filter((e) => e._tag === "after")[0];

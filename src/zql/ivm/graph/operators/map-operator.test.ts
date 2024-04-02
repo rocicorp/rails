@@ -1,5 +1,5 @@
 import {expect, test} from 'vitest';
-import {Entry} from '../../multiset.js';
+import {Multiset} from '../../multiset.js';
 import {DifferenceStream} from '../difference-stream.js';
 
 type E = {id: number};
@@ -10,7 +10,7 @@ test('lazy', () => {
     called = true;
     return x;
   });
-  const items: Iterable<Entry<E>>[] = [];
+  const items: Multiset<E>[] = [];
   output.debug((_, d) => {
     items.push(d);
   });

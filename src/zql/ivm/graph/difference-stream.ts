@@ -13,13 +13,13 @@ import {MapOperator} from './operators/map-operator.js';
 import {ReduceOperator} from './operators/reduce-operator.js';
 import {Operator} from './operators/operator.js';
 import {invariant} from '../../error/asserts.js';
-import {Entry} from '../multiset.js';
+import {Multiset} from '../multiset.js';
 import {Reply, Request} from './message.js';
 
 export type Listener<T> = {
   newData: (
     version: Version,
-    data: Iterable<Entry<T>>,
+    data: Multiset<T>,
     reply?: Reply | undefined,
   ) => void;
   commit: (version: Version) => void;
@@ -63,11 +63,7 @@ export class DifferenceStream<T extends object> {
     return this;
   }
 
-  newData(
-    version: Version,
-    data: Iterable<Entry<T>>,
-    reply?: Reply | undefined,
-  ) {
+  newData(version: Version, data: Multiset<T>, reply?: Reply | undefined) {
     if (reply) {
       for (const requestor of this.#requestors) {
         requestor.newData(version, data, reply);
@@ -164,7 +160,7 @@ export class DifferenceStream<T extends object> {
     return stream;
   }
 
-  debug(onMessage: (v: Version, data: Iterable<Entry<T>>) => void) {
+  debug(onMessage: (v: Version, data: Multiset<T>) => void) {
     const stream = new DifferenceStream<T>();
     stream.setUpstream(new DebugOperator(this, stream, onMessage));
     return stream;

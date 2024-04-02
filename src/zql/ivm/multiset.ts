@@ -1,5 +1,6 @@
 export type Entry<T> = readonly [T, Multiplicity];
 export type Multiplicity = number;
+export type Multiset<T> = Iterable<Entry<T>>;
 
 export function genMap<T, U>(s: Iterable<T>, cb: (x: T) => U) {
   return {

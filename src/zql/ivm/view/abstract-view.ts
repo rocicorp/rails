@@ -2,7 +2,7 @@ import {Materialite} from '../materialite.js';
 import {DifferenceStream, Listener} from '../graph/difference-stream.js';
 import {Version} from '../types.js';
 import {View} from './view.js';
-import {Entry} from '../multiset.js';
+import {Multiset} from '../multiset.js';
 
 export abstract class AbstractView<T extends object, CT> implements View<CT> {
   readonly #stream;
@@ -28,7 +28,7 @@ export abstract class AbstractView<T extends object, CT> implements View<CT> {
     this._materialite = materialite;
     this.#stream = stream;
     this._listener = {
-      newData: (v: Version, data: Iterable<Entry<T>>) => {
+      newData: (v: Version, data: Multiset<T>) => {
         this._newData(v, data);
       },
       commit: (v: Version) => {
@@ -80,5 +80,5 @@ export abstract class AbstractView<T extends object, CT> implements View<CT> {
     this.#listeners.clear();
   }
 
-  protected abstract _newData(v: Version, data: Iterable<Entry<T>>): void;
+  protected abstract _newData(v: Version, data: Multiset<T>): void;
 }
