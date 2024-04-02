@@ -17,7 +17,7 @@ import {Multiset} from '../multiset.js';
 import {Reply, Request} from './message.js';
 
 export type Listener<T> = {
-  newData: (
+  newDifference: (
     version: Version,
     data: Multiset<T>,
     reply?: Reply | undefined,
@@ -66,11 +66,11 @@ export class DifferenceStream<T extends object> {
   newData(version: Version, data: Multiset<T>, reply?: Reply | undefined) {
     if (reply) {
       for (const requestor of this.#requestors) {
-        requestor.newData(version, data, reply);
+        requestor.newDifference(version, data, reply);
       }
     } else {
       for (const listener of this.#downstreams) {
-        listener.newData(version, data, reply);
+        listener.newDifference(version, data, reply);
       }
     }
   }

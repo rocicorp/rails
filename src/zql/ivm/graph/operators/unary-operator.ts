@@ -21,7 +21,7 @@ export class UnaryOperator<
   ) {
     super([input], output);
     this.#listener = {
-      newData: (version, data) => {
+      newDifference: (version, data) => {
         output.newData(version, fn(version, data));
       },
       commit: version => {

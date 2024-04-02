@@ -28,7 +28,7 @@ export abstract class AbstractView<T extends object, CT> implements View<CT> {
     this._materialite = materialite;
     this.#stream = stream;
     this._listener = {
-      newData: (v: Version, data: Multiset<T>) => {
+      newDifference: (v: Version, data: Multiset<T>) => {
         this._newData(v, data);
       },
       commit: (v: Version) => {
