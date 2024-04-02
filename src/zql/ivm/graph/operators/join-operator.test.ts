@@ -103,12 +103,72 @@ test('unbalanced input', () => {
   items.length = 0;
 
   // now try deleting items
-  // and see that we get the correct new join result
+  albumInput.newDifference(3, [
+    [
+      {
+        id: 1,
+        title: 'Album One',
+      },
+      -1,
+    ],
+  ]);
+  albumInput.commit(3);
+  // Join result is retracted and no new output is produced
+  // since this is an inner join, not left join.
+  expect(items).toEqual([
+    [
+      {
+        id: '1_1',
+        [joinSymbol]: true,
+        track: {
+          id: 1,
+          title: 'Track One',
+          length: 1,
+          albumId: 1,
+        },
+        album: {
+          id: 1,
+          title: 'Album One',
+        },
+      },
+      -1,
+    ],
+  ]);
+  items.length = 0;
+
+  // add it back
+  albumInput.newDifference(4, [
+    [
+      {
+        id: 1,
+        title: 'Album One',
+      },
+      1,
+    ],
+  ]);
+  albumInput.commit(4);
+
+  expect(items).toEqual([
+    [
+      {
+        id: '1_1',
+        [joinSymbol]: true,
+        track: {
+          id: 1,
+          title: 'Track One',
+          length: 1,
+          albumId: 1,
+        },
+        album: {
+          id: 1,
+          title: 'Album One',
+        },
+      },
+      1,
+    ],
+  ]);
+  items.length = 0;
 });
-
-// try unbalanced in the opposite direction
-
-test('balanced input', () => {});
 
 test('basic join', () => {
   const trackInput = new DifferenceStream<Track>();
@@ -286,10 +346,95 @@ test('join through a junction table', () => {
   items.length = 0;
 
   // remove an artist
+  artistInput.newDifference(2, [
+    [
+      {
+        id: 2,
+        name: 'Artist Two',
+      },
+      -1,
+    ],
+  ]);
+  artistInput.commit(2);
+
+  // artist-two row is retracted
+  expect(items).toEqual([
+    [
+      {
+        id: '1_1-2_2',
+        track: {id: 1, title: 'Track One', length: 1, albumId: 1},
+        trackArtist: {trackId: 1, artistId: 2},
+        artist: {id: 2, name: 'Artist Two'},
+        [joinSymbol]: true,
+      },
+      -1,
+    ],
+  ]);
 
   // remove a track-artist link
+  trackArtistInput.newDifference(3, [
+    [
+      {
+        trackId: 1,
+        artistId: 2,
+      },
+      -1,
+    ],
+  ]);
+  trackArtistInput.commit(3);
 
-  // remove everything
+  // should be no output? Row was already retracted?
+  expect(items).toEqual([
+    [
+      {
+        id: '1_1-2_2',
+        track: {id: 1, title: 'Track One', length: 1, albumId: 1},
+        trackArtist: {trackId: 1, artistId: 2},
+        artist: {id: 2, name: 'Artist Two'},
+        [joinSymbol]: true,
+      },
+      -1,
+    ],
+  ]);
+
+  // remove the track
+  trackInput.newDifference(4, [
+    [
+      {
+        id: 1,
+        title: 'Track One',
+        length: 1,
+        albumId: 1,
+      },
+      -1,
+    ],
+  ]);
+  trackInput.commit(4);
+
+  // all rows are retracted
+  // hmm... why do we retract the same row once for each join?
+  expect(items).toEqual([
+    [
+      {
+        id: '1_1-2_2',
+        track: {id: 1, title: 'Track One', length: 1, albumId: 1},
+        trackArtist: {trackId: 1, artistId: 2},
+        artist: {id: 2, name: 'Artist Two'},
+        [joinSymbol]: true,
+      },
+      -1,
+    ],
+    [
+      {
+        id: '1_1-1_1',
+        track: {id: 1, title: 'Track One', length: 1, albumId: 1},
+        trackArtist: {trackId: 1, artistId: 1},
+        artist: {id: 1, name: 'Artist One'},
+        [joinSymbol]: true,
+      },
+      -1,
+    ],
+  ]);
 });
 
 /*

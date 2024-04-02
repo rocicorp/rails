@@ -2,15 +2,15 @@ import {Primitive} from '../../../ast/ast.js';
 import {Entry, Multiset} from '../../multiset.js';
 import {JoinResult, StrOrNum, isJoinResult, joinSymbol} from '../../types.js';
 
-export class Index<K extends Primitive, V> {
-  readonly #index = new Map<K, Entry<V>[]>();
+export class DifferenceIndex<Key extends Primitive, V> {
+  readonly #index = new Map<Key, Entry<V>[]>();
   readonly #getValueIdentity;
 
   constructor(getValueIdentity: (value: V) => string | number) {
     this.#getValueIdentity = getValueIdentity;
   }
 
-  add(key: K, value: Entry<V>) {
+  add(key: Key, value: Entry<V>) {
     let existing = this.#index.get(key);
     if (existing === undefined) {
       existing = [];
@@ -19,7 +19,7 @@ export class Index<K extends Primitive, V> {
     existing.push(value);
   }
 
-  extend(index: Index<K, V>) {
+  extend(index: DifferenceIndex<Key, V>) {
     for (const [key, value] of index.#index) {
       for (const entry of value) {
         this.add(key, entry);
@@ -27,7 +27,7 @@ export class Index<K extends Primitive, V> {
     }
   }
 
-  get(key: K): Entry<V>[] {
+  get(key: Key): Entry<V>[] {
     return this.#index.get(key) ?? [];
   }
 
@@ -38,7 +38,7 @@ export class Index<K extends Primitive, V> {
     BAlias extends string | undefined,
   >(
     aAlias: AAlias | undefined,
-    other: Index<K, VO>,
+    other: DifferenceIndex<Key, VO>,
     bAlias: BAlias | undefined,
     getBValueIdentity: (v: VO) => StrOrNum,
   ): Multiset<JoinResult<V, VO, AAlias, BAlias>> {
@@ -87,44 +87,43 @@ export class Index<K extends Primitive, V> {
     return ret;
   }
 
-  compact(keys: K[] = []) {
-    const consolidateValues = (values: Entry<V>[]): Entry<V>[] => {
-      const consolidated = new Map<string | symbol | number, Entry<V>>();
-      for (const [value, multiplicity] of values) {
-        if (multiplicity === 0) {
-          continue;
-        }
-        const existing = consolidated.get(this.#getValueIdentity(value));
-        if (existing === undefined) {
-          consolidated.set(this.#getValueIdentity(value), [
-            value,
-            multiplicity,
-          ]);
-        } else {
-          const sum = existing[1] + multiplicity;
-          if (sum === 0) {
-            consolidated.delete(this.#getValueIdentity(value));
-          } else {
-            consolidated.set(this.#getValueIdentity(value), [value, sum]);
-          }
-        }
-      }
-
-      return [...consolidated.values()];
-    };
-
-    const iterableKeys = keys.length !== 0 ? keys : [...this.#index.keys()];
-    for (const key of iterableKeys) {
-      const entries = this.#index.get(key);
-      if (entries === undefined) {
+  compact(keys: Key[]) {
+    // Go through all the keys that were requested to be compacted.
+    for (const key of keys) {
+      const values = this.#index.get(key);
+      if (values === undefined) {
         continue;
       }
-      const consolidated = consolidateValues(entries);
-      if (consolidated.length !== 0) {
-        this.#index.set(key, consolidated);
-      } else {
+      const consolidated = this.#consolidateValues(values);
+      if (consolidated.length === 0) {
         this.#index.delete(key);
+      } else {
+        this.#index.set(key, consolidated);
       }
     }
+  }
+
+  #consolidateValues(value: Entry<V>[]) {
+    // Map to consolidate entries with the same identity
+    // Consolidation is the process of summing their multiplicity.
+    // So 1 followed by -1 means the thing no longer exists.
+    const consolidated = new Map<string | number, Entry<V>>();
+
+    for (const entry of value) {
+      const identity = this.#getValueIdentity(entry[0]);
+      const existing = consolidated.get(identity);
+      if (existing !== undefined) {
+        const newMultiplicity = existing[1] + entry[1];
+        if (newMultiplicity === 0) {
+          consolidated.delete(identity);
+        } else {
+          consolidated.set(identity, [entry[0], newMultiplicity]);
+        }
+      } else {
+        consolidated.set(identity, entry);
+      }
+    }
+
+    return [...consolidated.values()];
   }
 }

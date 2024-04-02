@@ -4,7 +4,7 @@ import {Entry, Multiset} from '../../multiset.js';
 import {JoinResult, StrOrNum, Version} from '../../types.js';
 import {DifferenceStream} from '../difference-stream.js';
 import {BinaryOperator} from './binary-operator.js';
-import {Index} from './operator-index.js';
+import {DifferenceIndex} from './difference-index.js';
 
 export type JoinArgs<
   Key extends Primitive,
@@ -59,8 +59,8 @@ export class InnerJoinOperator<
   // since they're already aliased
   JoinResult<AValue, BValue, AAlias, BAlias>
 > {
-  readonly #inputAPending: Index<K, AValue>[] = [];
-  readonly #inputBPending: Index<K, BValue>[] = [];
+  readonly #inputAPending: DifferenceIndex<K, AValue>[] = [];
+  readonly #inputBPending: DifferenceIndex<K, BValue>[] = [];
 
   constructor({
     a,
@@ -73,24 +73,30 @@ export class InnerJoinOperator<
     getBPrimaryKey,
     output,
   }: JoinArgs<K, AValue, BValue, AAlias, BAlias>) {
-    const indexA = new Index<K, AValue>(getAPrimaryKey);
-    const indexB = new Index<K, BValue>(getBPrimaryKey);
+    const indexA = new DifferenceIndex<K, AValue>(getAPrimaryKey);
+    const indexB = new DifferenceIndex<K, BValue>(getBPrimaryKey);
 
     const inner = (
       _version: Version,
       inputA: Multiset<AValue> | undefined,
       inputB: Multiset<BValue> | undefined,
     ) => {
+      const aKeysForCompaction: K[] = [];
+      const bKeysForCompaction: K[] = [];
       for (const entry of inputA || []) {
-        const deltaA = new Index<K, AValue>(getAPrimaryKey);
-        deltaA.add(getAJoinKey(entry[0]), entry);
+        const deltaA = new DifferenceIndex<K, AValue>(getAPrimaryKey);
+        const aKey = getAJoinKey(entry[0]);
+        deltaA.add(aKey, entry);
         this.#inputAPending.push(deltaA);
+        aKeysForCompaction.push(aKey);
       }
 
       for (const entry of inputB || []) {
-        const deltaB = new Index<K, BValue>(getBPrimaryKey);
-        deltaB.add(getBJoinKey(entry[0]), entry);
+        const deltaB = new DifferenceIndex<K, BValue>(getBPrimaryKey);
+        const bKey = getBJoinKey(entry[0]);
+        deltaB.add(bKey, entry);
         this.#inputBPending.push(deltaB);
+        bKeysForCompaction.push(bKey);
       }
 
       // TODO: profile join and explore alternate join strategies if needed
@@ -114,8 +120,8 @@ export class InnerJoinOperator<
           indexB.extend(deltaB);
         }
 
-        indexA.compact();
-        indexB.compact();
+        indexA.compact(aKeysForCompaction);
+        indexB.compact(bKeysForCompaction);
         results.push(result); // result.consolidate(x => x.id),
       }
       return flatMapIter(
