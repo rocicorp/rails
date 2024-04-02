@@ -370,6 +370,7 @@ test('join through a junction table', () => {
       -1,
     ],
   ]);
+  items.length = 0;
 
   // remove a track-artist link
   trackArtistInput.newDifference(3, [
@@ -383,19 +384,9 @@ test('join through a junction table', () => {
   ]);
   trackArtistInput.commit(3);
 
-  // should be no output? Row was already retracted?
-  expect(items).toEqual([
-    [
-      {
-        id: '1_1-2_2',
-        track: {id: 1, title: 'Track One', length: 1, albumId: 1},
-        trackArtist: {trackId: 1, artistId: 2},
-        artist: {id: 2, name: 'Artist Two'},
-        [joinSymbol]: true,
-      },
-      -1,
-    ],
-  ]);
+  // should be no output -- the track-artist link is gone
+  expect(items).toEqual([]);
+  items.length = 0;
 
   // remove the track
   trackInput.newDifference(4, [
@@ -412,18 +403,7 @@ test('join through a junction table', () => {
   trackInput.commit(4);
 
   // all rows are retracted
-  // hmm... why do we retract the same row once for each join?
   expect(items).toEqual([
-    [
-      {
-        id: '1_1-2_2',
-        track: {id: 1, title: 'Track One', length: 1, albumId: 1},
-        trackArtist: {trackId: 1, artistId: 2},
-        artist: {id: 2, name: 'Artist Two'},
-        [joinSymbol]: true,
-      },
-      -1,
-    ],
     [
       {
         id: '1_1-1_1',
@@ -435,6 +415,7 @@ test('join through a junction table', () => {
       -1,
     ],
   ]);
+  items.length = 0;
 });
 
 /*
@@ -446,7 +427,7 @@ fast-check join...
 
 */
 
-test('join followed by reduction to gather playlists', () => {
+test('join followed by reduction to gather playlists and their artists', () => {
   /**
    * For a user:
    * - Join their playlists

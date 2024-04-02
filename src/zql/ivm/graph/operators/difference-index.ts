@@ -126,4 +126,8 @@ export class DifferenceIndex<Key extends Primitive, V> {
 
     return [...consolidated.values()];
   }
+
+  toString() {
+    return JSON.stringify([...this.#index]);
+  }
 }

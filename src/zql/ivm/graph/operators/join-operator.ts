@@ -1,5 +1,4 @@
 import {Primitive} from '../../../ast/ast.js';
-import {flatMapIter} from '../../../util/iterables.js';
 import {Entry, Multiset} from '../../multiset.js';
 import {JoinResult, StrOrNum, Version} from '../../types.js';
 import {DifferenceStream} from '../difference-stream.js';
