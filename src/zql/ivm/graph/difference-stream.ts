@@ -2,13 +2,13 @@ import {Entity} from '../../../generate.js';
 import {Primitive} from '../../ast/ast.js';
 import {invariant} from '../../error/asserts.js';
 import {Multiset} from '../multiset.js';
-import {Version} from '../types.js';
 import {Reply, Request} from './message.js';
 import {ConcatOperator} from './operators/concat-operator.js';
 import {DebugOperator} from './operators/debug-operator.js';
 import {DifferenceEffectOperator} from './operators/difference-effect-operator.js';
 import {DistinctOperator} from './operators/distinct-operator.js';
 import {FilterOperator} from './operators/filter-operator.js';
+import {JoinResult, Version} from '../types.js';
 import {
   AggregateOut,
   FullAvgOperator,
@@ -18,6 +18,7 @@ import {
 import {MapOperator} from './operators/map-operator.js';
 import {Operator} from './operators/operator.js';
 import {ReduceOperator} from './operators/reduce-operator.js';
+import {InnerJoinOperator, JoinArgs} from './operators/join-operator.js';
 
 export type Listener<T> = {
   newDifference: (
@@ -149,6 +150,26 @@ export class DifferenceStream<T extends object> {
     const stream = new DifferenceStream<O>();
     return stream.setUpstream(
       new ReduceOperator<K, T, O>(this, stream, getIdentity, getKey, f),
+    );
+  }
+
+  join<
+    Key extends Primitive,
+    BValue extends object,
+    AAlias extends string | undefined,
+    BAlias extends string | undefined,
+  >(
+    args: Omit<JoinArgs<Key, T, BValue, AAlias, BAlias>, 'a' | 'output'>,
+  ): DifferenceStream<JoinResult<T, BValue, AAlias, BAlias>> {
+    const stream = new DifferenceStream<
+      JoinResult<T, BValue, AAlias, BAlias>
+    >();
+    return stream.setUpstream(
+      new InnerJoinOperator({
+        a: this,
+        output: stream,
+        ...args,
+      }),
     );
   }
 

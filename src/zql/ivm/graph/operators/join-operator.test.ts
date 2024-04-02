@@ -1,5 +1,4 @@
 import {expect, test} from 'vitest';
-import {InnerJoinOperator} from './join-operator.js';
 import {JoinResult, joinSymbol} from '../../types.js';
 import {DifferenceStream} from '../difference-stream.js';
 
@@ -25,25 +24,21 @@ type Artist = {
   name: string;
 };
 
-type Playlist = {
-  id: number;
-  title: string;
-};
+// type Playlist = {
+//   id: number;
+//   title: string;
+// };
 
-type PlaylistTrack = {
-  playlistId: number;
-  trackId: number;
-};
+// type PlaylistTrack = {
+//   playlistId: number;
+//   trackId: number;
+// };
 
 test('unbalanced input', () => {
   const trackInput = new DifferenceStream<Track>();
   const albumInput = new DifferenceStream<Album>();
-  const output = new DifferenceStream<
-    JoinResult<Track, Album, 'track', 'album'>
-  >();
 
-  new InnerJoinOperator<number, Track, Album, 'track', 'album'>({
-    a: trackInput,
+  const output = trackInput.join({
     aAs: 'track',
     getAJoinKey: track => track.albumId,
     getAPrimaryKey: track => track.id,
@@ -51,7 +46,6 @@ test('unbalanced input', () => {
     bAs: 'album',
     getBJoinKey: album => album.id,
     getBPrimaryKey: album => album.id,
-    output,
   });
 
   const items: [JoinResult<Track, Album, 'track', 'album'>, number][] = [];
@@ -119,12 +113,8 @@ test('balanced input', () => {});
 test('basic join', () => {
   const trackInput = new DifferenceStream<Track>();
   const albumInput = new DifferenceStream<Album>();
-  const output = new DifferenceStream<
-    JoinResult<Track, Album, 'track', 'album'>
-  >();
 
-  new InnerJoinOperator<number, Track, Album, 'track', 'album'>({
-    a: trackInput,
+  const output = trackInput.join({
     aAs: 'track',
     getAJoinKey: track => track.albumId,
     getAPrimaryKey: track => track.id,
@@ -132,7 +122,6 @@ test('basic join', () => {
     bAs: 'album',
     getBJoinKey: album => album.id,
     getBPrimaryKey: album => album.id,
-    output,
   });
 
   const items: [JoinResult<Track, Album, 'track', 'album'>, number][] = [];
@@ -195,12 +184,7 @@ test('join through a junction table', () => {
   const trackArtistInput = new DifferenceStream<TrackArtist>();
   const artistInput = new DifferenceStream<Artist>();
 
-  const trackAndTrackArtistOutput = new DifferenceStream<
-    JoinResult<Track, TrackArtist, 'track', 'trackArtist'>
-  >();
-
-  new InnerJoinOperator<number, Track, TrackArtist, 'track', 'trackArtist'>({
-    a: trackInput,
+  const trackAndTrackArtistOutput = trackInput.join({
     aAs: 'track',
     getAJoinKey: track => track.id,
     getAPrimaryKey: track => track.id,
@@ -209,26 +193,9 @@ test('join through a junction table', () => {
     getBJoinKey: trackArtist => trackArtist.trackId,
     getBPrimaryKey: trackArtist =>
       trackArtist.trackId + '-' + trackArtist.artistId,
-    output: trackAndTrackArtistOutput,
   });
 
-  const output = new DifferenceStream<
-    JoinResult<
-      JoinResult<Track, TrackArtist, 'track', 'trackArtist'>,
-      Artist,
-      undefined,
-      'artist'
-    >
-  >();
-
-  new InnerJoinOperator<
-    number,
-    JoinResult<Track, TrackArtist, 'track', 'trackArtist'>,
-    Artist,
-    undefined,
-    'artist'
-  >({
-    a: trackAndTrackArtistOutput,
+  const output = trackAndTrackArtistOutput.join({
     aAs: undefined,
     getAJoinKey: x => x.trackArtist.artistId,
     getAPrimaryKey: x => x.id,
@@ -236,8 +203,8 @@ test('join through a junction table', () => {
     bAs: 'artist',
     getBJoinKey: x => x.id,
     getBPrimaryKey: x => x.id,
-    output,
   });
+
   const items: [
     JoinResult<Track, TrackArtist, 'track', 'trackArtist'>,
     number,

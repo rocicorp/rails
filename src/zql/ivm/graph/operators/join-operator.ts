@@ -6,7 +6,7 @@ import {DifferenceStream} from '../difference-stream.js';
 import {BinaryOperator} from './binary-operator.js';
 import {Index} from './operator-index.js';
 
-type JoinArgs<
+export type JoinArgs<
   Key extends Primitive,
   AValue extends object,
   BValue extends object,
