@@ -75,7 +75,11 @@ export class DifferenceStream<T extends object> {
     return this;
   }
 
-  newData(version: Version, data: Multiset<T>, reply?: Reply | undefined) {
+  newDifference(
+    version: Version,
+    data: Multiset<T>,
+    reply?: Reply | undefined,
+  ) {
     if (reply) {
       for (const requestor of this.#requestors) {
         requestor.newDifference(version, data, reply);

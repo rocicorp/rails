@@ -1,27 +1,27 @@
 import {Primitive} from '../../../ast/ast.js';
-import {Multiset} from '../../multiset.js';
+import {flatMapIter} from '../../../util/iterables.js';
+import {Entry, Multiset} from '../../multiset.js';
 import {JoinResult, StrOrNum, Version} from '../../types.js';
-import {DifferenceStreamReader} from '../difference-stream-reader.js';
-import {DifferenceStreamWriter} from '../difference-stream-writer.js';
+import {DifferenceStream} from '../difference-stream.js';
 import {BinaryOperator} from './binary-operator.js';
 import {Index} from './operator-index.js';
 
 type JoinArgs<
   Key extends Primitive,
-  AValue,
-  BValue,
+  AValue extends object,
+  BValue extends object,
   AAlias extends string | undefined,
   BAlias extends string | undefined,
 > = {
-  a: DifferenceStreamReader<AValue>;
+  a: DifferenceStream<AValue>;
   aAs: AAlias | undefined;
   getAJoinKey: (value: AValue) => Key;
   getAPrimaryKey: (value: AValue) => StrOrNum;
-  b: DifferenceStreamReader<BValue>;
+  b: DifferenceStream<BValue>;
   bAs: BAlias | undefined;
   getBJoinKey: (value: BValue) => Key;
   getBPrimaryKey: (value: BValue) => StrOrNum;
-  output: DifferenceStreamWriter<JoinResult<AValue, BValue, AAlias, BAlias>>;
+  output: DifferenceStream<JoinResult<AValue, BValue, AAlias, BAlias>>;
 };
 
 /**
@@ -47,8 +47,8 @@ type JoinArgs<
  */
 export class InnerJoinOperator<
   K extends Primitive,
-  AValue,
-  BValue,
+  AValue extends object,
+  BValue extends object,
   AAlias extends string | undefined,
   BAlias extends string | undefined,
 > extends BinaryOperator<
@@ -76,44 +76,52 @@ export class InnerJoinOperator<
     const indexA = new Index<K, AValue>(getAPrimaryKey);
     const indexB = new Index<K, BValue>(getBPrimaryKey);
 
-    const inner = (version: Version) => {
-      for (const entry of this.inputAMessages(version)) {
+    const inner = (
+      _version: Version,
+      inputA: Multiset<AValue> | undefined,
+      inputB: Multiset<BValue> | undefined,
+    ) => {
+      for (const entry of inputA || []) {
         const deltaA = new Index<K, AValue>(getAPrimaryKey);
-        for (const [value, mult] of entry[1].entries) {
-          deltaA.add(getAJoinKey(value), [value, mult]);
-        }
+        deltaA.add(getAJoinKey(entry[0]), entry);
         this.#inputAPending.push(deltaA);
       }
 
-      for (const entry of this.inputBMessages(version)) {
+      for (const entry of inputB || []) {
         const deltaB = new Index<K, BValue>(getBPrimaryKey);
-        for (const [value, mult] of entry[1].entries) {
-          deltaB.add(getBJoinKey(value), [value, mult]);
-        }
+        deltaB.add(getBJoinKey(entry[0]), entry);
         this.#inputBPending.push(deltaB);
       }
 
+      // TODO: profile join and explore alternate join strategies if needed
+      const results: Entry<JoinResult<AValue, BValue, AAlias, BAlias>>[][] = [];
       while (this.#inputAPending.length > 0 || this.#inputBPending.length > 0) {
-        const result = new Multiset<JoinResult<AValue, BValue, AAlias, BAlias>>(
-          [],
-        );
+        const result: Entry<JoinResult<AValue, BValue, AAlias, BAlias>>[] = [];
         const deltaA = this.#inputAPending.shift();
         const deltaB = this.#inputBPending.shift();
 
         if (deltaA !== undefined) {
-          result.extend(deltaA.join(aAs, indexB, bAs, getBPrimaryKey));
+          for (const x of deltaA.join(aAs, indexB, bAs, getBPrimaryKey)) {
+            result.push(x);
+          }
           indexA.extend(deltaA);
         }
 
         if (deltaB !== undefined) {
-          result.extend(indexA.join(aAs, deltaB, bAs, getBPrimaryKey));
+          for (const x of indexA.join(aAs, deltaB, bAs, getBPrimaryKey)) {
+            result.push(x);
+          }
           indexB.extend(deltaB);
         }
 
-        this._output.queueData([version, result.consolidate(x => x.id)]);
         indexA.compact();
         indexB.compact();
+        results.push(result); // result.consolidate(x => x.id),
       }
+      return flatMapIter(
+        () => results,
+        x => x,
+      );
     };
     super(a, b, output, inner);
   }

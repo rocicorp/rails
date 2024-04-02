@@ -1,9 +1,7 @@
 import {expect, test} from 'vitest';
 import {InnerJoinOperator} from './join-operator.js';
-import {DifferenceStreamWriter} from '../difference-stream-writer.js';
-import {NoOp} from './operator.js';
-import {Multiset} from '../../multiset.js';
 import {JoinResult, joinSymbol} from '../../types.js';
+import {DifferenceStream} from '../difference-stream.js';
 
 type Track = {
   id: number;
@@ -38,67 +36,58 @@ type PlaylistTrack = {
 };
 
 test('unbalanced input', () => {
-  const trackWriter = new DifferenceStreamWriter<Track>();
-  const albumWriter = new DifferenceStreamWriter<Album>();
-  const trackReader = trackWriter.newReader();
-  const albumReader = albumWriter.newReader();
-  const output = new DifferenceStreamWriter<
+  const trackInput = new DifferenceStream<Track>();
+  const albumInput = new DifferenceStream<Album>();
+  const output = new DifferenceStream<
     JoinResult<Track, Album, 'track', 'album'>
   >();
 
   new InnerJoinOperator<number, Track, Album, 'track', 'album'>({
-    a: trackReader,
+    a: trackInput,
     aAs: 'track',
     getAJoinKey: track => track.albumId,
     getAPrimaryKey: track => track.id,
-    b: albumReader,
+    b: albumInput,
     bAs: 'album',
     getBJoinKey: album => album.id,
     getBPrimaryKey: album => album.id,
     output,
   });
 
-  const outReader = output.newReader();
-  outReader.setOperator(new NoOp());
+  const items: [JoinResult<Track, Album, 'track', 'album'>, number][] = [];
+  output.effect((e, m) => {
+    items.push([e, m]);
+  });
 
-  trackWriter.queueData([
-    1,
-    new Multiset([
-      [
-        {
-          id: 1,
-          title: 'Track One',
-          length: 1,
-          albumId: 1,
-        },
-        1,
-      ],
-    ]),
+  trackInput.newDifference(1, [
+    [
+      {
+        id: 1,
+        title: 'Track One',
+        length: 1,
+        albumId: 1,
+      },
+      1,
+    ],
   ]);
 
-  trackWriter.notify(1);
-  trackWriter.notifyCommitted(1);
-  const entry = outReader.drain(1);
-  expect([...entry![1].entries]).toEqual([]);
+  trackInput.commit(1);
+  expect(items).toEqual([]);
+  items.length = 0;
 
   // now add to the other side
-  albumWriter.queueData([
-    2,
-    new Multiset([
-      [
-        {
-          id: 1,
-          title: 'Album One',
-        },
-        1,
-      ],
-    ]),
+  albumInput.newDifference(2, [
+    [
+      {
+        id: 1,
+        title: 'Album One',
+      },
+      1,
+    ],
   ]);
 
-  albumWriter.notify(2);
-  albumWriter.notifyCommitted(2);
-  const entry2 = outReader.drain(2);
-  expect([...entry2![1].entries]).toEqual([
+  albumInput.commit(2);
+  expect(items).toEqual([
     [
       {
         id: '1_1',
@@ -117,6 +106,7 @@ test('unbalanced input', () => {
       1,
     ],
   ]);
+  items.length = 0;
 
   // now try deleting items
   // and see that we get the correct new join result
@@ -127,55 +117,49 @@ test('unbalanced input', () => {
 test('balanced input', () => {});
 
 test('basic join', () => {
-  const trackWriter = new DifferenceStreamWriter<Track>();
-  const albumWriter = new DifferenceStreamWriter<Album>();
-  const trackReader = trackWriter.newReader();
-  const albumReader = albumWriter.newReader();
-  const output = new DifferenceStreamWriter<
+  const trackInput = new DifferenceStream<Track>();
+  const albumInput = new DifferenceStream<Album>();
+  const output = new DifferenceStream<
     JoinResult<Track, Album, 'track', 'album'>
   >();
 
   new InnerJoinOperator<number, Track, Album, 'track', 'album'>({
-    a: trackReader,
+    a: trackInput,
     aAs: 'track',
     getAJoinKey: track => track.albumId,
     getAPrimaryKey: track => track.id,
-    b: albumReader,
+    b: albumInput,
     bAs: 'album',
     getBJoinKey: album => album.id,
     getBPrimaryKey: album => album.id,
     output,
   });
 
-  const outReader = output.newReader();
-  outReader.setOperator(new NoOp());
+  const items: [JoinResult<Track, Album, 'track', 'album'>, number][] = [];
+  output.effect((e, m) => {
+    items.push([e, m]);
+  });
 
-  trackWriter.queueData([
-    1,
-    new Multiset([
-      [
-        {
-          id: 1,
-          title: 'Track One',
-          length: 1,
-          albumId: 1,
-        },
-        1,
-      ],
-    ]),
+  trackInput.newDifference(1, [
+    [
+      {
+        id: 1,
+        title: 'Track One',
+        length: 1,
+        albumId: 1,
+      },
+      1,
+    ],
   ]);
 
-  albumWriter.queueData([
-    1,
-    new Multiset([
-      [
-        {
-          id: 1,
-          title: 'Album One',
-        },
-        1,
-      ],
-    ]),
+  albumInput.newDifference(1, [
+    [
+      {
+        id: 1,
+        title: 'Album One',
+      },
+      1,
+    ],
   ]);
 
   check([
@@ -199,34 +183,28 @@ test('basic join', () => {
   ]);
 
   function check(expected: [unknown, number][]) {
-    trackWriter.notify(1);
-    albumWriter.notify(1);
-    trackWriter.notifyCommitted(1);
-    albumWriter.notifyCommitted(1);
-    const entry = outReader.drain(1);
-    expect([...entry![1].entries]).toEqual(expected);
+    albumInput.commit(2);
+    expect(items).toEqual(expected);
+    items.length = 0;
   }
 });
 
 test('join through a junction table', () => {
   // track -> track_artist -> artist
-  const trackWriter = new DifferenceStreamWriter<Track>();
-  const trackArtistWriter = new DifferenceStreamWriter<TrackArtist>();
-  const artistWriter = new DifferenceStreamWriter<Artist>();
-  const trackReader = trackWriter.newReader();
-  const trackArtistReader = trackArtistWriter.newReader();
-  const artistReader = artistWriter.newReader();
+  const trackInput = new DifferenceStream<Track>();
+  const trackArtistInput = new DifferenceStream<TrackArtist>();
+  const artistInput = new DifferenceStream<Artist>();
 
-  const trackAndTrackArtistOutput = new DifferenceStreamWriter<
+  const trackAndTrackArtistOutput = new DifferenceStream<
     JoinResult<Track, TrackArtist, 'track', 'trackArtist'>
   >();
 
   new InnerJoinOperator<number, Track, TrackArtist, 'track', 'trackArtist'>({
-    a: trackReader,
+    a: trackInput,
     aAs: 'track',
     getAJoinKey: track => track.id,
     getAPrimaryKey: track => track.id,
-    b: trackArtistReader,
+    b: trackArtistInput,
     bAs: 'trackArtist',
     getBJoinKey: trackArtist => trackArtist.trackId,
     getBPrimaryKey: trackArtist =>
@@ -234,7 +212,7 @@ test('join through a junction table', () => {
     output: trackAndTrackArtistOutput,
   });
 
-  const output = new DifferenceStreamWriter<
+  const output = new DifferenceStream<
     JoinResult<
       JoinResult<Track, TrackArtist, 'track', 'trackArtist'>,
       Artist,
@@ -250,81 +228,73 @@ test('join through a junction table', () => {
     undefined,
     'artist'
   >({
-    a: trackAndTrackArtistOutput.newReader(),
+    a: trackAndTrackArtistOutput,
     aAs: undefined,
     getAJoinKey: x => x.trackArtist.artistId,
     getAPrimaryKey: x => x.id,
-    b: artistReader,
+    b: artistInput,
     bAs: 'artist',
     getBJoinKey: x => x.id,
     getBPrimaryKey: x => x.id,
     output,
   });
-  const outReader = output.newReader();
-  outReader.setOperator(new NoOp());
+  const items: [
+    JoinResult<Track, TrackArtist, 'track', 'trackArtist'>,
+    number,
+  ][] = [];
+  output.effect((e, m) => {
+    items.push([e, m]);
+  });
 
-  trackWriter.queueData([
-    1,
-    new Multiset([
-      [
-        {
-          id: 1,
-          title: 'Track One',
-          length: 1,
-          albumId: 1,
-        },
-        1,
-      ],
-    ]),
+  trackInput.newDifference(1, [
+    [
+      {
+        id: 1,
+        title: 'Track One',
+        length: 1,
+        albumId: 1,
+      },
+      1,
+    ],
   ]);
-  trackArtistWriter.queueData([
-    1,
-    new Multiset([
-      [
-        {
-          trackId: 1,
-          artistId: 1,
-        },
-        1,
-      ],
-      [
-        {
-          trackId: 1,
-          artistId: 2,
-        },
-        1,
-      ],
-    ]),
+  trackArtistInput.newDifference(1, [
+    [
+      {
+        trackId: 1,
+        artistId: 1,
+      },
+      1,
+    ],
+    [
+      {
+        trackId: 1,
+        artistId: 2,
+      },
+      1,
+    ],
   ]);
-  artistWriter.queueData([
-    1,
-    new Multiset([
-      [
-        {
-          id: 1,
-          name: 'Artist One',
-        },
-        1,
-      ],
-      [
-        {
-          id: 2,
-          name: 'Artist Two',
-        },
-        1,
-      ],
-    ]),
+  artistInput.newDifference(1, [
+    [
+      {
+        id: 1,
+        name: 'Artist One',
+      },
+      1,
+    ],
+    [
+      {
+        id: 2,
+        name: 'Artist Two',
+      },
+      1,
+    ],
   ]);
 
-  trackWriter.notify(1);
-  trackArtistWriter.notify(1);
-  artistWriter.notify(1);
-  trackWriter.notifyCommitted(1);
-  trackArtistWriter.notifyCommitted(1);
-  artistWriter.notifyCommitted(1);
+  trackInput.commit(1);
+  trackArtistInput.commit(1);
+  artistInput.commit(1);
 
-  const entry = outReader.drain(1);
-  expect([...entry![1].entries]).toEqual([
+  expect(items).toEqual([
     [
       {
         id: '1_1-1_1',
@@ -346,6 +316,7 @@ test('join through a junction table', () => {
       1,
     ],
   ]);
+  items.length = 0;
 
   // remove an artist
 

@@ -31,6 +31,7 @@ export class Index<K extends Primitive, V> {
     return this.#index.get(key) ?? [];
   }
 
+  // TODO: profile join and optimize
   join<
     VO,
     AAlias extends string | undefined,
@@ -83,7 +84,7 @@ export class Index<K extends Primitive, V> {
         }
       }
     }
-    return new Multiset(ret);
+    return ret;
   }
 
   compact(keys: K[] = []) {

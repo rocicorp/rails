@@ -69,7 +69,7 @@ export abstract class SetSource<T extends object> implements Source<T> {
           }
         }
 
-        this.#stream.newData(version, this.#pending);
+        this.#stream.newDifference(version, this.#pending);
         this.#pending = [];
       },
       onCommitted: (version: Version) => {
@@ -175,7 +175,7 @@ export abstract class SetSource<T extends object> implements Source<T> {
 
     const response = createPullResponseMessage(message);
 
-    this.#stream.newData(
+    this.#stream.newDifference(
       this._materialite.getVersion(),
       asEntries(this.#tree, message),
       response,
