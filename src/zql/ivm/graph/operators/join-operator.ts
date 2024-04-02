@@ -59,9 +59,6 @@ export class InnerJoinOperator<
   // since they're already aliased
   JoinResult<AValue, BValue, AAlias, BAlias>
 > {
-  readonly #inputAPending: DifferenceIndex<K, AValue>[] = [];
-  readonly #inputBPending: DifferenceIndex<K, BValue>[] = [];
-
   constructor({
     a,
     aAs,
@@ -83,51 +80,39 @@ export class InnerJoinOperator<
     ) => {
       const aKeysForCompaction: K[] = [];
       const bKeysForCompaction: K[] = [];
+      const deltaA = new DifferenceIndex<K, AValue>(getAPrimaryKey);
       for (const entry of inputA || []) {
-        const deltaA = new DifferenceIndex<K, AValue>(getAPrimaryKey);
         const aKey = getAJoinKey(entry[0]);
         deltaA.add(aKey, entry);
-        this.#inputAPending.push(deltaA);
         aKeysForCompaction.push(aKey);
       }
 
+      const deltaB = new DifferenceIndex<K, BValue>(getBPrimaryKey);
       for (const entry of inputB || []) {
-        const deltaB = new DifferenceIndex<K, BValue>(getBPrimaryKey);
         const bKey = getBJoinKey(entry[0]);
         deltaB.add(bKey, entry);
-        this.#inputBPending.push(deltaB);
         bKeysForCompaction.push(bKey);
       }
 
       // TODO: profile join and explore alternate join strategies if needed
-      const results: Entry<JoinResult<AValue, BValue, AAlias, BAlias>>[][] = [];
-      while (this.#inputAPending.length > 0 || this.#inputBPending.length > 0) {
-        const result: Entry<JoinResult<AValue, BValue, AAlias, BAlias>>[] = [];
-        const deltaA = this.#inputAPending.shift();
-        const deltaB = this.#inputBPending.shift();
-
-        if (deltaA !== undefined) {
-          for (const x of deltaA.join(aAs, indexB, bAs, getBPrimaryKey)) {
-            result.push(x);
-          }
-          indexA.extend(deltaA);
+      const result: Entry<JoinResult<AValue, BValue, AAlias, BAlias>>[] = [];
+      if (deltaA !== undefined) {
+        for (const x of deltaA.join(aAs, indexB, bAs, getBPrimaryKey)) {
+          result.push(x);
         }
-
-        if (deltaB !== undefined) {
-          for (const x of indexA.join(aAs, deltaB, bAs, getBPrimaryKey)) {
-            result.push(x);
-          }
-          indexB.extend(deltaB);
-        }
-
-        indexA.compact(aKeysForCompaction);
-        indexB.compact(bKeysForCompaction);
-        results.push(result); // result.consolidate(x => x.id),
+        indexA.extend(deltaA);
       }
-      return flatMapIter(
-        () => results,
-        x => x,
-      );
+
+      if (deltaB !== undefined) {
+        for (const x of indexA.join(aAs, deltaB, bAs, getBPrimaryKey)) {
+          result.push(x);
+        }
+        indexB.extend(deltaB);
+      }
+
+      indexA.compact(aKeysForCompaction);
+      indexB.compact(bKeysForCompaction);
+      return result;
     };
     super(a, b, output, inner);
   }
