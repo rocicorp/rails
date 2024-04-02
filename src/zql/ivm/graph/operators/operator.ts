@@ -16,7 +16,7 @@ export class NoOp implements Operator {
   constructor() {}
   commit(_v: Version): void {}
   messageUpstream(): void {}
-  destroy() {}
+  destroy(): void {}
 }
 
 /**
