@@ -2,19 +2,17 @@ import {Multiset} from '../../multiset.js';
 import {Version} from '../../types.js';
 import {DifferenceStream, Listener} from '../difference-stream.js';
 import {Request} from '../message.js';
-import {Operator} from './operator.js';
+import {OperatorBase} from './operator.js';
 
 export class BinaryOperator<
   I1 extends object,
   I2 extends object,
   O extends object,
-> implements Operator
-{
+> extends OperatorBase<O> {
   readonly #listener1: Listener<I1>;
   readonly #input1: DifferenceStream<I1>;
   readonly #listener2: Listener<I2>;
   readonly #input2: DifferenceStream<I2>;
-  readonly #output;
 
   constructor(
     input1: DifferenceStream<I1>,
@@ -26,6 +24,7 @@ export class BinaryOperator<
       inputB: Multiset<I2> | undefined,
     ) => Multiset<O>,
   ) {
+    super(output);
     this.#listener1 = {
       newDifference: (version, data) => {
         output.newDifference(version, fn(version, data, undefined));
@@ -57,9 +56,5 @@ export class BinaryOperator<
   destroy() {
     this.#input1.removeDownstream(this.#listener1);
     this.#input2.removeDownstream(this.#listener2);
-  }
-
-  commit(version: Version): void {
-    this.#output.commit(version);
   }
 }

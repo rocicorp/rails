@@ -180,7 +180,7 @@ export abstract class SetSource<T extends object> implements Source<T> {
       asEntries(this.#tree, message),
       response,
     );
-    this.#stream.commit(this._materialite.getVersion());
+    this.#stream.commit(this._materialite.nextVersion());
   }
 }
 

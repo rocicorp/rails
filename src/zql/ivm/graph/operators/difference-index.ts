@@ -2,6 +2,9 @@ import {Primitive} from '../../../ast/ast.js';
 import {Entry, Multiset} from '../../multiset.js';
 import {JoinResult, StrOrNum, isJoinResult, joinSymbol} from '../../types.js';
 
+/**
+ * Indexes difference events by a key.
+ */
 export class DifferenceIndex<Key extends Primitive, V> {
   readonly #index = new Map<Key, Entry<V>[]>();
   readonly #getValueIdentity;
@@ -31,7 +34,6 @@ export class DifferenceIndex<Key extends Primitive, V> {
     return this.#index.get(key) ?? [];
   }
 
-  // TODO: profile join and optimize
   join<
     VO,
     AAlias extends string | undefined,
@@ -50,9 +52,14 @@ export class DifferenceIndex<Key extends Primitive, V> {
       }
       for (const [v1, m1] of entry) {
         for (const [v2, m2] of otherEntry) {
+          // TODO: is there an alternate formulation of JoinResult that requires fewer allocations?
+          let value: JoinResult<V, VO, AAlias, BAlias>;
+
           // Flatten our join results so we don't
           // end up arbitrarily deep after many joins.
-          let value: JoinResult<V, VO, AAlias, BAlias>;
+          // This handles the case of: A JOIN B JOIN C ...
+          // A JOIN B produces {a, b}
+          // A JOIN B JOIN C would produce {a_b: {a, b}, c} if we didn't flatten here.
           if (isJoinResult(v1) && isJoinResult(v2)) {
             value = {...v1, ...v2, id: v1.id + '_' + v2.id} as JoinResult<
               V,
@@ -87,6 +94,15 @@ export class DifferenceIndex<Key extends Primitive, V> {
     return ret;
   }
 
+  /**
+   * Compaction is the process of summing multiplicities of entries with the same identity.
+   * If the multiplicity of an entry becomes zero, it is removed from the index.
+   *
+   * Compaction is _not_ done when adding an item to the index as this would
+   * break operators like `JOIN` that need to join against removals as well as additions.
+   *
+   * `JOIN` will compact its index at the end of each run.
+   */
   compact(keys: Key[]) {
     // Go through all the keys that were requested to be compacted.
     for (const key of keys) {
@@ -105,8 +121,6 @@ export class DifferenceIndex<Key extends Primitive, V> {
 
   #consolidateValues(value: Entry<V>[]) {
     // Map to consolidate entries with the same identity
-    // Consolidation is the process of summing their multiplicity.
-    // So 1 followed by -1 means the thing no longer exists.
     const consolidated = new Map<string | number, Entry<V>>();
 
     for (const entry of value) {

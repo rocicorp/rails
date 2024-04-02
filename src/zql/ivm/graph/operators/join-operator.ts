@@ -93,7 +93,6 @@ export class InnerJoinOperator<
         bKeysForCompaction.push(bKey);
       }
 
-      // TODO: profile join and explore alternate join strategies if needed
       const result: Entry<JoinResult<AValue, BValue, AAlias, BAlias>>[] = [];
       if (deltaA !== undefined) {
         for (const x of deltaA.join(aAs, indexB, bAs, getBPrimaryKey)) {
