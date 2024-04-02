@@ -1,4 +1,5 @@
-import {Multiset, genFilter} from '../../multiset.js';
+import {genFilter} from '../../../util/iterables.js';
+import {Multiset} from '../../multiset.js';
 import {DifferenceStream} from '../difference-stream.js';
 import {LinearUnaryOperator} from './linear-unary-operator.js';
 
