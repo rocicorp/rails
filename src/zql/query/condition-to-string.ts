@@ -1,8 +1,6 @@
 import {EntitySchema} from '../schema/entity-schema.js';
 import {WhereCondition} from './entity-query.js';
 
-// order-by and limit are properties of the materialize view
-// and not a part of the pipeline.
 export function conditionToString<S extends EntitySchema>(
   c: WhereCondition<S>,
   paren = false,

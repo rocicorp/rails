@@ -409,3 +409,6 @@ describe('OR', () => {
     });
   }
 });
+
+// order-by and limit are properties of the materialize view
+// and not a part of the pipeline.

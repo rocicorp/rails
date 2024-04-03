@@ -702,7 +702,7 @@ describe('NOT', () => {
   });
 });
 
-describe("Demorgan's Law", () => {
+describe("De Morgan's Law", () => {
   type S = {fields: E1};
 
   const cases: {
