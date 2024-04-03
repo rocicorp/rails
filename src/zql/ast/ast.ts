@@ -50,19 +50,15 @@ export type Conjunction = {
   op: 'AND' | 'OR';
   conditions: Condition[];
 };
-export type SimpleOperator =
-  | '='
-  | '!='
-  | '<'
-  | '>'
-  | '>='
-  | '<='
-  | 'IN'
-  | 'NOT IN'
-  | 'LIKE'
-  | 'NOT LIKE'
-  | 'ILIKE'
-  | 'NOT ILIKE';
+export type SimpleOperator = EqualityOps | OrderOps | InOps | LikeOps;
+
+export type EqualityOps = '=' | '!=';
+
+export type OrderOps = '<' | '>' | '<=' | '>=';
+
+export type InOps = 'IN' | 'NOT IN';
+
+export type LikeOps = 'LIKE' | 'NOT LIKE' | 'ILIKE' | 'NOT ILIKE';
 
 export type SimpleCondition =
   // | ConditionList

@@ -6,6 +6,7 @@ import * as agg from './agg.js';
 import {conditionToString} from './condition-to-string.js';
 import {
   EntityQuery,
+  FieldValue,
   WhereCondition,
   and,
   astForTesting,
@@ -118,6 +119,118 @@ test('query types', () => {
       or(expression('id2', '=', 'a'), expression('str', '=', 'b')),
     ),
   );
+});
+
+test('FieldValue type', () => {
+  type E = {
+    fields: {
+      id: string;
+      n: number;
+      s: string;
+      b: boolean;
+      optN?: number | undefined;
+      optS?: string | undefined;
+      optB?: boolean | undefined;
+    };
+  };
+  expectTypeOf<FieldValue<E, 'id', '='>>().toEqualTypeOf<string>();
+  expectTypeOf<FieldValue<E, 'n', '='>>().toEqualTypeOf<number>();
+  expectTypeOf<FieldValue<E, 's', '!='>>().toEqualTypeOf<string>();
+  expectTypeOf<FieldValue<E, 'b', '='>>().toEqualTypeOf<boolean>();
+  expectTypeOf<FieldValue<E, 'optN', '='>>().toEqualTypeOf<number>();
+  expectTypeOf<FieldValue<E, 'optS', '!='>>().toEqualTypeOf<string>();
+  expectTypeOf<FieldValue<E, 'optB', '='>>().toEqualTypeOf<boolean>();
+
+  // booleans not allowed with order operators
+  expectTypeOf<FieldValue<E, 'b', '<'>>().toEqualTypeOf<never>();
+  expectTypeOf<FieldValue<E, 'b', '<='>>().toEqualTypeOf<never>();
+  expectTypeOf<FieldValue<E, 'b', '>'>>().toEqualTypeOf<never>();
+  expectTypeOf<FieldValue<E, 'b', '>='>>().toEqualTypeOf<never>();
+  expectTypeOf<FieldValue<E, 'n', '<'>>().toEqualTypeOf<number>();
+  expectTypeOf<FieldValue<E, 'n', '<='>>().toEqualTypeOf<number>();
+  expectTypeOf<FieldValue<E, 'n', '>'>>().toEqualTypeOf<number>();
+  expectTypeOf<FieldValue<E, 'n', '>='>>().toEqualTypeOf<number>();
+  expectTypeOf<FieldValue<E, 's', '<'>>().toEqualTypeOf<string>();
+  expectTypeOf<FieldValue<E, 's', '<='>>().toEqualTypeOf<string>();
+  expectTypeOf<FieldValue<E, 's', '>'>>().toEqualTypeOf<string>();
+  expectTypeOf<FieldValue<E, 's', '>='>>().toEqualTypeOf<string>();
+
+  expectTypeOf<FieldValue<E, 'optB', '<'>>().toEqualTypeOf<never>();
+  expectTypeOf<FieldValue<E, 'optB', '<='>>().toEqualTypeOf<never>();
+  expectTypeOf<FieldValue<E, 'optB', '>'>>().toEqualTypeOf<never>();
+  expectTypeOf<FieldValue<E, 'optB', '>='>>().toEqualTypeOf<never>();
+  expectTypeOf<FieldValue<E, 'optN', '<'>>().toEqualTypeOf<number>();
+  expectTypeOf<FieldValue<E, 'optN', '<='>>().toEqualTypeOf<number>();
+  expectTypeOf<FieldValue<E, 'optN', '>'>>().toEqualTypeOf<number>();
+  expectTypeOf<FieldValue<E, 'optN', '>='>>().toEqualTypeOf<number>();
+  expectTypeOf<FieldValue<E, 'optS', '<'>>().toEqualTypeOf<string>();
+  expectTypeOf<FieldValue<E, 'optS', '<='>>().toEqualTypeOf<string>();
+  expectTypeOf<FieldValue<E, 'optS', '>'>>().toEqualTypeOf<string>();
+  expectTypeOf<FieldValue<E, 'optS', '>='>>().toEqualTypeOf<string>();
+
+  expectTypeOf<FieldValue<E, 'n', 'IN'>>().toEqualTypeOf<number[]>();
+  expectTypeOf<FieldValue<E, 'n', 'NOT IN'>>().toEqualTypeOf<number[]>();
+  expectTypeOf<FieldValue<E, 's', 'IN'>>().toEqualTypeOf<string[]>();
+  expectTypeOf<FieldValue<E, 's', 'NOT IN'>>().toEqualTypeOf<string[]>();
+  expectTypeOf<FieldValue<E, 'b', 'IN'>>().toEqualTypeOf<boolean[]>();
+  expectTypeOf<FieldValue<E, 'b', 'NOT IN'>>().toEqualTypeOf<boolean[]>();
+
+  expectTypeOf<FieldValue<E, 'optN', 'IN'>>().toEqualTypeOf<number[]>();
+  expectTypeOf<FieldValue<E, 'optN', 'NOT IN'>>().toEqualTypeOf<number[]>();
+  expectTypeOf<FieldValue<E, 'optS', 'IN'>>().toEqualTypeOf<string[]>();
+  expectTypeOf<FieldValue<E, 'optS', 'NOT IN'>>().toEqualTypeOf<string[]>();
+  expectTypeOf<FieldValue<E, 'optB', 'IN'>>().toEqualTypeOf<boolean[]>();
+  expectTypeOf<FieldValue<E, 'optB', 'NOT IN'>>().toEqualTypeOf<boolean[]>();
+
+  expectTypeOf<FieldValue<E, 'n', 'LIKE'>>().toEqualTypeOf<never>();
+  expectTypeOf<FieldValue<E, 'n', 'NOT LIKE'>>().toEqualTypeOf<never>();
+  expectTypeOf<FieldValue<E, 's', 'LIKE'>>().toEqualTypeOf<string>();
+  expectTypeOf<FieldValue<E, 's', 'NOT LIKE'>>().toEqualTypeOf<string>();
+  expectTypeOf<FieldValue<E, 'b', 'LIKE'>>().toEqualTypeOf<never>();
+  expectTypeOf<FieldValue<E, 'b', 'NOT LIKE'>>().toEqualTypeOf<never>();
+
+  expectTypeOf<FieldValue<E, 'optN', 'LIKE'>>().toEqualTypeOf<never>();
+  expectTypeOf<FieldValue<E, 'optN', 'NOT LIKE'>>().toEqualTypeOf<never>();
+  expectTypeOf<FieldValue<E, 'optS', 'LIKE'>>().toEqualTypeOf<string>();
+  expectTypeOf<FieldValue<E, 'optS', 'NOT LIKE'>>().toEqualTypeOf<string>();
+  expectTypeOf<FieldValue<E, 'optB', 'LIKE'>>().toEqualTypeOf<never>();
+  expectTypeOf<FieldValue<E, 'optB', 'NOT LIKE'>>().toEqualTypeOf<never>();
+
+  const q = new EntityQuery<E>(context, 'e');
+  q.where('n', '<', 1);
+  q.where('s', '>', 'a');
+  q.where('b', '=', true);
+  q.where('id', '=', 'a');
+  // @ts-expect-error Argument of type 'boolean' is not assignable to parameter of type 'never'.ts(2345)
+  q.where('b', '<', false);
+  // @ts-expect-error Argument of type 'boolean' is not assignable to parameter of type 'never'.ts(2345)
+  q.where('b', '<=', false);
+  // @ts-expect-error Argument of type 'boolean' is not assignable to parameter of type 'never'.ts(2345)
+  q.where('b', '>', false);
+  // @ts-expect-error Argument of type 'boolean' is not assignable to parameter of type 'never'.ts(2345)
+  q.where('b', '>=', false);
+
+  // @ts-expect-error Argument of type 'string' is not assignable to parameter of type 'never'.ts(2345)
+  q.where('n', 'LIKE', 'abc');
+  // @ts-expect-error Argument of type 'number' is not assignable to parameter of type 'never'.ts(2345)
+  q.where('n', 'ILIKE', 123);
+  q.where('s', 'LIKE', 'abc');
+  // @ts-expect-error Argument of type 'number' is not assignable to parameter of type 'string'.ts(2345)
+  q.where('s', 'ILIKE', 123);
+  // @ts-expect-error Argument of type 'string' is not assignable to parameter of type 'never'.ts(2345)
+  q.where('b', 'LIKE', 'abc');
+  // @ts-expect-error Argument of type 'boolean' is not assignable to parameter of type 'never'.ts(2345)
+  q.where('b', 'ILIKE', true);
+
+  q.where('n', 'IN', [1, 2, 3]);
+  // @ts-expect-error Argument of type 'number' is not assignable to parameter of type 'number[]'.ts(2345)
+  q.where('n', 'IN', 1);
+  q.where('s', 'IN', ['a', 'b', 'c']);
+  // @ts-expect-error Argument of type 'string' is not assignable to parameter of type 'string[]'.ts(2345)
+  q.where('s', 'IN', 'a');
+  q.where('b', 'IN', [true, false]);
+  // @ts-expect-error Argument of type 'boolean' is not assignable to parameter of type 'boolean[]'.ts(2345)
+  q.where('b', 'IN', true);
 });
 
 const e1 = z.object({
@@ -703,57 +816,63 @@ describe('NOT', () => {
 });
 
 describe("De Morgan's Law", () => {
-  type S = {fields: E1};
+  type S = {
+    fields: {
+      id: string;
+      n: number;
+      s: string;
+    };
+  };
 
   const cases: {
     condition: WhereCondition<S>;
     expected: WhereCondition<S>;
   }[] = [
     {
-      condition: expression('a', '=', 1),
-      expected: expression('a', '!=', 1),
+      condition: expression('n', '=', 1),
+      expected: expression('n', '!=', 1),
     },
 
     {
-      condition: and(expression('a', '!=', 1), expression('a', '<', 2)),
-      expected: or(expression('a', '=', 1), expression('a', '>=', 2)),
+      condition: and(expression('n', '!=', 1), expression('n', '<', 2)),
+      expected: or(expression('n', '=', 1), expression('n', '>=', 2)),
     },
 
     {
-      condition: or(expression('a', '<=', 1), expression('a', '>', 2)),
-      expected: and(expression('a', '>', 1), expression('a', '<=', 2)),
+      condition: or(expression('n', '<=', 1), expression('n', '>', 2)),
+      expected: and(expression('n', '>', 1), expression('n', '<=', 2)),
     },
 
     {
       condition: or(
-        and(expression('a', '>=', 1), expression('a', 'IN', 1)),
-        expression('a', 'NOT IN', 2),
+        and(expression('n', '>=', 1), expression('n', 'IN', [1, 2])),
+        expression('n', 'NOT IN', [3, 4]),
       ),
       expected: and(
-        or(expression('a', '<', 1), expression('a', 'NOT IN', 1)),
-        expression('a', 'IN', 2),
+        or(expression('n', '<', 1), expression('n', 'NOT IN', [1, 2])),
+        expression('n', 'IN', [3, 4]),
       ),
     },
 
     {
       condition: and(
-        or(expression('a', 'NOT IN', 1), expression('a', 'LIKE', 1)),
-        expression('a', 'NOT LIKE', 2),
+        or(expression('n', 'NOT IN', [5, 6]), expression('s', 'LIKE', 'Hi')),
+        expression('s', 'NOT LIKE', 'Hi'),
       ),
       expected: or(
-        and(expression('a', 'IN', 1), expression('a', 'NOT LIKE', 1)),
-        expression('a', 'LIKE', 2),
+        and(expression('n', 'IN', [5, 6]), expression('s', 'NOT LIKE', 'Hi')),
+        expression('s', 'LIKE', 'Hi'),
       ),
     },
 
     {
-      condition: not(expression('a', 'ILIKE', 1)),
-      expected: expression('a', 'ILIKE', 1),
+      condition: not(expression('s', 'ILIKE', 'hi')),
+      expected: expression('s', 'ILIKE', 'hi'),
     },
 
     {
-      condition: not(expression('a', 'NOT ILIKE', 1)),
-      expected: expression('a', 'NOT ILIKE', 1),
+      condition: not(expression('s', 'NOT ILIKE', 'bye')),
+      expected: expression('s', 'NOT ILIKE', 'bye'),
     },
   ];
 
