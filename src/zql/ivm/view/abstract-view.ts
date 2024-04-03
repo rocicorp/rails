@@ -1,17 +1,21 @@
-import {Materialite} from '../materialite.js';
 import {DifferenceStream, Listener} from '../graph/difference-stream.js';
+import {Materialite} from '../materialite.js';
+import {Multiset} from '../multiset.js';
 import {Version} from '../types.js';
 import {View} from './view.js';
-import {Multiset} from '../multiset.js';
 
 export abstract class AbstractView<T extends object, CT> implements View<CT> {
   readonly #stream;
   protected readonly _materialite: Materialite;
   protected readonly _listener: Listener<T>;
-  protected _notifiedListenersVersion = -1;
   readonly #listeners: Set<(s: CT, v: Version) => void> = new Set();
   readonly name;
   #hydrated = false;
+
+  // We keep track of the last version we saw so we can keep track of whether we
+  // had any changes in the last commit.
+  #lastSeenVersion = -1;
+  #didVersionChange = false;
 
   abstract get value(): CT;
 
@@ -28,8 +32,15 @@ export abstract class AbstractView<T extends object, CT> implements View<CT> {
     this._materialite = materialite;
     this.#stream = stream;
     this._listener = {
-      newDifference: (v: Version, data: Multiset<T>) => {
-        this._newData(v, data);
+      newDifference: (version: Version, data: Multiset<T>) => {
+        if (version > this.#lastSeenVersion) {
+          this.#lastSeenVersion = version;
+          this.#didVersionChange = false;
+        }
+        const changed = this._newDifference(data);
+        if (changed) {
+          this.#didVersionChange = true;
+        }
       },
       commit: (v: Version) => {
         this.#hydrated = true;
@@ -49,13 +60,12 @@ export abstract class AbstractView<T extends object, CT> implements View<CT> {
 
   abstract pullHistoricalData(): void;
 
-  protected _notifyCommitted(d: CT, v: Version) {
-    if (this._notifiedListenersVersion === v) {
+  protected _notifyCommitted(d: CT, version: Version) {
+    if (!this.#didVersionChange) {
       return;
     }
-    this._notifiedListenersVersion = v;
     for (const listener of this.#listeners) {
-      listener(d, v);
+      listener(d, version);
     }
   }
 
@@ -80,5 +90,5 @@ export abstract class AbstractView<T extends object, CT> implements View<CT> {
     this.#listeners.clear();
   }
 
-  protected abstract _newData(v: Version, data: Multiset<T>): void;
+  protected abstract _newDifference(data: Multiset<T>): boolean;
 }

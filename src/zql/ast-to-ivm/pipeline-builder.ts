@@ -8,7 +8,7 @@ import {
   SimpleOperator,
 } from '../ast/ast.js';
 import {must} from '../error/asserts.js';
-import {DifferenceStream} from '../ivm/graph/difference-stream.js';
+import {DifferenceStream, concat} from '../ivm/graph/difference-stream.js';
 
 export const orderingProp = Symbol();
 
@@ -103,8 +103,10 @@ function addOrdering(
   });
 }
 
-function applyWhere(stream: DifferenceStream<Entity>, where: Condition) {
-  let ret = stream;
+function applyWhere<T extends Entity>(
+  stream: DifferenceStream<T>,
+  where: Condition,
+) {
   // We'll handle `OR` and parentheticals like so:
   // OR: We'll create a new stream for the LHS and RHS of the OR then merge together.
   // Parentheticals: We'll create a new stream for the LHS and RHS of the operator involved in combining the parenthetical then merge together.
@@ -123,25 +125,47 @@ function applyWhere(stream: DifferenceStream<Entity>, where: Condition) {
   //
   // So `ORs` cause a fork (two branches that need to be evaluated) and then that fork is combined.
 
-  if (where.op === 'AND') {
-    for (const condition of where.conditions) {
-      ret = applyWhere(ret, condition);
-    }
-  } else {
-    ret = applySimpleCondition(ret, where);
+  switch (where.op) {
+    case 'AND':
+      return applyAnd(stream, where.conditions);
+    case 'OR':
+      return applyOr(stream, where.conditions);
+    default:
+      return applySimpleCondition(stream, where);
   }
-
-  return ret;
 }
 
-function applySimpleCondition(
-  stream: DifferenceStream<Entity>,
+function applyAnd<T extends Entity>(
+  stream: DifferenceStream<T>,
+  conditions: Condition[],
+) {
+  for (const condition of conditions) {
+    stream = applyWhere(stream, condition);
+  }
+  return stream;
+}
+
+function applyOr<T extends Entity>(
+  stream: DifferenceStream<T>,
+  conditions: Condition[],
+): DifferenceStream<T> {
+  // Or is done by branching the stream and then applying the conditions to each
+  // branch. Then we merge the branches back together. At this point we need to
+  // ensure we do not get duplicate entries so we add a distinct operator
+  const branches = conditions.map(c => applyWhere(stream, c));
+  return concat(branches).distinct();
+}
+
+function applySimpleCondition<T extends Entity>(
+  stream: DifferenceStream<T>,
   condition: SimpleCondition,
 ) {
   const operator = getOperator(condition.op);
   return stream.filter(x =>
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    operator((x as any)[condition.field], condition.value.value),
+    operator(
+      (x as Record<string, unknown>)[condition.field],
+      condition.value.value,
+    ),
   );
 }
 
@@ -264,7 +288,7 @@ function makeKeyFunction(columns: string[]) {
     for (const column of columns) {
       ret.push(x[column]);
     }
-    // Would it be better to come up with someh hash function
+    // Would it be better to come up with some hash function
     // which can handle complex types?
     return JSON.stringify(ret);
   };

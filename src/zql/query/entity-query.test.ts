@@ -1,8 +1,20 @@
-import {expect, expectTypeOf, test} from 'vitest';
+import {describe, expect, expectTypeOf, test} from 'vitest';
 import {z} from 'zod';
+import {AST} from '../ast/ast.js';
 import {makeTestContext} from '../context/context.js';
-import {EntityQuery, astForTesting as ast} from './entity-query.js';
 import * as agg from './agg.js';
+import {
+  EntityQuery,
+  and,
+  astForTesting,
+  expression,
+  or,
+} from './entity-query.js';
+
+function ast(q: WeakKey): AST {
+  const {alias: _, ...rest} = astForTesting(q);
+  return rest;
+}
 
 const context = makeTestContext();
 test('query types', () => {
@@ -67,6 +79,42 @@ test('query types', () => {
       .prepare()
       .exec(),
   ).toMatchTypeOf<Promise<readonly {id: string; alias: readonly string[]}[]>>();
+
+  // @ts-expect-error - Argument of type 'number' is not assignable to parameter of type 'string'.ts(2345)
+  q.where(expression('id', '=', 123));
+
+  // @ts-expect-error - Argument of type '"id2"' is not assignable to parameter of type 'Selectable<{ fields: E1; }>'.ts(2345)
+  q.where(expression('id2', '=', 'abc'));
+
+  // @ts-expect-error - Argument of type 'number' is not assignable to parameter of type 'string'.ts(2345)
+  q.where(and(expression('id', '=', 'a'), expression('str', '=', 42)));
+
+  // @ts-expect-error - Argument of type 'number' is not assignable to parameter of type 'string'.ts(2345)
+  q.where(or(expression('id', '=', 'a'), expression('str', '=', 42)));
+
+  // @ts-expect-error - Argument of type '"id2"' is not assignable to parameter of type 'Selectable<{ fields: E1; }>'.ts(2345)
+  q.where(and(expression('id2', '=', 'a'), expression('str', '=', 42)));
+
+  // @ts-expect-error - Argument of type '"id2"' is not assignable to parameter of type 'Selectable<{ fields: E1; }>'.ts(2345)
+  q.where(or(expression('id2', '=', 'a'), expression('str', '=', 42)));
+
+  // and nest
+  q.where(
+    or(
+      // @ts-expect-error - Argument of type 'number' is not assignable to parameter of type 'string'.ts(2345)
+      and(expression('id', '=', 'a'), expression('str', '=', 123)),
+      // @ts-expect-error - Argument of type '"id2"' is not assignable to parameter of type 'Selectable<{ fields: E1; }>'.ts(2345)
+      and(expression('id2', '=', 'a'), expression('str', '=', 'b')),
+    ),
+  );
+  q.where(
+    and(
+      // @ts-expect-error - Argument of type 'number' is not assignable to parameter of type 'string'.ts(2345)
+      or(expression('id', '=', 'a'), expression('str', '=', 123)),
+      // @ts-expect-error - Argument of type '"id2"' is not assignable to parameter of type 'Selectable<{ fields: E1; }>'.ts(2345)
+      or(expression('id2', '=', 'a'), expression('str', '=', 'b')),
+    ),
+  );
 });
 
 const e1 = z.object({
@@ -85,111 +133,346 @@ const dummyObject: E1 = {
   c: '',
   d: true,
 };
+describe('ast', () => {
+  test('select', () => {
+    const q = new EntityQuery<{fields: E1}>(context, 'e1');
 
-test('ast: select', () => {
-  const q = new EntityQuery<{fields: E1}>(context, 'e1');
+    // each individual field is selectable on its own
+    Object.keys(dummyObject).forEach(k => {
+      const newq = q.select(k as keyof E1);
+      expect(ast(newq).select).toEqual([k]);
+    });
 
-  // each individual field is selectable on its own
-  Object.keys(dummyObject).forEach(k => {
-    const newq = q.select(k as keyof E1);
-    expect(ast(newq).select).toEqual([k]);
+    // all fields are selectable together
+    let newq = q.select(...(Object.keys(dummyObject) as (keyof E1)[]));
+    expect(ast(newq).select).toEqual(Object.keys(dummyObject));
+
+    // we can call select many times to build up the selection set
+    newq = q;
+    Object.keys(dummyObject).forEach(k => {
+      newq = newq.select(k as keyof E1);
+    });
+    expect(ast(newq).select).toEqual(Object.keys(dummyObject));
+
+    // we remove duplicates
+    newq = q;
+    Object.keys(dummyObject).forEach(k => {
+      newq = newq.select(k as keyof E1);
+    });
+    Object.keys(dummyObject).forEach(k => {
+      newq = newq.select(k as keyof E1);
+    });
+    expect(ast(newq).select).toEqual(Object.keys(dummyObject));
   });
 
-  // all fields are selectable together
-  let newq = q.select(...(Object.keys(dummyObject) as (keyof E1)[]));
-  expect(ast(newq).select).toEqual(Object.keys(dummyObject));
+  test('where', () => {
+    let q = new EntityQuery<{fields: E1}>(context, 'e1');
 
-  // we can call select many times to build up the selection set
-  newq = q;
-  Object.keys(dummyObject).forEach(k => {
-    newq = newq.select(k as keyof E1);
-  });
-  expect(ast(newq).select).toEqual(Object.keys(dummyObject));
+    // where is applied
+    q = q.where('id', '=', 'a');
 
-  // we remove duplicates
-  newq = q;
-  Object.keys(dummyObject).forEach(k => {
-    newq = newq.select(k as keyof E1);
-  });
-  Object.keys(dummyObject).forEach(k => {
-    newq = newq.select(k as keyof E1);
-  });
-  expect(ast(newq).select).toEqual(Object.keys(dummyObject));
-});
-
-test('ast: where', () => {
-  let q = new EntityQuery<{fields: E1}>(context, 'e1');
-
-  // where is applied
-  q = q.where('id', '=', 'a');
-
-  expect({...ast(q), alias: 0}).toEqual({
-    alias: 0,
-    table: 'e1',
-    orderBy: [['id'], 'asc'],
-    where: {
-      field: 'id',
-      op: '=',
-      value: {
-        type: 'literal',
-        value: 'a',
+    expect(ast(q)).toEqual({
+      table: 'e1',
+      orderBy: [['id'], 'asc'],
+      where: {
+        field: 'id',
+        op: '=',
+        value: {
+          type: 'literal',
+          value: 'a',
+        },
       },
-    },
+    });
+
+    // additional wheres are anded
+    q = q.where('a', '>', 0);
+
+    expect(ast(q)).toEqual({
+      table: 'e1',
+      orderBy: [['id'], 'asc'],
+      where: {
+        op: 'AND',
+        conditions: [
+          {
+            field: 'id',
+            op: '=',
+            value: {
+              type: 'literal',
+              value: 'a',
+            },
+          },
+          {
+            field: 'a',
+            op: '>',
+            value: {
+              type: 'literal',
+              value: 0,
+            },
+          },
+        ],
+      },
+    });
+
+    q = q.where('c', '=', 'foo');
+    // multiple ANDs are flattened
+    expect(ast(q)).toEqual({
+      table: 'e1',
+      orderBy: [['id'], 'asc'],
+      where: {
+        op: 'AND',
+        conditions: [
+          {
+            field: 'id',
+            op: '=',
+            value: {
+              type: 'literal',
+              value: 'a',
+            },
+          },
+          {
+            field: 'a',
+            op: '>',
+            value: {
+              type: 'literal',
+              value: 0,
+            },
+          },
+          {
+            field: 'c',
+            op: '=',
+            value: {
+              type: 'literal',
+              value: 'foo',
+            },
+          },
+        ],
+      },
+    });
   });
 
-  // additional wheres are anded
-  q = q.where('a', '>', 0);
+  test('limit', () => {
+    const q = new EntityQuery<{fields: E1}>(context, 'e1');
+    expect(ast(q.limit(10))).toEqual({
+      orderBy: [['id'], 'asc'],
+      table: 'e1',
+      limit: 10,
+    });
+  });
 
-  expect({...ast(q), alias: 0}).toEqual({
-    alias: 0,
-    table: 'e1',
-    orderBy: [['id'], 'asc'],
-    where: {
+  test('asc/desc', () => {
+    const q = new EntityQuery<{fields: E1}>(context, 'e1');
+
+    // order methods update the ast
+    expect(ast(q.asc('id'))).toEqual({
+      table: 'e1',
+      orderBy: [['id'], 'asc'],
+    });
+    expect(ast(q.desc('id'))).toEqual({
+      table: 'e1',
+      orderBy: [['id'], 'desc'],
+    });
+    expect(ast(q.asc('id', 'a', 'b', 'c', 'd'))).toEqual({
+      table: 'e1',
+      orderBy: [['id', 'a', 'b', 'c', 'd'], 'asc'],
+    });
+  });
+
+  test('independent of method call order', () => {
+    const base = new EntityQuery<{fields: E1}>(context, 'e1');
+
+    const calls = {
+      select(q: typeof base) {
+        return q.select('b');
+      },
+      where(q: typeof base) {
+        return q.where('c', 'LIKE', 'foo');
+      },
+      limit(q: typeof base) {
+        return q.limit(10);
+      },
+      asc(q: typeof base) {
+        return q.asc('a');
+      },
+    };
+
+    let q = base;
+    for (const call of Object.values(calls)) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      q = call(q) as any;
+    }
+    const inOrderToAST = ast(q);
+
+    q = base;
+    for (const call of Object.values(calls).reverse()) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      q = call(q) as any;
+    }
+    const reverseToAST = ast(q);
+
+    expect({
+      ...inOrderToAST,
+    }).toEqual({
+      ...reverseToAST,
+    });
+  });
+
+  test('or', () => {
+    const q = new EntityQuery<{fields: E1}>(context, 'e1');
+
+    expect(
+      ast(q.where(or(expression('a', '=', 123), expression('c', '=', 'abc')))),
+    ).toEqual({
+      table: 'e1',
+      orderBy: [['id'], 'asc'],
+      where: {
+        op: 'OR',
+        conditions: [
+          {op: '=', field: 'a', value: {type: 'literal', value: 123}},
+          {op: '=', field: 'c', value: {type: 'literal', value: 'abc'}},
+        ],
+      },
+    });
+
+    expect(
+      ast(
+        q.where(
+          and(
+            expression('a', '=', 1),
+            or(expression('d', '=', true), expression('c', '=', 'hello')),
+          ),
+        ),
+      ),
+    ).toEqual({
+      table: 'e1',
+      orderBy: [['id'], 'asc'],
+      where: {
+        op: 'AND',
+        conditions: [
+          {op: '=', field: 'a', value: {type: 'literal', value: 1}},
+          {
+            op: 'OR',
+            conditions: [
+              {op: '=', field: 'd', value: {type: 'literal', value: true}},
+              {op: '=', field: 'c', value: {type: 'literal', value: 'hello'}},
+            ],
+          },
+        ],
+      },
+    });
+  });
+
+  test('flatten ands', () => {
+    type S = {
+      fields: {id: string; a: number; b: string; c: boolean; d: string};
+    };
+
+    expect(
+      and<S>(
+        expression('a', '=', 1),
+        expression('b', '=', '2'),
+        and<S>(expression('c', '=', true), expression('d', '=', '3')),
+      ),
+    ).toEqual(
+      and<S>(
+        expression('a', '=', 1),
+        expression('b', '=', '2'),
+        expression('c', '=', true),
+        expression('d', '=', '3'),
+      ),
+    );
+
+    expect(
+      and<S>(
+        expression('a', '=', 1),
+        and<S>(expression('c', '=', true), expression('d', '=', '3')),
+        expression('b', '=', '2'),
+      ),
+    ).toEqual(
+      and<S>(
+        expression('a', '=', 1),
+        expression('c', '=', true),
+        expression('d', '=', '3'),
+        expression('b', '=', '2'),
+      ),
+    );
+
+    expect(
+      and<S>(
+        and<S>(expression('c', '=', true), expression('d', '=', '3')),
+        expression('a', '=', 1),
+        expression('b', '=', '2'),
+      ),
+    ).toEqual(
+      and<S>(
+        expression('c', '=', true),
+        expression('d', '=', '3'),
+        expression('a', '=', 1),
+        expression('b', '=', '2'),
+      ),
+    );
+
+    expect(
+      and<S>(
+        and<S>(expression('c', '=', true), expression('d', '=', '3')),
+        and<S>(expression('a', '=', 1), expression('b', '=', '2')),
+      ),
+    ).toEqual(
+      and<S>(
+        expression('c', '=', true),
+        expression('d', '=', '3'),
+        expression('a', '=', 1),
+        expression('b', '=', '2'),
+      ),
+    );
+  });
+
+  test('flatten ors', () => {
+    type S = {
+      fields: {id: string; a: number; b: string; c: boolean; d: string};
+    };
+
+    expect(
+      or<S>(
+        expression('a', '=', 1),
+        or<S>(expression('c', '=', true), expression('d', '=', '3')),
+        expression('b', '=', '2'),
+      ),
+    ).toEqual(
+      or<S>(
+        expression('a', '=', 1),
+        expression('c', '=', true),
+        expression('d', '=', '3'),
+        expression('b', '=', '2'),
+      ),
+    );
+  });
+
+  test('consecutive wheres/ands should be merged', () => {
+    const q = new EntityQuery<{fields: E1}>(context, 'e1');
+
+    expect(
+      ast(
+        q
+          .where(and(expression('a', '=', 1), expression('a', '=', 2)))
+          .where(and(expression('c', '=', 'a'), expression('c', '=', 'b'))),
+      ).where,
+    ).toEqual({
       op: 'AND',
       conditions: [
         {
-          field: 'id',
+          field: 'a',
           op: '=',
           value: {
             type: 'literal',
-            value: 'a',
+            value: 1,
           },
         },
         {
           field: 'a',
-          op: '>',
-          value: {
-            type: 'literal',
-            value: 0,
-          },
-        },
-      ],
-    },
-  });
-
-  q = q.where('c', '=', 'foo');
-  // multiple ANDs are flattened
-  expect({...ast(q), alias: 0}).toEqual({
-    alias: 0,
-    table: 'e1',
-    orderBy: [['id'], 'asc'],
-    where: {
-      op: 'AND',
-      conditions: [
-        {
-          field: 'id',
           op: '=',
           value: {
             type: 'literal',
-            value: 'a',
-          },
-        },
-        {
-          field: 'a',
-          op: '>',
-          value: {
-            type: 'literal',
-            value: 0,
+            value: 2,
           },
         },
         {
@@ -197,82 +480,188 @@ test('ast: where', () => {
           op: '=',
           value: {
             type: 'literal',
-            value: 'foo',
+            value: 'a',
+          },
+        },
+        {
+          field: 'c',
+          op: '=',
+          value: {
+            type: 'literal',
+            value: 'b',
           },
         },
       ],
-    },
+    });
+
+    expect(
+      ast(
+        q
+          .where(expression('a', '=', 123))
+          .where(expression('c', '=', 'abc'))
+          .where(expression('d', '=', true)),
+      ).where,
+    ).toEqual({
+      op: 'AND',
+      conditions: [
+        {
+          field: 'a',
+          op: '=',
+          value: {
+            type: 'literal',
+            value: 123,
+          },
+        },
+        {
+          field: 'c',
+          op: '=',
+          value: {
+            type: 'literal',
+            value: 'abc',
+          },
+        },
+        {
+          field: 'd',
+          op: '=',
+          value: {
+            type: 'literal',
+            value: true,
+          },
+        },
+      ],
+    });
+
+    expect(
+      ast(
+        q
+          .where(expression('a', '=', 123))
+          .where(or(expression('c', '=', 'abc'), expression('c', '=', 'def')))
+          .where(expression('d', '=', true)),
+      ).where,
+    ).toEqual({
+      op: 'AND',
+      conditions: [
+        {
+          field: 'a',
+          op: '=',
+          value: {
+            type: 'literal',
+            value: 123,
+          },
+        },
+        {
+          op: 'OR',
+          conditions: [
+            {
+              field: 'c',
+              op: '=',
+              value: {
+                type: 'literal',
+                value: 'abc',
+              },
+            },
+            {
+              field: 'c',
+              op: '=',
+              value: {
+                type: 'literal',
+                value: 'def',
+              },
+            },
+          ],
+        },
+        {
+          field: 'd',
+          op: '=',
+          value: {
+            type: 'literal',
+            value: true,
+          },
+        },
+      ],
+    });
   });
-});
 
-test('ast: limit', () => {
-  const q = new EntityQuery<{fields: E1}>(context, 'e1');
-  expect({...ast(q.limit(10)), alias: 0}).toEqual({
-    orderBy: [['id'], 'asc'],
-    alias: 0,
-    table: 'e1',
-    limit: 10,
-  });
-});
+  test('consecutive ors', () => {
+    const q = new EntityQuery<{fields: E1}>(context, 'e1');
 
-test('ast: asc/desc', () => {
-  const q = new EntityQuery<{fields: E1}>(context, 'e1');
+    expect(
+      ast(q.where(or(expression('a', '=', 123), expression('a', '=', 456))))
+        .where,
+    ).toEqual({
+      op: 'OR',
+      conditions: [
+        {
+          field: 'a',
+          op: '=',
+          value: {
+            type: 'literal',
+            value: 123,
+          },
+        },
+        {
+          field: 'a',
+          op: '=',
+          value: {
+            type: 'literal',
+            value: 456,
+          },
+        },
+      ],
+    });
 
-  // order methods update the ast
-  expect({...ast(q.asc('id')), alias: 0}).toEqual({
-    alias: 0,
-    table: 'e1',
-    orderBy: [['id'], 'asc'],
-  });
-  expect({...ast(q.desc('id')), alias: 0}).toEqual({
-    alias: 0,
-    table: 'e1',
-    orderBy: [['id'], 'desc'],
-  });
-  expect({...ast(q.asc('id', 'a', 'b', 'c', 'd')), alias: 0}).toEqual({
-    alias: 0,
-    table: 'e1',
-    orderBy: [['id', 'a', 'b', 'c', 'd'], 'asc'],
-  });
-});
-
-test('ast: independent of method call order', () => {
-  const base = new EntityQuery<{fields: E1}>(context, 'e1');
-
-  const calls = {
-    select(q: typeof base) {
-      return q.select('b');
-    },
-    where(q: typeof base) {
-      return q.where('c', 'LIKE', 'foo');
-    },
-    limit(q: typeof base) {
-      return q.limit(10);
-    },
-    asc(q: typeof base) {
-      return q.asc('a');
-    },
-  };
-
-  let q = base;
-  for (const call of Object.values(calls)) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    q = call(q) as any;
-  }
-  const inOrderToAST = ast(q);
-
-  q = base;
-  for (const call of Object.values(calls).reverse()) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    q = call(q) as any;
-  }
-  const reverseToAST = ast(q);
-
-  expect({
-    ...inOrderToAST,
-    alias: 0,
-  }).toEqual({
-    ...reverseToAST,
-    alias: 0,
+    expect(
+      ast(
+        q
+          .where(or(expression('a', '=', 123), expression('a', '=', 456)))
+          .where(or(expression('c', '=', 'abc'), expression('c', '=', 'def'))),
+      ).where,
+    ).toEqual({
+      op: 'AND',
+      conditions: [
+        {
+          op: 'OR',
+          conditions: [
+            {
+              field: 'a',
+              op: '=',
+              value: {
+                type: 'literal',
+                value: 123,
+              },
+            },
+            {
+              field: 'a',
+              op: '=',
+              value: {
+                type: 'literal',
+                value: 456,
+              },
+            },
+          ],
+        },
+        {
+          op: 'OR',
+          conditions: [
+            {
+              field: 'c',
+              op: '=',
+              value: {
+                type: 'literal',
+                value: 'abc',
+              },
+            },
+            {
+              field: 'c',
+              op: '=',
+              value: {
+                type: 'literal',
+                value: 'def',
+              },
+            },
+          ],
+        },
+      ],
+    });
   });
 });

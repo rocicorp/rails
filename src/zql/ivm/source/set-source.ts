@@ -1,12 +1,12 @@
+import {Treap} from '@vlcn.io/ds-and-algos/Treap';
 import {Comparator, ITree} from '@vlcn.io/ds-and-algos/types';
-import {MaterialiteForSourceInternal} from '../materialite.js';
+import {must} from '../../error/asserts.js';
 import {DifferenceStream} from '../graph/difference-stream.js';
-import {SourceInternal, Source} from './source.js';
+import {PullMsg, Request, createPullResponseMessage} from '../graph/message.js';
+import {MaterialiteForSourceInternal} from '../materialite.js';
 import {Entry, Multiset} from '../multiset.js';
 import {Version} from '../types.js';
-import {Treap} from '@vlcn.io/ds-and-algos/Treap';
-import {must} from '../../error/asserts.js';
-import {PullMsg, Request, createPullResponseMessage} from '../graph/message.js';
+import {Source, SourceInternal} from './source.js';
 
 /**
  * A source that remembers what values it contains.
@@ -23,7 +23,8 @@ export abstract class SetSource<T extends object> implements Source<T> {
   #pending: Entry<T>[] = [];
   #tree: ITree<T>;
   #seeded = false;
-  #historyRequests: PullMsg[] = [];
+  // Use a set instead of an array to avoid duplicates due to branching.
+  #historyRequests = new Set<PullMsg>();
   readonly comparator: Comparator<T>;
 
   constructor(
@@ -141,7 +142,7 @@ export abstract class SetSource<T extends object> implements Source<T> {
     }
     this.#seeded = true;
     const requests = this.#historyRequests;
-    this.#historyRequests = [];
+    this.#historyRequests = new Set();
     for (const message of requests) {
       this.#sendHistoricalData(message);
     }
@@ -168,7 +169,7 @@ export abstract class SetSource<T extends object> implements Source<T> {
   #sendHistoricalData(message: Request) {
     if (!this.#seeded) {
       // wait till we're seeded.
-      this.#historyRequests.push(message);
+      this.#historyRequests.add(message);
       return;
     }
 

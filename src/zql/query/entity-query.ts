@@ -3,7 +3,6 @@ import {
   Aggregation,
   Condition,
   Primitive,
-  SimpleCondition,
   SimpleOperator,
 } from '../ast/ast.js';
 import {Context} from '../context/context.js';
@@ -82,6 +81,22 @@ export type MakeHumanReadable<T> = {} & {
 
 let aliasCount = 0;
 
+type WhereExpression<S extends EntitySchema> =
+  | {
+      op: 'AND' | 'OR';
+      conditions: WhereExpression<S>[];
+    }
+  | SimpleExpression<S, Selectable<S>>;
+
+type SimpleExpression<S extends EntitySchema, F extends Selectable<S>> = {
+  op: SimpleOperator;
+  field: F;
+  value: {
+    type: 'literal';
+    value: FieldValue<S, F>;
+  };
+};
+
 export class EntityQuery<S extends EntitySchema, Return = []> {
   readonly #ast: AST;
   readonly #name: string;
@@ -129,38 +144,41 @@ export class EntityQuery<S extends EntitySchema, Return = []> {
     });
   }
 
+  where(expr: WhereExpression<S>): EntityQuery<S, Return>;
   where<K extends Selectable<S>>(
     field: K,
     op: SimpleOperator,
     value: FieldValue<S, K>,
-  ) {
-    const leaf: SimpleCondition = {
-      field,
-      op,
-      value: {
-        type: 'literal',
-        value: value as Primitive,
-      },
-    };
+  ): EntityQuery<S, Return>;
+  where<K extends Selectable<S>>(
+    exprOrField: K | WhereExpression<S>,
+    op?: SimpleOperator,
+    value?: FieldValue<S, K>,
+  ): EntityQuery<S, Return> {
+    let expr: WhereExpression<S>;
+    if (typeof exprOrField === 'string') {
+      expr = expression(exprOrField, op!, value!);
+    } else {
+      expr = exprOrField;
+    }
 
-    let cond: Condition;
-    if (!this.#ast.where) {
-      cond = leaf;
-    } else if (this.#ast.where.op === 'AND') {
-      cond = {
-        op: 'AND',
-        conditions: [...this.#ast.where.conditions, leaf],
-      };
+    let cond: WhereExpression<S>;
+    const where = this.#ast.where as WhereExpression<S> | undefined;
+    if (!where) {
+      cond = expr;
+    } else if (where.op === 'AND') {
+      const {conditions} = where;
+      cond = flatten('AND', [...conditions, expr]);
     } else {
       cond = {
         op: 'AND',
-        conditions: [this.#ast.where, leaf],
+        conditions: [where, expr],
       };
     }
 
     return new EntityQuery<S, Return>(this.#context, this.#name, {
       ...this.#ast,
-      where: cond,
+      where: cond as Condition,
     });
   }
 
@@ -202,8 +220,53 @@ export class EntityQuery<S extends EntitySchema, Return = []> {
   }
 }
 
-const astWeakMap = new WeakMap<EntityQuery<EntitySchema, unknown>, AST>();
+const astWeakMap = new WeakMap<WeakKey, AST>();
 
-export function astForTesting(q: EntityQuery<EntitySchema, unknown>): AST {
+export function astForTesting(q: WeakKey): AST {
   return must(astWeakMap.get(q));
+}
+
+type ArrayOfAtLeastTwo<T> = [T, T, ...T[]];
+
+export function or<S extends EntitySchema>(
+  ...conditions: ArrayOfAtLeastTwo<WhereExpression<S>>
+): WhereExpression<S> {
+  return flatten('OR', conditions);
+}
+
+export function and<S extends EntitySchema>(
+  ...conditions: ArrayOfAtLeastTwo<WhereExpression<S>>
+): WhereExpression<S> {
+  return flatten('AND', conditions);
+}
+
+function flatten<S extends EntitySchema>(
+  op: 'AND' | 'OR',
+  conditions: WhereExpression<S>[],
+): WhereExpression<S> {
+  const flattened: WhereExpression<S>[] = [];
+  for (const c of conditions) {
+    if (c.op === op) {
+      flattened.push(...c.conditions);
+    } else {
+      flattened.push(c);
+    }
+  }
+
+  return {op, conditions: flattened};
+}
+
+export function expression<S extends EntitySchema, K extends Selectable<S>>(
+  field: K,
+  op: SimpleOperator,
+  value: FieldValue<S, K>,
+): WhereExpression<S> {
+  return {
+    op,
+    field,
+    value: {
+      type: 'literal',
+      value,
+    },
+  };
 }

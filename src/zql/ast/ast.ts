@@ -47,7 +47,7 @@ export type AST = {
 
 export type Condition = SimpleCondition | Conjunction;
 export type Conjunction = {
-  op: 'AND'; // future OR
+  op: 'AND' | 'OR';
   conditions: Condition[];
 };
 export type SimpleOperator =

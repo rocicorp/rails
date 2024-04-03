@@ -1,12 +1,12 @@
+import fc from 'fast-check';
+import {nanoid} from 'nanoid';
+import {Replicache, TEST_LICENSE_KEY} from 'replicache';
 import {expect, test} from 'vitest';
 import {z} from 'zod';
 import {generate} from '../generate.js';
 import {makeReplicacheContext} from './context/replicache-context.js';
-import {Replicache, TEST_LICENSE_KEY} from 'replicache';
-import {nanoid} from 'nanoid';
-import fc from 'fast-check';
-import {EntityQuery} from './query/entity-query.js';
 import * as agg from './query/agg.js';
+import {EntityQuery, expression, or} from './query/entity-query.js';
 
 export async function tickAFewTimes(n = 10, time = 0) {
   for (let i = 0; i < n; i++) {
@@ -570,3 +570,55 @@ test('write delay with 1, 10, 100, 1000s of active queries', () => {});
 test('asc/desc difference does not create new sources', () => {});
 
 test('we do not do a full scan when the source order matches the view order', () => {});
+
+test('or where', async () => {
+  const {q, r} = setup();
+  const issues: Issue[] = [
+    {
+      id: 'a',
+      title: 'foo',
+      status: 'open',
+      priority: 'high',
+      assignee: 'charles',
+      created: Date.now(),
+      updated: Date.now(),
+    },
+    {
+      id: 'b',
+      title: 'bar',
+      status: 'open',
+      priority: 'medium',
+      assignee: 'bob',
+      created: Date.now(),
+      updated: Date.now(),
+    },
+    {
+      id: 'c',
+      title: 'baz',
+      status: 'closed',
+      priority: 'low',
+      assignee: 'alice',
+      created: Date.now(),
+      updated: Date.now(),
+    },
+  ] as const;
+  await Promise.all(issues.map(r.mutate.initIssue));
+
+  const stmt = q
+    .select('id')
+    .where(
+      or(
+        expression('status', '=', 'open'),
+        expression('priority', '>=', 'medium'),
+      ),
+    )
+    .prepare();
+  const rows = await stmt.exec();
+  expect(rows).toEqual([{id: 'a'}, {id: 'b'}]);
+
+  await r.mutate.deleteIssue('a');
+  const rows2 = await stmt.exec();
+  expect(rows2).toEqual([{id: 'b'}]);
+
+  await r.close();
+});

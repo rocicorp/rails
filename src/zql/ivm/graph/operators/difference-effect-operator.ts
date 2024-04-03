@@ -38,6 +38,6 @@ export class DifferenceEffectOperator<T extends object> extends UnaryOperator<
         this.#f(val, mult);
       }
     }
-    this._output.commit(v);
+    super.commit(v);
   }
 }
