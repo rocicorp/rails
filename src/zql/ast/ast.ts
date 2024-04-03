@@ -52,13 +52,18 @@ export type Conjunction = {
 };
 export type SimpleOperator =
   | '='
+  | '!='
   | '<'
   | '>'
   | '>='
   | '<='
   | 'IN'
+  | 'NOT IN'
   | 'LIKE'
-  | 'ILIKE';
+  | 'NOT LIKE'
+  | 'ILIKE'
+  | 'NOT ILIKE';
+
 export type SimpleCondition =
   // | ConditionList
   {

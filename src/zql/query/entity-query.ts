@@ -81,19 +81,19 @@ export type MakeHumanReadable<T> = {} & {
 
 let aliasCount = 0;
 
-type WhereExpression<S extends EntitySchema> =
+export type WhereCondition<S extends EntitySchema> =
   | {
       op: 'AND' | 'OR';
-      conditions: WhereExpression<S>[];
+      conditions: WhereCondition<S>[];
     }
-  | SimpleExpression<S, Selectable<S>>;
+  | SimpleCondition<S>;
 
-type SimpleExpression<S extends EntitySchema, F extends Selectable<S>> = {
+type SimpleCondition<S extends EntitySchema> = {
   op: SimpleOperator;
-  field: F;
+  field: Selectable<S>;
   value: {
     type: 'literal';
-    value: FieldValue<S, F>;
+    value: FieldValue<S, Selectable<S>>;
   };
 };
 
@@ -144,26 +144,26 @@ export class EntityQuery<S extends EntitySchema, Return = []> {
     });
   }
 
-  where(expr: WhereExpression<S>): EntityQuery<S, Return>;
+  where(expr: WhereCondition<S>): EntityQuery<S, Return>;
   where<K extends Selectable<S>>(
     field: K,
     op: SimpleOperator,
     value: FieldValue<S, K>,
   ): EntityQuery<S, Return>;
   where<K extends Selectable<S>>(
-    exprOrField: K | WhereExpression<S>,
+    exprOrField: K | WhereCondition<S>,
     op?: SimpleOperator,
     value?: FieldValue<S, K>,
   ): EntityQuery<S, Return> {
-    let expr: WhereExpression<S>;
+    let expr: WhereCondition<S>;
     if (typeof exprOrField === 'string') {
       expr = expression(exprOrField, op!, value!);
     } else {
       expr = exprOrField;
     }
 
-    let cond: WhereExpression<S>;
-    const where = this.#ast.where as WhereExpression<S> | undefined;
+    let cond: WhereCondition<S>;
+    const where = this.#ast.where as WhereCondition<S> | undefined;
     if (!where) {
       cond = expr;
     } else if (where.op === 'AND') {
@@ -229,22 +229,22 @@ export function astForTesting(q: WeakKey): AST {
 type ArrayOfAtLeastTwo<T> = [T, T, ...T[]];
 
 export function or<S extends EntitySchema>(
-  ...conditions: ArrayOfAtLeastTwo<WhereExpression<S>>
-): WhereExpression<S> {
+  ...conditions: ArrayOfAtLeastTwo<WhereCondition<S>>
+): WhereCondition<S> {
   return flatten('OR', conditions);
 }
 
 export function and<S extends EntitySchema>(
-  ...conditions: ArrayOfAtLeastTwo<WhereExpression<S>>
-): WhereExpression<S> {
+  ...conditions: ArrayOfAtLeastTwo<WhereCondition<S>>
+): WhereCondition<S> {
   return flatten('AND', conditions);
 }
 
 function flatten<S extends EntitySchema>(
   op: 'AND' | 'OR',
-  conditions: WhereExpression<S>[],
-): WhereExpression<S> {
-  const flattened: WhereExpression<S>[] = [];
+  conditions: WhereCondition<S>[],
+): WhereCondition<S> {
+  const flattened: WhereCondition<S>[] = [];
   for (const c of conditions) {
     if (c.op === op) {
       flattened.push(...c.conditions);
@@ -260,7 +260,7 @@ export function expression<S extends EntitySchema, K extends Selectable<S>>(
   field: K,
   op: SimpleOperator,
   value: FieldValue<S, K>,
-): WhereExpression<S> {
+): WhereCondition<S> {
   return {
     op,
     field,
@@ -269,4 +269,56 @@ export function expression<S extends EntitySchema, K extends Selectable<S>>(
       value,
     },
   };
+}
+
+export function not<S extends EntitySchema>(
+  expr: WhereCondition<S>,
+): WhereCondition<S> {
+  switch (expr.op) {
+    case 'AND':
+      return {
+        op: 'OR',
+        conditions: expr.conditions.map(not),
+      };
+    case 'OR':
+      return {
+        op: 'AND',
+        conditions: expr.conditions.map(not),
+      };
+    default:
+      return {
+        op: negateOperator(expr.op),
+        field: expr.field,
+        value: expr.value,
+      };
+  }
+}
+
+function negateOperator(op: SimpleOperator): SimpleOperator {
+  switch (op) {
+    case '=':
+      return '!=';
+    case '!=':
+      return '=';
+    case '<':
+      return '>=';
+    case '>':
+      return '<=';
+    case '>=':
+      return '<';
+    case '<=':
+      return '>';
+    case 'IN':
+      return 'NOT IN';
+    case 'NOT IN':
+      return 'IN';
+    case 'LIKE':
+      return 'NOT LIKE';
+    case 'NOT LIKE':
+      return 'LIKE';
+    case 'ILIKE':
+      return 'NOT ILIKE';
+    case 'NOT ILIKE':
+      return 'ILIKE';
+  }
 }

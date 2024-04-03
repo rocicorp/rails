@@ -1,13 +1,16 @@
 import {describe, expect, expectTypeOf, test} from 'vitest';
 import {z} from 'zod';
-import {AST} from '../ast/ast.js';
+import {AST, SimpleOperator} from '../ast/ast.js';
 import {makeTestContext} from '../context/context.js';
 import * as agg from './agg.js';
+import {conditionToString} from './condition-to-string.js';
 import {
   EntityQuery,
+  WhereCondition,
   and,
   astForTesting,
   expression,
+  not,
   or,
 } from './entity-query.js';
 
@@ -664,4 +667,105 @@ describe('ast', () => {
       ],
     });
   });
+});
+
+describe('NOT', () => {
+  describe('Negate Ops', () => {
+    const cases: {
+      in: SimpleOperator;
+      out: SimpleOperator;
+    }[] = [
+      {in: '=', out: '!='},
+      {in: '!=', out: '='},
+      {in: '<', out: '>='},
+      {in: '>', out: '<='},
+      {in: '>=', out: '<'},
+      {in: '<=', out: '>'},
+      {in: 'IN', out: 'NOT IN'},
+      {in: 'NOT IN', out: 'IN'},
+      {in: 'LIKE', out: 'NOT LIKE'},
+      {in: 'NOT LIKE', out: 'LIKE'},
+      {in: 'ILIKE', out: 'NOT ILIKE'},
+      {in: 'NOT ILIKE', out: 'ILIKE'},
+    ];
+
+    for (const c of cases) {
+      test(`${c.in} -> ${c.out}`, () => {
+        const q = new EntityQuery<{fields: E1}>(context, 'e1');
+        expect(ast(q.where(not(expression('a', c.in, 1)))).where).toEqual({
+          op: c.out,
+          field: 'a',
+          value: {type: 'literal', value: 1},
+        });
+      });
+    }
+  });
+});
+
+describe("De Morgan's Law", () => {
+  type S = {fields: E1};
+
+  const cases: {
+    condition: WhereCondition<S>;
+    expected: WhereCondition<S>;
+  }[] = [
+    {
+      condition: expression('a', '=', 1),
+      expected: expression('a', '!=', 1),
+    },
+
+    {
+      condition: and(expression('a', '!=', 1), expression('a', '<', 2)),
+      expected: or(expression('a', '=', 1), expression('a', '>=', 2)),
+    },
+
+    {
+      condition: or(expression('a', '<=', 1), expression('a', '>', 2)),
+      expected: and(expression('a', '>', 1), expression('a', '<=', 2)),
+    },
+
+    {
+      condition: or(
+        and(expression('a', '>=', 1), expression('a', 'IN', 1)),
+        expression('a', 'NOT IN', 2),
+      ),
+      expected: and(
+        or(expression('a', '<', 1), expression('a', 'NOT IN', 1)),
+        expression('a', 'IN', 2),
+      ),
+    },
+
+    {
+      condition: and(
+        or(expression('a', 'NOT IN', 1), expression('a', 'LIKE', 1)),
+        expression('a', 'NOT LIKE', 2),
+      ),
+      expected: or(
+        and(expression('a', 'IN', 1), expression('a', 'NOT LIKE', 1)),
+        expression('a', 'LIKE', 2),
+      ),
+    },
+
+    {
+      condition: not(expression('a', 'ILIKE', 1)),
+      expected: expression('a', 'ILIKE', 1),
+    },
+
+    {
+      condition: not(expression('a', 'NOT ILIKE', 1)),
+      expected: expression('a', 'NOT ILIKE', 1),
+    },
+  ];
+
+  for (const c of cases) {
+    test(
+      'NOT(' +
+        conditionToString(c.condition) +
+        ') -> ' +
+        conditionToString(c.expected),
+      () => {
+        expect(not(c.condition)).toEqual(c.expected);
+      },
+    );
+  }
 });

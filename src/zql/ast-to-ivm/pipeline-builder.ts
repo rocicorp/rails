@@ -301,6 +301,8 @@ function getOperator(op: SimpleOperator): (l: any, r: any) => boolean {
   switch (op) {
     case '=':
       return (l, r) => l === r;
+    case '!=':
+      return (l, r) => l !== r;
     case '<':
       return (l, r) => l < r;
     case '>':
@@ -310,12 +312,38 @@ function getOperator(op: SimpleOperator): (l: any, r: any) => boolean {
     case '<=':
       return (l, r) => l <= r;
     case 'IN':
-      return (l, r) => r.includes(l);
+      return opIn;
+    case 'NOT IN':
+      return not(opIn);
     case 'LIKE':
-      return (l, r) => l.includes(r);
+      return opLike;
+    case 'NOT LIKE':
+      return not(opLike);
     case 'ILIKE':
-      return (l, r) => l.toLowerCase().includes(r.toLowerCase());
+      return opIlike;
+    case 'NOT ILIKE':
+      return not(opIlike);
     default:
       throw new Error(`Operator ${op} not supported`);
   }
+}
+
+interface Includes<T> {
+  includes(v: T): boolean;
+}
+
+function opIn<T>(l: T, r: Includes<T>) {
+  return r.includes(l);
+}
+
+function opLike<T>(l: Includes<T>, r: T) {
+  return l.includes(r);
+}
+
+function opIlike(l: string, r: string) {
+  return l.toLowerCase().includes(r.toLowerCase());
+}
+
+function not<T>(f: (l: T, r: T) => boolean) {
+  return (l: T, r: T) => !f(l, r);
 }

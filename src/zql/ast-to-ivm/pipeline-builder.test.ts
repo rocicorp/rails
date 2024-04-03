@@ -7,7 +7,12 @@ import {makeTestContext} from '../context/context.js';
 import {DifferenceStream} from '../ivm/graph/difference-stream.js';
 import {Materialite} from '../ivm/materialite.js';
 import * as agg from '../query/agg.js';
-import {EntityQuery, astForTesting as ast} from '../query/entity-query.js';
+import {conditionToString} from '../query/condition-to-string.js';
+import {
+  EntityQuery,
+  WhereCondition,
+  astForTesting as ast,
+} from '../query/entity-query.js';
 import {buildPipeline} from './pipeline-builder.js';
 
 const e1 = z.object({
@@ -115,27 +120,6 @@ test('Where', () => {
   expect(effectRunCount).toBe(1);
 });
 
-// order-by and limit are properties of the materialize view
-// and not a part of the pipeline.
-
-function conditionToString(c: Condition, paren = false): string {
-  if (c.op === 'AND' || c.op === 'OR') {
-    let s = '';
-    if (paren) {
-      s += '(';
-    }
-    {
-      const paren = c.op === 'AND' && c.conditions.length > 1;
-      s += c.conditions.map(c => conditionToString(c, paren)).join(` ${c.op} `);
-    }
-    if (paren) {
-      s += ')';
-    }
-    return s;
-  }
-  return `${(c as {field: string}).field} ${c.op} ${(c as {value: {value: unknown}}).value.value}`;
-}
-
 describe('OR', () => {
   type E = {
     id: string;
@@ -147,11 +131,9 @@ describe('OR', () => {
     delete: E;
   };
 
-  type NoUndefined<T> = T extends undefined ? never : T;
-
   type Case = {
     name?: string | undefined;
-    where: NoUndefined<AST['where']>;
+    where: WhereCondition<{fields: E}>;
     values?: (E | DeleteE)[] | undefined;
     expected: (E | [v: E, multiplicity: number])[];
   };
@@ -396,7 +378,7 @@ describe('OR', () => {
       const ast: AST = {
         table: 'items',
         select: ['id', 'a', 'b'],
-        where: c.where,
+        where: c.where as Condition,
         orderBy: [['id'], 'asc'],
       };
 
@@ -427,3 +409,6 @@ describe('OR', () => {
     });
   }
 });
+
+// order-by and limit are properties of the materialize view
+// and not a part of the pipeline.
