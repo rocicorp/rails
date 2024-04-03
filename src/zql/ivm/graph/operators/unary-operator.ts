@@ -32,8 +32,8 @@ export class UnaryOperator<I extends object, O extends object>
     this.#output = output;
   }
 
-  commit(v: number): void {
-    this.#output.commit(v);
+  commit(version: Version): void {
+    this.#output.commit(version);
   }
 
   messageUpstream(message: Request): void {

@@ -143,13 +143,25 @@ describe('OR', () => {
     b: number;
   };
 
+  type DeleteE = {
+    delete: E;
+  };
+
   type NoUndefined<T> = T extends undefined ? never : T;
 
   type Case = {
+    name?: string | undefined;
     where: NoUndefined<AST['where']>;
-    values: E[];
-    expected: string[];
+    values?: (E | DeleteE)[] | undefined;
+    expected: (E | [v: E, multiplicity: number])[];
   };
+
+  const defaultValues: (E | DeleteE)[] = [
+    {id: 'a', a: 1, b: 1},
+    {id: 'b', a: 2, b: 1},
+    {id: 'c', a: 1, b: 2},
+    {id: 'd', a: 2, b: 2},
+  ];
 
   const cases: Case[] = [
     {
@@ -160,26 +172,21 @@ describe('OR', () => {
           {op: '=', field: 'b', value: {type: 'literal', value: 2}},
         ],
       },
-      values: [
+      expected: [
         {id: 'a', a: 1, b: 1},
-        {id: 'b', a: 2, b: 1},
         {id: 'c', a: 1, b: 2},
         {id: 'd', a: 2, b: 2},
       ],
-      expected: ['a', 'c', 'd'],
     },
     {
       where: {
         op: 'OR',
         conditions: [{op: '=', field: 'a', value: {type: 'literal', value: 1}}],
       },
-      values: [
+      expected: [
         {id: 'a', a: 1, b: 1},
-        {id: 'b', a: 2, b: 1},
         {id: 'c', a: 1, b: 2},
-        {id: 'd', a: 2, b: 2},
       ],
-      expected: ['a', 'c'],
     },
     {
       where: {
@@ -196,7 +203,11 @@ describe('OR', () => {
         {id: 'c', a: 1, b: 2},
         {id: 'd', a: 3, b: 3},
       ],
-      expected: ['a', 'b', 'c'],
+      expected: [
+        {id: 'a', a: 1, b: 1},
+        {id: 'b', a: 2, b: 1},
+        {id: 'c', a: 1, b: 2},
+      ],
     },
     {
       where: {
@@ -206,13 +217,10 @@ describe('OR', () => {
           {op: '=', field: 'a', value: {type: 'literal', value: 1}},
         ],
       },
-      values: [
+      expected: [
         {id: 'a', a: 1, b: 1},
-        {id: 'b', a: 2, b: 1},
         {id: 'c', a: 1, b: 2},
-        {id: 'd', a: 2, b: 2},
       ],
-      expected: ['a', 'c'],
     },
     {
       where: {
@@ -234,13 +242,10 @@ describe('OR', () => {
           },
         ],
       },
-      values: [
+      expected: [
         {id: 'a', a: 1, b: 1},
-        {id: 'b', a: 2, b: 1},
-        {id: 'c', a: 1, b: 2},
         {id: 'd', a: 2, b: 2},
       ],
-      expected: ['a', 'd'],
     },
 
     {
@@ -263,13 +268,10 @@ describe('OR', () => {
           },
         ],
       },
-      values: [
-        {id: 'a', a: 1, b: 1},
+      expected: [
         {id: 'b', a: 2, b: 1},
         {id: 'c', a: 1, b: 2},
-        {id: 'd', a: 2, b: 2},
       ],
-      expected: ['b', 'c'],
     },
 
     {
@@ -292,16 +294,15 @@ describe('OR', () => {
           },
         ],
       },
-      values: [
+      expected: [
         {id: 'a', a: 1, b: 1},
         {id: 'b', a: 2, b: 1},
         {id: 'c', a: 1, b: 2},
-        {id: 'd', a: 2, b: 2},
       ],
-      expected: ['a', 'b', 'c'],
     },
 
     {
+      name: 'Repeat identical conditions',
       where: {
         op: 'OR',
         conditions: [
@@ -310,13 +311,10 @@ describe('OR', () => {
           {op: '=', field: 'a', value: {type: 'literal', value: 1}},
         ],
       },
-      values: [
+      expected: [
         {id: 'a', a: 1, b: 1},
-        {id: 'b', a: 2, b: 1},
         {id: 'c', a: 1, b: 2},
-        {id: 'd', a: 2, b: 2},
       ],
-      expected: ['a', 'c'],
     },
 
     {
@@ -328,27 +326,76 @@ describe('OR', () => {
           {op: '=', field: 'a', value: {type: 'literal', value: 5}},
         ],
       },
+      expected: [],
+    },
+
+    {
+      where: {
+        op: 'AND',
+        conditions: [
+          {
+            op: 'OR',
+            conditions: [
+              {op: '=', field: 'a', value: {type: 'literal', value: 1}},
+              {op: '=', field: 'a', value: {type: 'literal', value: 2}},
+              {op: '=', field: 'a', value: {type: 'literal', value: 3}},
+            ],
+          },
+          {
+            op: '=',
+            field: 'b',
+            value: {type: 'literal', value: 1},
+          },
+        ],
+      },
       values: [
         {id: 'a', a: 1, b: 1},
-        {id: 'b', a: 2, b: 1},
-        {id: 'c', a: 1, b: 2},
-        {id: 'd', a: 2, b: 2},
+        {id: 'b', a: 2, b: 2},
+        {id: 'c', a: 3, b: 1},
+        {id: 'd', a: 4, b: 1},
       ],
-      expected: [],
+      expected: [
+        {id: 'a', a: 1, b: 1},
+        {id: 'c', a: 3, b: 1},
+      ],
+    },
+
+    {
+      name: 'With delete',
+      where: {
+        op: 'OR',
+        conditions: [
+          {op: '=', field: 'a', value: {type: 'literal', value: 1}},
+          {op: '=', field: 'a', value: {type: 'literal', value: 2}},
+        ],
+      },
+      values: [
+        {id: 'a', a: 1, b: 1},
+        // Even though it is really nonsensical to delete this entry since this
+        // entry does not exist in the model it should still work.
+        {delete: {id: 'a', a: 1, b: 3}},
+        {id: 'a', a: 2, b: 2},
+        {delete: {id: 'c', a: 3, b: 2}},
+      ],
+      expected: [
+        {id: 'a', a: 1, b: 1},
+        [{id: 'a', a: 1, b: 3}, -1],
+        {id: 'a', a: 2, b: 2},
+      ],
     },
   ];
 
   const comparator = (l: E, r: E) => compareUTF8(l.id, r.id);
 
   for (const c of cases) {
-    test(conditionToString(c.where), () => {
-      const {values} = c;
+    test((c.name ? c.name + ': ' : '') + conditionToString(c.where), () => {
+      const {values = defaultValues} = c;
       const m = new Materialite();
       const s = m.newSetSource<E>(comparator);
 
       const ast: AST = {
-        table: 'e1',
-        select: ['id'],
+        table: 'items',
+        select: ['id', 'a', 'b'],
         where: c.where,
         orderBy: [['id'], 'asc'],
       };
@@ -359,12 +406,21 @@ describe('OR', () => {
       );
 
       const log: unknown[] = [];
-      pipeline.effect(x => {
-        log.push(x.id);
+      pipeline.effect((value, multiplicity) => {
+        if (multiplicity === 1) {
+          log.push(value);
+        } else {
+          log.push([value, multiplicity]);
+        }
       });
 
       for (const value of values) {
-        s.add(value);
+        if ('delete' in value) {
+          s.delete(value.delete);
+          continue;
+        } else {
+          s.add(value);
+        }
       }
 
       expect(log).toEqual(c.expected);

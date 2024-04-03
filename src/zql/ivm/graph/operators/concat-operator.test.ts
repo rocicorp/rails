@@ -1,6 +1,6 @@
 import {expect, test} from 'vitest';
 import {Multiset} from '../../multiset.js';
-import {DifferenceStream} from '../difference-stream.js';
+import {DifferenceStream, concat} from '../difference-stream.js';
 
 test('All branches notify', () => {
   type T = {x: number};
@@ -9,7 +9,7 @@ test('All branches notify', () => {
     new DifferenceStream<T>(),
     new DifferenceStream<T>(),
   ];
-  const output = inputs[0].concat(...inputs.slice(1));
+  const output = concat(inputs);
 
   let version = 1;
 
@@ -48,7 +48,7 @@ test('Test with single input', () => {
   type T = {x: number};
   const input = new DifferenceStream<T>();
 
-  const output = input.concat();
+  const output = concat([input]);
 
   const version = 1;
 

@@ -1,12 +1,11 @@
 import {Treap} from '@vlcn.io/ds-and-algos/Treap';
 import {Comparator, ITree} from '@vlcn.io/ds-and-algos/types';
+import {Ordering} from '../../ast/ast.js';
 import {DifferenceStream} from '../graph/difference-stream.js';
+import {createPullMessage} from '../graph/message.js';
 import {Materialite} from '../materialite.js';
 import {Multiset} from '../multiset.js';
-import {Version} from '../types.js';
 import {AbstractView} from './abstract-view.js';
-import {Ordering} from '../../ast/ast.js';
-import {createPullMessage} from '../graph/message.js';
 
 /**
  * A sink that maintains the list of values in-order.
@@ -59,21 +58,21 @@ export class MutableTreeView<T extends object> extends AbstractView<T, T[]> {
     return this.#jsSlice;
   }
 
-  protected _newData(version: Version, data: Multiset<T>) {
+  protected _newDifference(data: Multiset<T>): boolean {
     let changed = false;
 
     let newData = this.#data;
     [changed, newData] = this.#sink(data, newData, changed);
     this.#data = newData;
 
-    if (!changed) {
-      this._notifiedListenersVersion = version;
-    } else {
+    if (changed) {
       // idk.. would be more efficient for users to just use the
       // treap directly. We have a PersistentTreap variant for React users
       // or places where immutability is important.
       this.#jsSlice = this.#data.toArray();
     }
+
+    return changed;
   }
 
   #sink(c: Multiset<T>, data: ITree<T>, changed: boolean): [boolean, ITree<T>] {

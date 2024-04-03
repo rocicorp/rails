@@ -127,11 +127,6 @@ export class DifferenceStream<T extends object> {
     );
   }
 
-  concat(...others: DifferenceStream<T>[]): DifferenceStream<T> {
-    const stream = new DifferenceStream<T>();
-    return stream.setUpstream(new ConcatOperator([this, ...others], stream));
-  }
-
   distinct(): DifferenceStream<T> {
     const stream = new DifferenceStream<T>();
     return stream.setUpstream(
@@ -208,4 +203,11 @@ export class DifferenceStream<T extends object> {
       this.destroy();
     }
   }
+}
+
+export function concat<T extends object>(
+  streams: DifferenceStream<T>[],
+): DifferenceStream<T> {
+  const stream = new DifferenceStream<T>();
+  return stream.setUpstream(new ConcatOperator(streams, stream));
 }
