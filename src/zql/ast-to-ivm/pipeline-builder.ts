@@ -5,7 +5,6 @@ import {
   Condition,
   Ordering,
   SimpleCondition,
-  SimpleOperator,
 } from '../ast/ast.js';
 import {must} from '../error/asserts.js';
 import {DifferenceStream, concat} from '../ivm/graph/difference-stream.js';
@@ -160,13 +159,9 @@ function applySimpleCondition<T extends Entity>(
   stream: DifferenceStream<T>,
   condition: SimpleCondition,
 ) {
-  const operator = getOperator(condition.op);
-  return stream.filter(x =>
-    operator(
-      (x as Record<string, unknown>)[condition.field],
-      condition.value.value,
-    ),
-  );
+  const operator = getOperator(condition);
+  const {field} = condition;
+  return stream.filter(x => operator((x as Record<string, unknown>)[field]));
 }
 
 function applyGroupBy<T extends Entity>(
@@ -297,53 +292,73 @@ function makeKeyFunction(columns: string[]) {
 // We're well-typed in the query builder so once we're down here
 // we can assume that the operator is valid.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function getOperator(op: SimpleOperator): (l: any, r: any) => boolean {
+export function getOperator(condition: SimpleCondition): (lhs: any) => boolean {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rhs = condition.value.value as any;
+  const {op} = condition;
   switch (op) {
     case '=':
-      return (l, r) => l === r;
+      return lhs => lhs === rhs;
     case '!=':
-      return (l, r) => l !== r;
+      return lhs => lhs !== rhs;
     case '<':
-      return (l, r) => l < r;
+      return lhs => lhs < rhs;
     case '>':
-      return (l, r) => l > r;
+      return lhs => lhs > rhs;
     case '>=':
-      return (l, r) => l >= r;
+      return lhs => lhs >= rhs;
     case '<=':
-      return (l, r) => l <= r;
+      return lhs => lhs <= rhs;
     case 'IN':
-      return opIn;
+      return lhs => rhs.includes(lhs);
     case 'NOT IN':
-      return not(opIn);
+      return lhs => !rhs.includes(lhs);
     case 'LIKE':
-      return opLike;
+      return getLikeOp(rhs, '');
     case 'NOT LIKE':
-      return not(opLike);
+      return not(getLikeOp(rhs, ''));
     case 'ILIKE':
-      return opIlike;
+      return getLikeOp(rhs, 'i');
     case 'NOT ILIKE':
-      return not(opIlike);
+      return not(getLikeOp(rhs, 'i'));
     default:
       throw new Error(`Operator ${op} not supported`);
   }
 }
 
-interface Includes<T> {
-  includes(v: T): boolean;
+function not<T>(f: (lhs: T) => boolean) {
+  return (lhs: T) => !f(lhs);
 }
 
-function opIn<T>(l: T, r: Includes<T>) {
-  return r.includes(l);
-}
+function getLikeOp(rhs: string, flags: 'i' | ''): (lhs: string) => boolean {
+  // if lhs does not contain '%' or '_' then it is a simple string comparison.
+  // if it does contain '%' or '_' then it is a regex comparison.
+  // '%' is a wildcard for any number of characters
+  // '_' is a wildcard for a single character
+  // SQL allows escaping % and _ using \% and \_
 
-function opLike<T>(l: Includes<T>, r: T) {
-  return l.includes(r);
-}
+  if (!/_|%/.test(rhs)) {
+    if (flags === 'i') {
+      const rhsLower = rhs.toLowerCase();
+      return (lhs: string) => lhs.toLowerCase() === rhsLower;
+    }
+    return (lhs: string) => lhs === rhs;
+  }
 
-function opIlike(l: string, r: string) {
-  return l.toLowerCase().includes(r.toLowerCase());
-}
-
-function not<T>(f: (l: T, r: T) => boolean) {
-  return (l: T, r: T) => !f(l, r);
+  const escaped = rhs.replace(/\\_|\\%|[\\^$*+?.()|[\]{}_%]/g, s => {
+    switch (s) {
+      case '\\_':
+        return '_';
+      case '\\%':
+        return '%';
+      case '%':
+        return '.*';
+      case '_':
+        return '.';
+      default:
+        return '\\' + s;
+    }
+  });
+  const re = new RegExp('^' + escaped + '$', flags);
+  return (lhs: string) => re.test(lhs);
 }

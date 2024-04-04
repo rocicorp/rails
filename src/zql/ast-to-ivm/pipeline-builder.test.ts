@@ -2,7 +2,7 @@ import {compareUTF8} from 'compare-utf8';
 import {describe, expect, test} from 'vitest';
 import {z} from 'zod';
 import {Entity} from '../../generate.js';
-import {AST, Condition} from '../ast/ast.js';
+import {AST, Condition, SimpleCondition} from '../ast/ast.js';
 import {makeTestContext} from '../context/context.js';
 import {DifferenceStream} from '../ivm/graph/difference-stream.js';
 import {Materialite} from '../ivm/materialite.js';
@@ -13,7 +13,7 @@ import {
   WhereCondition,
   astForTesting as ast,
 } from '../query/entity-query.js';
-import {buildPipeline} from './pipeline-builder.js';
+import {buildPipeline, getOperator} from './pipeline-builder.js';
 
 const e1 = z.object({
   id: z.string(),
@@ -407,6 +407,133 @@ describe('OR', () => {
 
       expect(log).toEqual(c.expected);
     });
+  }
+});
+
+describe('getOperator', () => {
+  const cases = [
+    {op: '=', left: 1, right: 1, expected: true},
+    {op: '!=', left: 1, right: 1, expected: false},
+    {op: '=', left: 'a', right: 'a', expected: true},
+    {op: '!=', left: 'a', right: 'a', expected: false},
+    {op: '=', left: true, right: true, expected: true},
+    {op: '!=', left: true, right: true, expected: false},
+
+    {op: '=', left: 1, right: 2, expected: false},
+    {op: '!=', left: 1, right: 2, expected: true},
+    {op: '=', left: 'a', right: 'b', expected: false},
+    {op: '!=', left: 'a', right: 'b', expected: true},
+    {op: '=', left: true, right: false, expected: false},
+    {op: '!=', left: true, right: false, expected: true},
+
+    {op: '>', left: 1, right: 1, expected: false},
+    {op: '>=', left: 1, right: 1, expected: true},
+    {op: '<', left: 1, right: 1, expected: false},
+    {op: '<=', left: 1, right: 1, expected: true},
+    {op: '>', left: 'a', right: 'a', expected: false},
+    {op: '>=', left: 'a', right: 'a', expected: true},
+    {op: '<', left: 'a', right: 'a', expected: false},
+    {op: '<=', left: 'a', right: 'a', expected: true},
+
+    {op: '>', left: 1, right: 2, expected: false},
+    {op: '>=', left: 1, right: 2, expected: false},
+    {op: '<', left: 1, right: 2, expected: true},
+    {op: '<=', left: 1, right: 2, expected: true},
+    {op: '>', left: 'a', right: 'b', expected: false},
+    {op: '>=', left: 'a', right: 'b', expected: false},
+    {op: '<', left: 'a', right: 'b', expected: true},
+    {op: '<=', left: 'a', right: 'b', expected: true},
+
+    {op: 'IN', left: 1, right: [1, 2, 3], expected: true},
+    {op: 'IN', left: 1, right: [2, 3], expected: false},
+    {op: 'IN', left: 'a', right: ['a', 'b', 'c'], expected: true},
+    {op: 'IN', left: 'a', right: ['b', 'c'], expected: false},
+    {op: 'IN', left: true, right: [true, false], expected: true},
+    {op: 'IN', left: true, right: [false], expected: false},
+
+    {op: 'LIKE', left: 'abc', right: 'abc', expected: true},
+    {op: 'LIKE', left: 'abc', right: 'ABC', expected: false},
+    {op: 'LIKE', left: 'abc', right: 'ab', expected: false},
+    {op: 'LIKE', left: 'abc', right: 'ab%', expected: true},
+    {op: 'LIKE', left: 'abc', right: '%bc', expected: true},
+    {op: 'LIKE', left: 'abbc', right: 'a%c', expected: true},
+    {op: 'LIKE', left: 'abc', right: 'a_c', expected: true},
+    {op: 'LIKE', left: 'abc', right: 'a__', expected: true},
+    {op: 'LIKE', left: 'abc', right: '_bc', expected: true},
+    {op: 'LIKE', left: 'abc', right: '___', expected: true},
+    {op: 'LIKE', left: 'abc', right: '%', expected: true},
+    {op: 'LIKE', left: 'abc', right: '_', expected: false},
+    {op: 'LIKE', left: 'abc', right: 'a', expected: false},
+    {op: 'LIKE', left: 'abc', right: 'b', expected: false},
+    {op: 'LIKE', left: 'abc', right: 'c', expected: false},
+    {op: 'LIKE', left: 'abc', right: 'd', expected: false},
+    {op: 'LIKE', left: 'abc', right: 'ab', expected: false},
+
+    {op: 'ILIKE', left: 'abc', right: 'abc', expected: true},
+    {op: 'ILIKE', left: 'abc', right: 'ABC', expected: true},
+    {op: 'ILIKE', left: 'Abc', right: 'ab', expected: false},
+    {op: 'ILIKE', left: 'Abc', right: 'ab%', expected: true},
+    {op: 'ILIKE', left: 'Abc', right: '%bc', expected: true},
+    {op: 'ILIKE', left: 'Abbc', right: 'a%c', expected: true},
+    {op: 'ILIKE', left: 'Abc', right: 'a_c', expected: true},
+    {op: 'ILIKE', left: 'Abc', right: 'a__', expected: true},
+    {op: 'ILIKE', left: 'Abc', right: '_bc', expected: true},
+    {op: 'ILIKE', left: 'Abc', right: '___', expected: true},
+    {op: 'ILIKE', left: 'Abc', right: '%', expected: true},
+    {op: 'ILIKE', left: 'Abc', right: '_', expected: false},
+    {op: 'ILIKE', left: 'Abc', right: 'a', expected: false},
+    {op: 'ILIKE', left: 'Abc', right: 'b', expected: false},
+    {op: 'ILIKE', left: 'Abc', right: 'c', expected: false},
+    {op: 'ILIKE', left: 'Abc', right: 'd', expected: false},
+    {op: 'ILIKE', left: 'Abc', right: 'ab', expected: false},
+
+    // and some tricky likes
+    {op: 'LIKE', left: 'abc', right: 'a%b%c', expected: true},
+    {op: 'LIKE', left: 'abc', right: 'a%b', expected: false},
+    {op: 'LIKE', left: 'abc', right: '.*', expected: false},
+    {op: 'LIKE', left: 'abc', right: '...', expected: false},
+    ...Array.from('/\\[](){}^$+?*.|%_', c => ({
+      op: 'LIKE',
+      left: c,
+      right: '_',
+      expected: true,
+    })),
+    {op: 'LIKE', left: 'a%b', right: 'a\\%b', expected: true},
+    {op: 'LIKE', left: 'a_b', right: 'a\\_b', expected: true},
+  ] as const;
+
+  for (const c of cases) {
+    test(`${c.left} ${c.op} ${c.right} === ${c.expected}`, () => {
+      const condition = {
+        op: c.op,
+        field: 'field',
+        value: {type: 'literal', value: c.right},
+      } as SimpleCondition;
+      expect(getOperator(condition)(c.left)).toBe(c.expected);
+    });
+
+    if (['LIKE', 'IN'].includes(c.op)) {
+      test(`${c.left} NOT ${c.op} ${c.right} === ${!c.expected}`, () => {
+        const condition = {
+          op: 'NOT ' + c.op,
+          field: 'field',
+          value: {type: 'literal', value: c.right},
+        } as SimpleCondition;
+        expect(getOperator(condition)(c.left)).toBe(!c.expected);
+      });
+    }
+
+    // if op is LIKE and expected is true then test ILIKE as well
+    if (c.op === 'LIKE' && c.expected) {
+      test(`${c.left} ILIKE ${c.right}`, () => {
+        const condition = {
+          op: 'ILIKE',
+          field: 'field',
+          value: {type: 'literal', value: c.right},
+        } as SimpleCondition;
+        expect(getOperator(condition)(c.left)).toBe(c.expected);
+      });
+    }
   }
 });
 
