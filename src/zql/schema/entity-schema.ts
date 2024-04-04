@@ -1,9 +1,5 @@
-export type Fields = {
+export type EntitySchema = {
   id: string;
 } & {
   [key: string]: unknown;
 };
-
-export interface EntitySchema {
-  readonly fields: Fields;
-}
