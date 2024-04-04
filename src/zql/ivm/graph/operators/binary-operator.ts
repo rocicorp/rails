@@ -45,7 +45,6 @@ export class BinaryOperator<
     input2.addDownstream(this.#listener2);
     this.#input1 = input1;
     this.#input2 = input2;
-    this.#output = output;
   }
 
   messageUpstream(message: Request): void {

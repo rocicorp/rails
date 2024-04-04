@@ -2,7 +2,7 @@ import {Multiset} from '../../multiset.js';
 import {Version} from '../../types.js';
 import {DifferenceStream, Listener} from '../difference-stream.js';
 import {Request} from '../message.js';
-import {Operator, OperatorBase} from './operator.js';
+import {OperatorBase} from './operator.js';
 
 /**
  * Operator that only takes a single argument
