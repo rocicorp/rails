@@ -13,72 +13,141 @@ import {Context} from '../context/context.js';
 import {must} from '../error/asserts.js';
 import {Misuse} from '../error/misuse.js';
 import {EntitySchema} from '../schema/entity-schema.js';
-import {AggArray, Aggregate, Count, isAggregate} from './agg.js';
+import {AggArray, Aggregate, isAggregate} from './agg.js';
 import {Statement} from './statement.js';
 
 type NotUndefined<T> = Exclude<T, undefined>;
 
-export type FieldValue<
-  S extends EntitySchema,
-  K extends Selectable<S>,
-  Op extends SimpleOperator,
-> = S[K] extends Primitive | undefined
+export type ValueAsOperatorInput<V, Op extends SimpleOperator> = V extends
+  | Primitive
+  | undefined
   ? Op extends InOps
-    ? NotUndefined<S[K]>[]
+    ? NotUndefined<V>[]
     : Op extends LikeOps
-      ? S[K] extends string | undefined
-        ? NotUndefined<S[K]>
+      ? V extends string | undefined
+        ? NotUndefined<V>
         : never
       : Op extends OrderOps
-        ? S[K] extends boolean | undefined
+        ? V extends boolean | undefined
           ? never
-          : NotUndefined<S[K]>
+          : NotUndefined<V>
         : Op extends EqualityOps
-          ? NotUndefined<S[K]>
+          ? NotUndefined<V>
           : never
   : never;
 
-type AggregateValue<S extends EntitySchema, K extends Aggregable<S>> =
-  K extends Count<string>
-    ? number
-    : K extends AggArray<string, string>
-      ? S[K['field']][]
-      : K extends Exclude<Aggregable<S>, Count<string>>
-        ? S[K['field']]
-        : never;
+export type FieldAsOperatorInput<
+  F extends FromSet,
+  S extends SimpleSelector<F>,
+  Op extends SimpleOperator,
+> = S extends `${infer T}.${infer K}`
+  ? ValueAsOperatorInput<F[T][K], Op>
+  : ValueAsOperatorInput<ExtractNestedTypeByName<F, S>, Op>;
 
-export type SelectedFields<
-  S extends EntitySchema,
-  Fields extends Selectable<EntitySchema>[],
-> = Pick<S, Fields[number] extends keyof S ? Fields[number] : never>;
-
-type SelectedAggregates<
-  S extends EntitySchema,
-  Aggregates extends Aggregable<S>[],
-> = {
-  [K in Aggregates[number]['alias']]: AggregateValue<
-    S,
-    Extract<Aggregates[number], {alias: K}>
-  >;
+export type FromSet = {
+  [tableOrAlias: string]: EntitySchema;
 };
 
-type AsString<T> = T extends string ? T : never;
+export type As<Field extends string, Alias extends string> = [Field, Alias];
 
-export type Selectable<S extends EntitySchema> = AsString<keyof S> | 'id';
+type NestedKeys<T> = {
+  [K in keyof T]: keyof T[K];
+}[keyof T];
 
-type Aggregable<S extends EntitySchema> = Aggregate<AsString<keyof S>, string>;
+type SimpleSelector<F extends FromSet> =
+  | 'id'
+  | {
+      [K in keyof F]: Exclude<string & keyof F[K], NestedKeys<Omit<F, K>>>;
+    }[keyof F]
+  | {
+      [K in keyof F]: `${string & K}.${string & keyof F[K]}`;
+    }[keyof F];
 
-type ToSelectableOnly<T, S extends EntitySchema> = T extends (infer U)[]
-  ? U extends Selectable<S>
-    ? U[]
-    : never
-  : never;
+type Selector<F extends FromSet> =
+  | {
+      [K in keyof F]:
+        | `${string & K}.${string & keyof F[K]}`
+        | `${string & K}.*`
+        | Aliaser<F>
+        | Exclude<string & keyof F[K], NestedKeys<Omit<F, K>>>;
+    }[keyof F]
+  | SimpleSelector<F>;
 
-type ToAggregableOnly<T, S extends EntitySchema> = T extends (infer U)[]
-  ? U extends Aggregable<S>
-    ? U[]
-    : never
-  : never;
+type ExtractAggregatePiece<From extends FromSet, K extends Aggregator<From>> =
+  K extends AggArray<infer S, infer Alias>
+    ? {
+        [K in Alias]: ExtractFieldValue<
+          From,
+          S extends SimpleSelector<From> ? S : never
+        >[];
+      }
+    : K extends Aggregate<string, infer Alias>
+      ? {[K in Alias]: number}
+      : never;
+
+type ExtractFieldPiece<From extends FromSet, Selection extends Selector<From>> =
+  // ['table.column', 'alias']
+  Selection extends As<infer Field, infer Alias>
+    ? {
+        [K in Alias]: ExtractFieldValue<
+          From,
+          Field extends SimpleSelector<From> ? Field : never
+        >;
+      }
+    : // 'table.*'
+      Selection extends `${infer Table}.*`
+      ? Table extends keyof From
+        ? From[Table]
+        : never
+      : // 'table.column'
+        Selection extends `${infer Table}.${infer Column}`
+        ? Table extends keyof From
+          ? Column extends keyof From[Table]
+            ? {[P in Column]: From[Table][Column]}
+            : never
+          : never
+        : // 'column'
+          Selection extends string
+          ? {[P in Selection]: ExtractNestedTypeByName<From, Selection>}
+          : never;
+
+type ExtractNestedTypeByName<T, S extends string> = {
+  [K in keyof T]: S extends keyof T[K] ? T[K][S] : never;
+}[keyof T];
+
+type ExtractFieldValue<
+  F extends FromSet,
+  S extends SimpleSelector<F>,
+> = S extends `${infer T}.${infer K}` ? F[T][K] : ExtractNestedTypeByName<F, S>;
+
+type CombineSelections<
+  From extends FromSet,
+  Selections extends (Selector<From> | Aggregator<From>)[],
+> = Selections extends [infer First, ...infer Rest]
+  ? First extends Selector<From>
+    ? CombineSelections<
+        From,
+        Rest extends (Selector<From> | Aggregator<From>)[] ? Rest : []
+      > &
+        ExtractFieldPiece<From, First>
+    : First extends Aggregator<From>
+      ? CombineSelections<
+          From,
+          Rest extends (Selector<From> | Aggregator<From>)[] ? Rest : []
+        > &
+          ExtractAggregatePiece<From, First>
+      : never
+  : unknown;
+
+type Aggregator<From extends FromSet> = Aggregate<SimpleSelector<From>, string>;
+type Aliaser<From extends FromSet> = As<SimpleSelector<From>, string>;
+
+export function as<Field extends SimpleSelector<FromSet>, Alias extends string>(
+  field: Field,
+  alias: Alias,
+): As<Field, Alias> {
+  return [field, alias] as const;
+}
 
 /**
  * Have you ever noticed that when you hover over Types in TypeScript, it shows
@@ -94,27 +163,27 @@ export type MakeHumanReadable<T> = {} & {
 
 let aliasCount = 0;
 
-export type WhereCondition<S extends EntitySchema> =
+export type WhereCondition<From extends FromSet> =
   | {
       op: 'AND' | 'OR';
-      conditions: WhereCondition<S>[];
+      conditions: WhereCondition<From>[];
     }
-  | SimpleCondition<S, Selectable<S>, SimpleOperator>;
+  | SimpleCondition<From, SimpleSelector<From>, SimpleOperator>;
 
 type SimpleCondition<
-  S extends EntitySchema,
-  K extends Selectable<S>,
+  From extends FromSet,
+  Selector extends SimpleSelector<From>,
   Op extends SimpleOperator,
 > = {
   op: SimpleOperator;
-  field: K;
+  field: SimpleSelector<From>;
   value: {
     type: 'literal';
-    value: FieldValue<S, K, Op>;
+    value: FieldAsOperatorInput<From, Selector, Op>;
   };
 };
 
-export class EntityQuery<S extends EntitySchema, Return = []> {
+export class EntityQuery<From extends FromSet, Return = []> {
   readonly #ast: AST;
   readonly #name: string;
   readonly #context: Context;
@@ -132,55 +201,71 @@ export class EntityQuery<S extends EntitySchema, Return = []> {
     astWeakMap.set(this, this.#ast);
   }
 
-  select<Fields extends (Selectable<S> | Aggregable<S>)[]>(...x: Fields) {
-    const select = new Set(this.#ast.select);
+  select<Fields extends (Selector<From> | Aggregator<From>)[]>(
+    ...x: Fields
+  ): EntityQuery<From, CombineSelections<From, Fields>[]> {
+    const seen = new Set(this.#ast.select?.map(s => s[1]));
     const aggregate: Aggregation[] = [];
+    const select = [...(this.#ast.select ?? [])];
     for (const more of x) {
       if (!isAggregate(more)) {
-        select.add(more);
+        if (Array.isArray(more)) {
+          if (seen.has(more[1])) {
+            continue;
+          }
+          seen.add(more[1]);
+          select.push(more);
+        } else {
+          if (seen.has(more)) {
+            continue;
+          }
+          seen.add(more);
+          select.push([more, more]);
+        }
+
         continue;
       }
       aggregate.push(more);
     }
 
-    return new EntityQuery<
-      S,
-      (SelectedFields<S, ToSelectableOnly<Fields, S>> &
-        SelectedAggregates<S, ToAggregableOnly<Fields, S>>)[]
-    >(this.#context, this.#name, {
-      ...this.#ast,
-      select: [...select],
-      aggregate,
-    });
+    return new EntityQuery<From, CombineSelections<From, Fields>[]>(
+      this.#context,
+      this.#name,
+      {
+        ...this.#ast,
+        select: [...select],
+        aggregate,
+      },
+    );
   }
 
-  groupBy<K extends Selectable<S>>(...x: K[]) {
-    return new EntityQuery<S, Return>(this.#context, this.#name, {
+  groupBy<Fields extends SimpleSelector<From>[]>(...x: Fields) {
+    return new EntityQuery<From, Return>(this.#context, this.#name, {
       ...this.#ast,
       groupBy: x as string[],
     });
   }
 
-  where(expr: WhereCondition<S>): EntityQuery<S, Return>;
-  where<K extends Selectable<S>, Op extends SimpleOperator>(
+  where(expr: WhereCondition<From>): EntityQuery<From, Return>;
+  where<K extends SimpleSelector<From>, Op extends SimpleOperator>(
     field: K,
     op: Op,
-    value: FieldValue<S, K, Op>,
-  ): EntityQuery<S, Return>;
-  where<K extends Selectable<S>, Op extends SimpleOperator>(
-    exprOrField: K | WhereCondition<S>,
+    value: FieldAsOperatorInput<From, K, Op>,
+  ): EntityQuery<From, Return>;
+  where<K extends SimpleSelector<From>, Op extends SimpleOperator>(
+    exprOrField: K | WhereCondition<From>,
     op?: Op,
-    value?: FieldValue<S, K, Op>,
-  ): EntityQuery<S, Return> {
-    let expr: WhereCondition<S>;
+    value?: FieldAsOperatorInput<From, K, Op>,
+  ): EntityQuery<From, Return> {
+    let expr: WhereCondition<From>;
     if (typeof exprOrField === 'string') {
       expr = expression(exprOrField, op!, value!);
     } else {
       expr = exprOrField;
     }
 
-    let cond: WhereCondition<S>;
-    const where = this.#ast.where as WhereCondition<S> | undefined;
+    let cond: WhereCondition<From>;
+    const where = this.#ast.where as WhereCondition<From> | undefined;
     if (!where) {
       cond = expr;
     } else if (where.op === 'AND') {
@@ -193,7 +278,7 @@ export class EntityQuery<S extends EntitySchema, Return = []> {
       };
     }
 
-    return new EntityQuery<S, Return>(this.#context, this.#name, {
+    return new EntityQuery<From, Return>(this.#context, this.#name, {
       ...this.#ast,
       where: cond as Condition,
     });
@@ -204,29 +289,29 @@ export class EntityQuery<S extends EntitySchema, Return = []> {
       throw new Misuse('Limit already set');
     }
 
-    return new EntityQuery<S, Return>(this.#context, this.#name, {
+    return new EntityQuery<From, Return>(this.#context, this.#name, {
       ...this.#ast,
       limit: n,
     });
   }
 
-  asc(...x: Selectable<S>[]) {
+  asc(...x: SimpleSelector<From>[]) {
     if (!x.includes('id')) {
       x.push('id');
     }
 
-    return new EntityQuery<S, Return>(this.#context, this.#name, {
+    return new EntityQuery<From, Return>(this.#context, this.#name, {
       ...this.#ast,
       orderBy: [x, 'asc'],
     });
   }
 
-  desc(...x: Selectable<S>[]) {
+  desc(...x: SimpleSelector<From>[]) {
     if (!x.includes('id')) {
       x.push('id');
     }
 
-    return new EntityQuery<S, Return>(this.#context, this.#name, {
+    return new EntityQuery<From, Return>(this.#context, this.#name, {
       ...this.#ast,
       orderBy: [x, 'desc'],
     });
@@ -245,23 +330,23 @@ export function astForTesting(q: WeakKey): AST {
 
 type ArrayOfAtLeastTwo<T> = [T, T, ...T[]];
 
-export function or<S extends EntitySchema>(
-  ...conditions: ArrayOfAtLeastTwo<WhereCondition<S>>
-): WhereCondition<S> {
+export function or<F extends FromSet>(
+  ...conditions: ArrayOfAtLeastTwo<WhereCondition<F>>
+): WhereCondition<F> {
   return flatten('OR', conditions);
 }
 
-export function and<S extends EntitySchema>(
-  ...conditions: ArrayOfAtLeastTwo<WhereCondition<S>>
-): WhereCondition<S> {
+export function and<F extends FromSet>(
+  ...conditions: ArrayOfAtLeastTwo<WhereCondition<F>>
+): WhereCondition<F> {
   return flatten('AND', conditions);
 }
 
-function flatten<S extends EntitySchema>(
+function flatten<F extends FromSet>(
   op: 'AND' | 'OR',
-  conditions: WhereCondition<S>[],
-): WhereCondition<S> {
-  const flattened: WhereCondition<S>[] = [];
+  conditions: WhereCondition<F>[],
+): WhereCondition<F> {
+  const flattened: WhereCondition<F>[] = [];
   for (const c of conditions) {
     if (c.op === op) {
       flattened.push(...c.conditions);
@@ -274,23 +359,28 @@ function flatten<S extends EntitySchema>(
 }
 
 export function expression<
-  S extends EntitySchema,
-  K extends Selectable<S>,
+  From extends FromSet,
+  Selector extends SimpleSelector<From>,
   Op extends SimpleOperator,
->(field: K, op: Op, value: FieldValue<S, K, Op>): WhereCondition<S> {
+>(
+  field: Selector,
+  op: Op,
+  value: FieldAsOperatorInput<From, Selector, Op>,
+): WhereCondition<From> {
   return {
     op,
     field,
     value: {
       type: 'literal',
-      value,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      value: value as any, // TODO
     },
   };
 }
 
-export function not<S extends EntitySchema>(
-  expr: WhereCondition<S>,
-): WhereCondition<S> {
+export function not<From extends FromSet>(
+  expr: WhereCondition<From>,
+): WhereCondition<From> {
   switch (expr.op) {
     case 'AND':
       return {
@@ -339,3 +429,19 @@ function negateOperator(op: SimpleOperator): SimpleOperator {
       return 'ILIKE';
   }
 }
+
+// const q: EntityQuery<{
+//   user: {
+//     id: string;
+//     name: string;
+//     foo: boolean;
+//   };
+//   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+// }> = {} as any;
+
+// import * as agg from './agg.js';
+
+// const x = q.select('user.*', agg.min('foo')).prepare().exec();
+
+// const f = q.select('name', 'user.id').where('name', '!=', '').prepare().exec();
+// const g = q.select(agg.avg('name')).prepare().exec();
