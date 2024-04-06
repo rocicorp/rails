@@ -2,6 +2,10 @@ import {
   AST,
   Aggregation,
   Condition,
+  EqualityOps,
+  InOps,
+  LikeOps,
+  OrderOps,
   Primitive,
   SimpleOperator,
 } from '../ast/ast.js';
@@ -12,10 +16,27 @@ import {EntitySchema} from '../schema/entity-schema.js';
 import {AggArray, Aggregate, Count, isAggregate} from './agg.js';
 import {Statement} from './statement.js';
 
-type FieldValue<
+type NotUndefined<T> = Exclude<T, undefined>;
+
+export type FieldValue<
   S extends EntitySchema,
   K extends Selectable<S>,
-> = S['fields'][K] extends Primitive | undefined ? S['fields'][K] : never;
+  Op extends SimpleOperator,
+> = S['fields'][K] extends Primitive | undefined
+  ? Op extends InOps
+    ? NotUndefined<S['fields'][K]>[]
+    : Op extends LikeOps
+      ? S['fields'][K] extends string | undefined
+        ? NotUndefined<S['fields'][K]>
+        : never
+      : Op extends OrderOps
+        ? S['fields'][K] extends boolean | undefined
+          ? never
+          : NotUndefined<S['fields'][K]>
+        : Op extends EqualityOps
+          ? NotUndefined<S['fields'][K]>
+          : never
+  : never;
 
 type AggregateValue<S extends EntitySchema, K extends Aggregable<S>> =
   K extends Count<string>
@@ -86,14 +107,18 @@ export type WhereCondition<S extends EntitySchema> =
       op: 'AND' | 'OR';
       conditions: WhereCondition<S>[];
     }
-  | SimpleCondition<S>;
+  | SimpleCondition<S, Selectable<S>, SimpleOperator>;
 
-type SimpleCondition<S extends EntitySchema> = {
+type SimpleCondition<
+  S extends EntitySchema,
+  K extends Selectable<S>,
+  Op extends SimpleOperator,
+> = {
   op: SimpleOperator;
-  field: Selectable<S>;
+  field: K;
   value: {
     type: 'literal';
-    value: FieldValue<S, Selectable<S>>;
+    value: FieldValue<S, K, Op>;
   };
 };
 
@@ -145,15 +170,15 @@ export class EntityQuery<S extends EntitySchema, Return = []> {
   }
 
   where(expr: WhereCondition<S>): EntityQuery<S, Return>;
-  where<K extends Selectable<S>>(
+  where<K extends Selectable<S>, Op extends SimpleOperator>(
     field: K,
-    op: SimpleOperator,
-    value: FieldValue<S, K>,
+    op: Op,
+    value: FieldValue<S, K, Op>,
   ): EntityQuery<S, Return>;
-  where<K extends Selectable<S>>(
+  where<K extends Selectable<S>, Op extends SimpleOperator>(
     exprOrField: K | WhereCondition<S>,
-    op?: SimpleOperator,
-    value?: FieldValue<S, K>,
+    op?: Op,
+    value?: FieldValue<S, K, Op>,
   ): EntityQuery<S, Return> {
     let expr: WhereCondition<S>;
     if (typeof exprOrField === 'string') {
@@ -256,11 +281,11 @@ function flatten<S extends EntitySchema>(
   return {op, conditions: flattened};
 }
 
-export function expression<S extends EntitySchema, K extends Selectable<S>>(
-  field: K,
-  op: SimpleOperator,
-  value: FieldValue<S, K>,
-): WhereCondition<S> {
+export function expression<
+  S extends EntitySchema,
+  K extends Selectable<S>,
+  Op extends SimpleOperator,
+>(field: K, op: Op, value: FieldValue<S, K, Op>): WhereCondition<S> {
   return {
     op,
     field,
