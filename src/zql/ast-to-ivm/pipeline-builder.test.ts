@@ -500,6 +500,18 @@ describe('getOperator', () => {
     })),
     {op: 'LIKE', left: 'a%b', right: 'a\\%b', expected: true},
     {op: 'LIKE', left: 'a_b', right: 'a\\_b', expected: true},
+
+    {op: 'LIKE', left: 'a\\bc', right: 'a\\\\bc', expected: true},
+    {op: 'LIKE', left: 'a\\Bc', right: 'a\\\\Bc', expected: true},
+    {op: 'LIKE', left: 'ab', right: 'a\\b', expected: true},
+    {op: 'LIKE', left: 'a"b', right: 'a"b', expected: true},
+    {op: 'LIKE', left: "a'b", right: "a'b", expected: true},
+
+    {op: 'LIKE', left: 'a{', right: 'a{', expected: true},
+    {op: 'LIKE', left: 'a{', right: 'a\\{', expected: true},
+    {op: 'LIKE', left: 'a\n', right: 'a\n', expected: true},
+    {op: 'LIKE', left: 'an', right: 'a\\n', expected: true},
+    {op: 'LIKE', left: 'a ', right: 'a\\s', expected: false},
   ] as const;
 
   for (const c of cases) {
@@ -535,6 +547,14 @@ describe('getOperator', () => {
       });
     }
   }
+
+  expect(() =>
+    getOperator({
+      op: 'LIKE',
+      field: 'field',
+      value: {type: 'literal', value: '\\'},
+    } as SimpleCondition),
+  ).toThrow('LIKE pattern must not end with escape character');
 });
 
 // order-by and limit are properties of the materialize view

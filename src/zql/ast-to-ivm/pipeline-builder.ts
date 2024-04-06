@@ -330,35 +330,60 @@ function not<T>(f: (lhs: T) => boolean) {
   return (lhs: T) => !f(lhs);
 }
 
-function getLikeOp(rhs: string, flags: 'i' | ''): (lhs: string) => boolean {
+function getLikeOp(pattern: string, flags: 'i' | ''): (lhs: string) => boolean {
   // if lhs does not contain '%' or '_' then it is a simple string comparison.
   // if it does contain '%' or '_' then it is a regex comparison.
   // '%' is a wildcard for any number of characters
   // '_' is a wildcard for a single character
-  // SQL allows escaping % and _ using \% and \_
+  // Postgres SQL allows escaping using `\`.
 
-  if (!/_|%/.test(rhs)) {
+  if (!/_|%|\\/.test(pattern)) {
     if (flags === 'i') {
-      const rhsLower = rhs.toLowerCase();
+      const rhsLower = pattern.toLowerCase();
       return (lhs: string) => lhs.toLowerCase() === rhsLower;
     }
-    return (lhs: string) => lhs === rhs;
+    return (lhs: string) => lhs === pattern;
   }
-
-  const escaped = rhs.replace(/\\_|\\%|[\\^$*+?.()|[\]{}_%]/g, s => {
-    switch (s) {
-      case '\\_':
-        return '_';
-      case '\\%':
-        return '%';
-      case '%':
-        return '.*';
-      case '_':
-        return '.';
-      default:
-        return '\\' + s;
-    }
-  });
-  const re = new RegExp('^' + escaped + '$', flags);
+  const re = patternToRegExp(pattern, flags);
   return (lhs: string) => re.test(lhs);
+}
+
+const specialCharsRe = /[$()*+.?[\]\\^{|}]/;
+
+function patternToRegExp(source: string, flags: '' | 'i' = ''): RegExp {
+  // There are a few cases:
+  // % => .*
+  // _ => .
+  // \x => \x for any x except special regexp chars
+  // special regexp chars => \special regexp chars
+  let pattern = '^';
+  for (let i = 0; i < source.length; i++) {
+    let c = source[i];
+    switch (c) {
+      case '%':
+        pattern += '.*';
+        break;
+      case '_':
+        pattern += '.';
+        break;
+
+      // @ts-expect-error fallthrough
+      case '\\':
+        if (i === source.length - 1) {
+          throw new Error('LIKE pattern must not end with escape character');
+        }
+        i++;
+        c = source[i];
+
+      // fall through
+      default:
+        if (specialCharsRe.test(c)) {
+          pattern += '\\';
+        }
+        pattern += c;
+
+        break;
+    }
+  }
+  return new RegExp(pattern + '$', flags);
 }
