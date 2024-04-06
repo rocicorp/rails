@@ -5,7 +5,6 @@ import {
   Condition,
   Ordering,
   SimpleCondition,
-  SimpleOperator,
 } from '../ast/ast.js';
 import {must} from '../error/asserts.js';
 import {DifferenceStream, concat} from '../ivm/graph/difference-stream.js';
@@ -160,13 +159,9 @@ function applySimpleCondition<T extends Entity>(
   stream: DifferenceStream<T>,
   condition: SimpleCondition,
 ) {
-  const operator = getOperator(condition.op);
-  return stream.filter(x =>
-    operator(
-      (x as Record<string, unknown>)[condition.field],
-      condition.value.value,
-    ),
-  );
+  const operator = getOperator(condition);
+  const {field} = condition;
+  return stream.filter(x => operator((x as Record<string, unknown>)[field]));
 }
 
 function applyGroupBy<T extends Entity>(
@@ -297,53 +292,98 @@ function makeKeyFunction(columns: string[]) {
 // We're well-typed in the query builder so once we're down here
 // we can assume that the operator is valid.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function getOperator(op: SimpleOperator): (l: any, r: any) => boolean {
+export function getOperator(condition: SimpleCondition): (lhs: any) => boolean {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rhs = condition.value.value as any;
+  const {op} = condition;
   switch (op) {
     case '=':
-      return (l, r) => l === r;
+      return lhs => lhs === rhs;
     case '!=':
-      return (l, r) => l !== r;
+      return lhs => lhs !== rhs;
     case '<':
-      return (l, r) => l < r;
+      return lhs => lhs < rhs;
     case '>':
-      return (l, r) => l > r;
+      return lhs => lhs > rhs;
     case '>=':
-      return (l, r) => l >= r;
+      return lhs => lhs >= rhs;
     case '<=':
-      return (l, r) => l <= r;
+      return lhs => lhs <= rhs;
     case 'IN':
-      return opIn;
+      return lhs => rhs.includes(lhs);
     case 'NOT IN':
-      return not(opIn);
+      return lhs => !rhs.includes(lhs);
     case 'LIKE':
-      return opLike;
+      return getLikeOp(rhs, '');
     case 'NOT LIKE':
-      return not(opLike);
+      return not(getLikeOp(rhs, ''));
     case 'ILIKE':
-      return opIlike;
+      return getLikeOp(rhs, 'i');
     case 'NOT ILIKE':
-      return not(opIlike);
+      return not(getLikeOp(rhs, 'i'));
     default:
       throw new Error(`Operator ${op} not supported`);
   }
 }
 
-interface Includes<T> {
-  includes(v: T): boolean;
+function not<T>(f: (lhs: T) => boolean) {
+  return (lhs: T) => !f(lhs);
 }
 
-function opIn<T>(l: T, r: Includes<T>) {
-  return r.includes(l);
+function getLikeOp(pattern: string, flags: 'i' | ''): (lhs: string) => boolean {
+  // if lhs does not contain '%' or '_' then it is a simple string comparison.
+  // if it does contain '%' or '_' then it is a regex comparison.
+  // '%' is a wildcard for any number of characters
+  // '_' is a wildcard for a single character
+  // Postgres SQL allows escaping using `\`.
+
+  if (!/_|%|\\/.test(pattern)) {
+    if (flags === 'i') {
+      const rhsLower = pattern.toLowerCase();
+      return (lhs: string) => lhs.toLowerCase() === rhsLower;
+    }
+    return (lhs: string) => lhs === pattern;
+  }
+  const re = patternToRegExp(pattern, flags);
+  return (lhs: string) => re.test(lhs);
 }
 
-function opLike<T>(l: Includes<T>, r: T) {
-  return l.includes(r);
-}
+const specialCharsRe = /[$()*+.?[\]\\^{|}]/;
 
-function opIlike(l: string, r: string) {
-  return l.toLowerCase().includes(r.toLowerCase());
-}
+function patternToRegExp(source: string, flags: '' | 'i' = ''): RegExp {
+  // There are a few cases:
+  // % => .*
+  // _ => .
+  // \x => \x for any x except special regexp chars
+  // special regexp chars => \special regexp chars
+  let pattern = '^';
+  for (let i = 0; i < source.length; i++) {
+    let c = source[i];
+    switch (c) {
+      case '%':
+        pattern += '.*';
+        break;
+      case '_':
+        pattern += '.';
+        break;
 
-function not<T>(f: (l: T, r: T) => boolean) {
-  return (l: T, r: T) => !f(l, r);
+      // @ts-expect-error fallthrough
+      case '\\':
+        if (i === source.length - 1) {
+          throw new Error('LIKE pattern must not end with escape character');
+        }
+        i++;
+        c = source[i];
+
+      // fall through
+      default:
+        if (specialCharsRe.test(c)) {
+          pattern += '\\';
+        }
+        pattern += c;
+
+        break;
+    }
+  }
+  return new RegExp(pattern + '$', flags);
 }
