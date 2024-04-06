@@ -282,11 +282,11 @@ test('each where operator', async () => {
   // expect(await stmt.exec()).toEqual([{id: 'a'}, {id: 'b'}]);
   // stmt.destroy();
 
-  stmt = q.select('id').where('assignee', 'LIKE', 'al').prepare();
+  stmt = q.select('id').where('assignee', 'LIKE', 'al%').prepare();
   expect(await stmt.exec()).toEqual([{id: 'c'}]);
   stmt.destroy();
 
-  stmt = q.select('id').where('assignee', 'ILIKE', 'AL').prepare();
+  stmt = q.select('id').where('assignee', 'ILIKE', 'AL%').prepare();
   expect(await stmt.exec()).toEqual([{id: 'c'}]);
   stmt.destroy();
 
