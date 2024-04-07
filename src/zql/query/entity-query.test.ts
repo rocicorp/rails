@@ -7,6 +7,7 @@ import {conditionToString} from './condition-to-string.js';
 import {
   EntityQuery,
   FieldAsOperatorInput,
+  ValueAsOperatorInput,
   WhereCondition,
   and,
   as,
@@ -145,12 +146,24 @@ test('FieldValue type', () => {
     };
   };
   expectTypeOf<FieldAsOperatorInput<E, 'id', '='>>().toEqualTypeOf<string>();
+  expectTypeOf<FieldAsOperatorInput<E, 'e.id', '='>>().toEqualTypeOf<string>();
   expectTypeOf<FieldAsOperatorInput<E, 'n', '='>>().toEqualTypeOf<number>();
+  expectTypeOf<FieldAsOperatorInput<E, 'e.n', '='>>().toEqualTypeOf<number>();
   expectTypeOf<FieldAsOperatorInput<E, 's', '!='>>().toEqualTypeOf<string>();
+  expectTypeOf<FieldAsOperatorInput<E, 'e.s', '!='>>().toEqualTypeOf<string>();
   expectTypeOf<FieldAsOperatorInput<E, 'b', '='>>().toEqualTypeOf<boolean>();
   expectTypeOf<FieldAsOperatorInput<E, 'optN', '='>>().toEqualTypeOf<number>();
+  expectTypeOf<
+    FieldAsOperatorInput<E, 'e.optN', '='>
+  >().toEqualTypeOf<number>();
   expectTypeOf<FieldAsOperatorInput<E, 'optS', '!='>>().toEqualTypeOf<string>();
+  expectTypeOf<
+    FieldAsOperatorInput<E, 'e.optS', '!='>
+  >().toEqualTypeOf<string>();
   expectTypeOf<FieldAsOperatorInput<E, 'optB', '='>>().toEqualTypeOf<boolean>();
+  expectTypeOf<
+    FieldAsOperatorInput<E, 'e.optB', '='>
+  >().toEqualTypeOf<boolean>();
 
   // booleans not allowed with order operators
   expectTypeOf<FieldAsOperatorInput<E, 'b', '<'>>().toEqualTypeOf<never>();
@@ -187,7 +200,12 @@ test('FieldValue type', () => {
   expectTypeOf<FieldAsOperatorInput<E, 's', 'NOT IN'>>().toEqualTypeOf<
     string[]
   >();
-  expectTypeOf<FieldAsOperatorInput<E, 'b', 'IN'>>().toEqualTypeOf<boolean[]>();
+  expectTypeOf<ValueAsOperatorInput<boolean, 'IN'>>().toEqualTypeOf<
+    boolean[]
+  >();
+  expectTypeOf<FieldAsOperatorInput<E, 'e.b', 'IN'>>().toEqualTypeOf<
+    boolean[]
+  >();
   expectTypeOf<FieldAsOperatorInput<E, 'b', 'NOT IN'>>().toEqualTypeOf<
     boolean[]
   >();

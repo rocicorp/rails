@@ -6,7 +6,6 @@ import {
   InOps,
   LikeOps,
   OrderOps,
-  Primitive,
   SimpleOperator,
 } from '../ast/ast.js';
 import {Context} from '../context/context.js';
@@ -18,23 +17,22 @@ import {Statement} from './statement.js';
 
 type NotUndefined<T> = Exclude<T, undefined>;
 
-export type ValueAsOperatorInput<V, Op extends SimpleOperator> = V extends
-  | Primitive
-  | undefined
-  ? Op extends InOps
-    ? NotUndefined<V>[]
-    : Op extends LikeOps
-      ? V extends string | undefined
+export type ValueAsOperatorInput<
+  V,
+  Op extends SimpleOperator,
+> = Op extends InOps
+  ? NotUndefined<V>[]
+  : Op extends LikeOps
+    ? V extends string | undefined
+      ? NotUndefined<V>
+      : never
+    : Op extends OrderOps
+      ? V extends boolean | undefined
+        ? never
+        : NotUndefined<V>
+      : Op extends EqualityOps
         ? NotUndefined<V>
-        : never
-      : Op extends OrderOps
-        ? V extends boolean | undefined
-          ? never
-          : NotUndefined<V>
-        : Op extends EqualityOps
-          ? NotUndefined<V>
-          : never
-  : never;
+        : never;
 
 export type FieldAsOperatorInput<
   F extends FromSet,
@@ -100,16 +98,17 @@ type ExtractFieldPiece<From extends FromSet, Selection extends Selector<From>> =
         ? From[Table]
         : never
       : // 'table.column'
-        Selection extends `${infer Table}.${infer Column}`
-        ? Table extends keyof From
-          ? Column extends keyof From[Table]
-            ? {[P in Column]: From[Table][Column]}
-            : never
-          : never
+        Selection extends `${infer _Table}.${infer Column}`
+        ? {
+            [K in Column]: ExtractFieldValue<From, Selection>;
+          }
         : // 'column'
-          Selection extends string
-          ? {[P in Selection]: ExtractNestedTypeByName<From, Selection>}
-          : never;
+          {
+            [P in string & Selection]: ExtractNestedTypeByName<
+              From,
+              string & Selection
+            >;
+          };
 
 type ExtractNestedTypeByName<T, S extends string> = {
   [K in keyof T]: S extends keyof T[K] ? T[K][S] : never;
