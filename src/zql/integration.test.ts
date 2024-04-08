@@ -84,7 +84,7 @@ function sampleTenUniqueIssues() {
 function setup() {
   const r = newRep();
   const c = makeReplicacheContext(r);
-  const q = new EntityQuery<{fields: Issue}>(c, 'issue');
+  const q = new EntityQuery<Issue>(c, 'issue');
   return {r, c, q};
 }
 
@@ -335,6 +335,7 @@ test('order by single field', async () => {
         await r.close();
       }
     }),
+    {interruptAfterTimeLimit: 4000},
   );
 });
 
@@ -350,6 +351,7 @@ test('order by id', async () => {
 
       await r.close();
     }),
+    {interruptAfterTimeLimit: 4000},
   );
 });
 
@@ -373,6 +375,7 @@ test('order by compound fields', async () => {
 
       await r.close();
     }),
+    {interruptAfterTimeLimit: 4000},
   );
 });
 
@@ -391,6 +394,7 @@ test('order by optional field', async () => {
 
       await r.close();
     }),
+    {interruptAfterTimeLimit: 4000},
   );
 });
 
