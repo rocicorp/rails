@@ -230,6 +230,7 @@ test('basic join', () => {
 
 test('join through a junction table', () => {
   // track -> track_artist -> artist
+  let version = 0;
   const trackInput = new DifferenceStream<Track>();
   const trackArtistInput = new DifferenceStream<TrackArtist>();
   const artistInput = new DifferenceStream<Artist>();
@@ -263,7 +264,8 @@ test('join through a junction table', () => {
     items.push([e, m]);
   });
 
-  trackInput.newDifference(1, [
+  ++version;
+  trackInput.newDifference(version, [
     [
       {
         id: 1,
@@ -274,7 +276,7 @@ test('join through a junction table', () => {
       1,
     ],
   ]);
-  trackArtistInput.newDifference(1, [
+  trackArtistInput.newDifference(version, [
     [
       {
         trackId: 1,
@@ -290,7 +292,7 @@ test('join through a junction table', () => {
       1,
     ],
   ]);
-  artistInput.newDifference(1, [
+  artistInput.newDifference(version, [
     [
       {
         id: 1,
@@ -307,9 +309,9 @@ test('join through a junction table', () => {
     ],
   ]);
 
-  trackInput.commit(1);
-  trackArtistInput.commit(1);
-  artistInput.commit(1);
+  trackInput.commit(version);
+  trackArtistInput.commit(version);
+  artistInput.commit(version);
 
   expect(items).toEqual([
     [
@@ -336,7 +338,8 @@ test('join through a junction table', () => {
   items.length = 0;
 
   // remove an artist
-  artistInput.newDifference(2, [
+  ++version;
+  artistInput.newDifference(version, [
     [
       {
         id: 2,
@@ -345,7 +348,7 @@ test('join through a junction table', () => {
       -1,
     ],
   ]);
-  artistInput.commit(2);
+  artistInput.commit(version);
 
   // artist-two row is retracted
   expect(items).toEqual([
@@ -363,7 +366,8 @@ test('join through a junction table', () => {
   items.length = 0;
 
   // remove a track-artist link
-  trackArtistInput.newDifference(3, [
+  ++version;
+  trackArtistInput.newDifference(version, [
     [
       {
         trackId: 1,
@@ -372,14 +376,15 @@ test('join through a junction table', () => {
       -1,
     ],
   ]);
-  trackArtistInput.commit(3);
+  trackArtistInput.commit(version);
 
   // should be no output -- the track-artist link is gone
   expect(items).toEqual([]);
   items.length = 0;
 
   // remove the track
-  trackInput.newDifference(4, [
+  ++version;
+  trackInput.newDifference(version, [
     [
       {
         id: 1,
@@ -390,7 +395,7 @@ test('join through a junction table', () => {
       -1,
     ],
   ]);
-  trackInput.commit(4);
+  trackInput.commit(version);
 
   // all rows are retracted
   expect(items).toEqual([
@@ -406,4 +411,91 @@ test('join through a junction table', () => {
     ],
   ]);
   items.length = 0;
+
+  // add some artists
+  ++version;
+  artistInput.newDifference(version, [
+    [
+      {
+        id: 1,
+        name: 'Artist A',
+      },
+      1,
+    ],
+  ]);
+  artistInput.newDifference(version, [
+    [
+      {
+        id: 2,
+        name: 'Artist B',
+      },
+      1,
+    ],
+  ]);
+  trackInput.newDifference(version, [
+    [
+      {
+        id: 1,
+        title: 'Track A',
+        length: 1,
+        albumId: 1,
+      },
+      1,
+    ],
+  ]);
+  trackInput.newDifference(version, [
+    [
+      {
+        id: 2,
+        title: 'Track B',
+        length: 1,
+        albumId: 1,
+      },
+      1,
+    ],
+  ]);
+  trackArtistInput.newDifference(version, [
+    [
+      {
+        trackId: 1,
+        artistId: 1,
+      },
+      1,
+    ],
+  ]);
+  trackArtistInput.newDifference(version, [
+    [
+      {
+        trackId: 2,
+        artistId: 2,
+      },
+      1,
+    ],
+  ]);
+  artistInput.commit(version);
+  trackInput.commit(version);
+  trackArtistInput.commit(version);
+
+  expect(items).toEqual([
+    [
+      {
+        id: '1_1-1_1',
+        track: {id: 1, title: 'Track A', length: 1, albumId: 1},
+        trackArtist: {trackId: 1, artistId: 1},
+        artist: {id: 1, name: 'Artist A'},
+        [joinSymbol]: true,
+      },
+      1,
+    ],
+    [
+      {
+        id: '2_2-2_2',
+        track: {id: 2, title: 'Track B', length: 1, albumId: 1},
+        trackArtist: {trackId: 2, artistId: 2},
+        artist: {id: 2, name: 'Artist B'},
+        [joinSymbol]: true,
+      },
+      1,
+    ],
+  ]);
 });
