@@ -1,6 +1,11 @@
 import {Primitive} from '../../../ast/ast.js';
 import {Entry, Multiset} from '../../multiset.js';
-import {JoinResult, StrOrNum, isJoinResult, joinSymbol} from '../../types.js';
+import {
+  JoinResult,
+  StringOrNumber,
+  isJoinResult,
+  joinSymbol,
+} from '../../types.js';
 
 /**
  * Indexes difference events by a key.
@@ -42,7 +47,7 @@ export class DifferenceIndex<Key extends Primitive, V> {
     aAlias: AAlias | undefined,
     other: DifferenceIndex<Key, VO>,
     bAlias: BAlias | undefined,
-    getBValueIdentity: (v: VO) => StrOrNum,
+    getBValueIdentity: (v: VO) => StringOrNumber,
   ): Multiset<JoinResult<V, VO, AAlias, BAlias>> {
     const ret: (readonly [JoinResult<V, VO, AAlias, BAlias>, number])[] = [];
     for (const [key, entry] of this.#index) {

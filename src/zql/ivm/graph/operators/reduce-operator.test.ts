@@ -14,7 +14,7 @@ type Reduction = {
 
 test('collects all things with the same key', () => {
   const input = new DifferenceStream<Thing>();
-  let tx = 0;
+  let version = 0;
   function getGroupKey(t: Thing) {
     return t.groupKey;
   }
@@ -144,7 +144,7 @@ test('collects all things with the same key', () => {
   ]);
 
   function check(expected: [Reduction, number][]) {
-    input.commit(++tx);
+    input.commit(++version);
     expect(items).toEqual(expected);
     items.length = 0;
   }

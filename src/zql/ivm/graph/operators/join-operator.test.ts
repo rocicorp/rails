@@ -24,16 +24,6 @@ type Artist = {
   name: string;
 };
 
-// type Playlist = {
-//   id: number;
-//   title: string;
-// };
-
-// type PlaylistTrack = {
-//   playlistId: number;
-//   trackId: number;
-// };
-
 test('unbalanced input', () => {
   const trackInput = new DifferenceStream<Track>();
   const albumInput = new DifferenceStream<Album>();

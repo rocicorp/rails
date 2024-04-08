@@ -1,6 +1,6 @@
 import {Primitive} from '../../../ast/ast.js';
 import {Entry, Multiset} from '../../multiset.js';
-import {JoinResult, StrOrNum, Version} from '../../types.js';
+import {JoinResult, StringOrNumber} from '../../types.js';
 import {DifferenceStream} from '../difference-stream.js';
 import {BinaryOperator} from './binary-operator.js';
 import {DifferenceIndex} from './difference-index.js';
@@ -15,11 +15,11 @@ export type JoinArgs<
   a: DifferenceStream<AValue>;
   aAs: AAlias | undefined;
   getAJoinKey: (value: AValue) => Key;
-  getAPrimaryKey: (value: AValue) => StrOrNum;
+  getAPrimaryKey: (value: AValue) => StringOrNumber;
   b: DifferenceStream<BValue>;
   bAs: BAlias | undefined;
   getBJoinKey: (value: BValue) => Key;
-  getBPrimaryKey: (value: BValue) => StrOrNum;
+  getBPrimaryKey: (value: BValue) => StringOrNumber;
   output: DifferenceStream<JoinResult<AValue, BValue, AAlias, BAlias>>;
 };
 
@@ -58,62 +58,54 @@ export class InnerJoinOperator<
   // since they're already aliased
   JoinResult<AValue, BValue, AAlias, BAlias>
 > {
-  constructor({
-    a,
-    aAs,
-    getAJoinKey,
-    getAPrimaryKey,
-    b,
-    bAs,
-    getBJoinKey,
-    getBPrimaryKey,
-    output,
-  }: JoinArgs<K, AValue, BValue, AAlias, BAlias>) {
-    const indexA = new DifferenceIndex<K, AValue>(getAPrimaryKey);
-    const indexB = new DifferenceIndex<K, BValue>(getBPrimaryKey);
+  readonly #indexA: DifferenceIndex<K, AValue>;
+  readonly #indexB: DifferenceIndex<K, BValue>;
+  readonly #joinArgs;
 
-    const inner = (
-      _version: Version,
-      inputA: Multiset<AValue> | undefined,
-      inputB: Multiset<BValue> | undefined,
-    ) => {
-      const aKeysForCompaction: K[] = [];
-      const bKeysForCompaction: K[] = [];
-      const deltaA = new DifferenceIndex<K, AValue>(getAPrimaryKey);
-      for (const entry of inputA || []) {
-        const aKey = getAJoinKey(entry[0]);
-        deltaA.add(aKey, entry);
-        aKeysForCompaction.push(aKey);
-      }
+  constructor(joinArgs: JoinArgs<K, AValue, BValue, AAlias, BAlias>) {
+    super(joinArgs.a, joinArgs.b, joinArgs.output, (_, inputA, inputB) =>
+      this.#join(inputA, inputB),
+    );
+    this.#indexA = new DifferenceIndex<K, AValue>(joinArgs.getAPrimaryKey);
+    this.#indexB = new DifferenceIndex<K, BValue>(joinArgs.getBPrimaryKey);
+    this.#joinArgs = joinArgs;
+  }
 
-      const deltaB = new DifferenceIndex<K, BValue>(getBPrimaryKey);
-      for (const entry of inputB || []) {
-        const bKey = getBJoinKey(entry[0]);
-        deltaB.add(bKey, entry);
-        bKeysForCompaction.push(bKey);
-      }
+  #join(
+    inputA: Multiset<AValue> | undefined,
+    inputB: Multiset<BValue> | undefined,
+  ) {
+    const {aAs, getAJoinKey, getAPrimaryKey, bAs, getBJoinKey, getBPrimaryKey} =
+      this.#joinArgs;
+    const aKeysForCompaction: K[] = [];
+    const bKeysForCompaction: K[] = [];
+    const deltaA = new DifferenceIndex<K, AValue>(getAPrimaryKey);
+    for (const entry of inputA || []) {
+      const aKey = getAJoinKey(entry[0]);
+      deltaA.add(aKey, entry);
+      aKeysForCompaction.push(aKey);
+    }
 
-      const result: Entry<JoinResult<AValue, BValue, AAlias, BAlias>>[] = [];
-      if (deltaA !== undefined) {
-        for (const x of deltaA.join(aAs, indexB, bAs, getBPrimaryKey)) {
-          result.push(x);
-        }
-        indexA.extend(deltaA);
-      }
+    const deltaB = new DifferenceIndex<K, BValue>(getBPrimaryKey);
+    for (const entry of inputB || []) {
+      const bKey = getBJoinKey(entry[0]);
+      deltaB.add(bKey, entry);
+      bKeysForCompaction.push(bKey);
+    }
 
-      if (deltaB !== undefined) {
-        for (const x of indexA.join(aAs, deltaB, bAs, getBPrimaryKey)) {
-          result.push(x);
-        }
-        indexB.extend(deltaB);
-      }
+    const result: Entry<JoinResult<AValue, BValue, AAlias, BAlias>>[] = [];
+    for (const x of deltaA.join(aAs, this.#indexB, bAs, getBPrimaryKey)) {
+      result.push(x);
+    }
+    this.#indexA.extend(deltaA);
 
-      indexA.compact(aKeysForCompaction);
-      indexB.compact(bKeysForCompaction);
-      return result;
-    };
-    super(a, b, output, inner);
+    for (const x of this.#indexA.join(aAs, deltaB, bAs, getBPrimaryKey)) {
+      result.push(x);
+    }
+    this.#indexB.extend(deltaB);
+
+    this.#indexA.compact(aKeysForCompaction);
+    this.#indexB.compact(bKeysForCompaction);
+    return result;
   }
 }
-
-// export

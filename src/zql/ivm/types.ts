@@ -1,10 +1,10 @@
 export type Version = number;
-export type StrOrNum = string | number;
+export type StringOrNumber = string | number;
 
 export const joinSymbol = Symbol();
 
 type JoinResultBase = {
-  id: StrOrNum;
+  id: StringOrNumber;
   [joinSymbol]: true;
 };
 
