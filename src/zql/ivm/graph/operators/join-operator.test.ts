@@ -316,7 +316,7 @@ test('join through a junction table', () => {
   expect(items).toEqual([
     [
       {
-        id: '1_1-1_1',
+        id: '1_1_1-1',
         track: {id: 1, title: 'Track One', length: 1, albumId: 1},
         trackArtist: {trackId: 1, artistId: 1},
         artist: {id: 1, name: 'Artist One'},
@@ -401,7 +401,7 @@ test('join through a junction table', () => {
   expect(items).toEqual([
     [
       {
-        id: '1_1-1_1',
+        id: '1_1_1-1',
         track: {id: 1, title: 'Track One', length: 1, albumId: 1},
         trackArtist: {trackId: 1, artistId: 1},
         artist: {id: 1, name: 'Artist One'},
@@ -411,6 +411,156 @@ test('join through a junction table', () => {
     ],
   ]);
   items.length = 0;
+
+  // remove remaining track-artist link
+  ++version;
+  trackArtistInput.newDifference(version, [
+    [
+      {
+        trackId: 1,
+        artistId: 1,
+      },
+      -1,
+    ],
+  ]);
+  // remove remaining artist
+  artistInput.newDifference(version, [
+    [
+      {
+        id: 1,
+        name: 'Artist One',
+      },
+      -1,
+    ],
+  ]);
+  trackArtistInput.commit(version);
+  artistInput.commit(version);
+
+  // all rows are retracted -> 0
+  expect(items).toEqual([]);
+  items.length = 0;
+
+  ++version;
+  artistInput.newDifference(version, [
+    [
+      {
+        id: 1,
+        name: 'Artist A',
+      },
+      1,
+    ],
+  ]);
+  artistInput.newDifference(version, [
+    [
+      {
+        id: 2,
+        name: 'Artist B',
+      },
+      1,
+    ],
+  ]);
+  trackInput.newDifference(version, [
+    [
+      {
+        id: 1,
+        title: 'Track A',
+        length: 1,
+        albumId: 1,
+      },
+      1,
+    ],
+  ]);
+  trackInput.newDifference(version, [
+    [
+      {
+        id: 2,
+        title: 'Track B',
+        length: 1,
+        albumId: 1,
+      },
+      1,
+    ],
+  ]);
+  trackArtistInput.newDifference(version, [
+    [
+      {
+        trackId: 1,
+        artistId: 1,
+      },
+      1,
+    ],
+  ]);
+  trackArtistInput.newDifference(version, [
+    [
+      {
+        trackId: 2,
+        artistId: 2,
+      },
+      1,
+    ],
+  ]);
+  artistInput.commit(version);
+  trackInput.commit(version);
+  trackArtistInput.commit(version);
+
+  expect(items).toEqual([
+    [
+      {
+        id: '1_1_1-1',
+        track: {id: 1, title: 'Track A', length: 1, albumId: 1},
+        trackArtist: {trackId: 1, artistId: 1},
+        artist: {id: 1, name: 'Artist A'},
+        [joinSymbol]: true,
+      },
+      1,
+    ],
+    [
+      {
+        id: '2_2_2-2',
+        track: {id: 2, title: 'Track B', length: 1, albumId: 1},
+        trackArtist: {trackId: 2, artistId: 2},
+        artist: {id: 2, name: 'Artist B'},
+        [joinSymbol]: true,
+      },
+      1,
+    ],
+  ]);
+});
+
+test('add many items to the same source as separate calls in the same tick', () => {
+  let version = 0;
+  const trackInput = new DifferenceStream<Track>();
+  const trackArtistInput = new DifferenceStream<TrackArtist>();
+  const artistInput = new DifferenceStream<Artist>();
+
+  const trackAndTrackArtistOutput = trackInput.join({
+    aAs: 'track',
+    getAJoinKey: track => track.id,
+    getAPrimaryKey: track => track.id,
+    b: trackArtistInput,
+    bAs: 'trackArtist',
+    getBJoinKey: trackArtist => trackArtist.trackId,
+    getBPrimaryKey: trackArtist =>
+      trackArtist.trackId + '-' + trackArtist.artistId,
+  });
+
+  const output = trackAndTrackArtistOutput.join({
+    aAs: undefined,
+    getAJoinKey: x => x.trackArtist.artistId,
+    getAPrimaryKey: x => x.id,
+    b: artistInput,
+    bAs: 'artist',
+    getBJoinKey: x => x.id,
+    getBPrimaryKey: x => x.id,
+  });
+
+  const items: [
+    JoinResult<Track, TrackArtist, 'track', 'trackArtist'>,
+    number,
+  ][] = [];
+  output.effect((e, m) => {
+    items.push([e, m]);
+  });
 
   // add some artists
   ++version;
@@ -479,7 +629,7 @@ test('join through a junction table', () => {
   expect(items).toEqual([
     [
       {
-        id: '1_1-1_1',
+        id: '1_1_1-1',
         track: {id: 1, title: 'Track A', length: 1, albumId: 1},
         trackArtist: {trackId: 1, artistId: 1},
         artist: {id: 1, name: 'Artist A'},
@@ -489,7 +639,7 @@ test('join through a junction table', () => {
     ],
     [
       {
-        id: '2_2-2_2',
+        id: '2_2_2-2',
         track: {id: 2, title: 'Track B', length: 1, albumId: 1},
         trackArtist: {trackId: 2, artistId: 2},
         artist: {id: 2, name: 'Artist B'},

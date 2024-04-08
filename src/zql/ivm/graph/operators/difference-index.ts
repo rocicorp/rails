@@ -50,13 +50,36 @@ export class DifferenceIndex<Key extends Primitive, V> {
     getBValueIdentity: (v: VO) => StringOrNumber,
   ): Multiset<JoinResult<V, VO, AAlias, BAlias>> {
     const ret: (readonly [JoinResult<V, VO, AAlias, BAlias>, number])[] = [];
-    for (const [key, entry] of this.#index) {
-      const otherEntry = other.#index.get(key);
-      if (otherEntry === undefined) {
+    let outerIndex;
+    let innerIndex;
+    let getOuterValueIdentity;
+    let getInnerValueIdentity;
+    let outerAlias;
+    let innerAlias;
+
+    if (this.#index.size < other.#index.size) {
+      outerIndex = this.#index;
+      innerIndex = other.#index;
+      getOuterValueIdentity = this.#getValueIdentity;
+      getInnerValueIdentity = getBValueIdentity;
+      outerAlias = aAlias;
+      innerAlias = bAlias;
+    } else {
+      outerIndex = other.#index;
+      innerIndex = this.#index;
+      getOuterValueIdentity = getBValueIdentity;
+      getInnerValueIdentity = this.#getValueIdentity;
+      outerAlias = bAlias;
+      innerAlias = aAlias;
+    }
+
+    for (const [key, outerEntry] of outerIndex) {
+      const innerEntry = innerIndex.get(key);
+      if (innerEntry === undefined) {
         continue;
       }
-      for (const [v1, m1] of entry) {
-        for (const [v2, m2] of otherEntry) {
+      for (const [outerValue, outerMult] of outerEntry) {
+        for (const [innerValue, innerMult] of innerEntry) {
           // TODO: is there an alternate formulation of JoinResult that requires fewer allocations?
           let value: JoinResult<V, VO, AAlias, BAlias>;
 
@@ -65,37 +88,56 @@ export class DifferenceIndex<Key extends Primitive, V> {
           // This handles the case of: A JOIN B JOIN C ...
           // A JOIN B produces {a, b}
           // A JOIN B JOIN C would produce {a_b: {a, b}, c} if we didn't flatten here.
-          if (isJoinResult(v1) && isJoinResult(v2)) {
-            value = {...v1, ...v2, id: v1.id + '_' + v2.id} as JoinResult<
-              V,
-              VO,
-              AAlias,
-              BAlias
-            >;
-          } else if (isJoinResult(v1)) {
+          if (isJoinResult(outerValue) && isJoinResult(innerValue)) {
             value = {
-              ...v1,
-              [bAlias!]: v2,
-              id: v1.id + '_' + getBValueIdentity(v2),
+              ...outerValue,
+              ...innerValue,
+              id: this.#concatIds(outerValue.id, innerValue.id),
             } as JoinResult<V, VO, AAlias, BAlias>;
-          } else if (isJoinResult(v2)) {
+          } else if (isJoinResult(outerValue)) {
             value = {
-              ...v2,
-              [aAlias!]: v1,
-              id: this.#getValueIdentity(v1) + '_' + v2.id,
+              ...outerValue,
+              [innerAlias!]: innerValue,
+              id: this.#concatIds(
+                outerValue.id,
+                getInnerValueIdentity(innerValue as unknown as V & VO),
+              ),
+            } as JoinResult<V, VO, AAlias, BAlias>;
+          } else if (isJoinResult(innerValue)) {
+            value = {
+              ...innerValue,
+              [outerAlias!]: outerValue,
+              id: this.#concatIds(
+                getOuterValueIdentity(outerValue as unknown as V & VO),
+                innerValue.id,
+              ),
             } as JoinResult<V, VO, AAlias, BAlias>;
           } else {
             value = {
               [joinSymbol]: true,
-              id: this.#getValueIdentity(v1) + '_' + getBValueIdentity(v2),
-              [aAlias!]: v1,
-              [bAlias!]: v2,
+              id: this.#concatIds(
+                getOuterValueIdentity(outerValue as unknown as V & VO),
+                getInnerValueIdentity(innerValue as unknown as V & VO),
+              ),
+              [outerAlias!]: outerValue,
+              [innerAlias!]: innerValue,
             } as JoinResult<V, VO, AAlias, BAlias>;
           }
-          ret.push([value, m1 * m2] as const);
+          ret.push([value, outerMult * innerMult] as const);
         }
       }
     }
+    return ret;
+  }
+
+  #concatIds(idA: string | number, idB: string | number) {
+    let ret;
+    if (idA.toString() < idB.toString()) {
+      ret = idA + '_' + idB;
+    } else {
+      ret = idB + '_' + idA;
+    }
+
     return ret;
   }
 

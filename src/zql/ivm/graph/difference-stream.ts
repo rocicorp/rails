@@ -228,6 +228,10 @@ export class DifferenceStream<T extends object> {
       this.destroy();
     }
   }
+
+  toString() {
+    return this.#upstream?.toString() ?? 'DifferenceStream';
+  }
 }
 
 export function concat<T extends object>(
