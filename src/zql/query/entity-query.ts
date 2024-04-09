@@ -98,7 +98,7 @@ type ExtractFieldPiece<From extends FromSet, Selection extends Selector<From>> =
         ? From[Table]
         : never
       : // 'table.column'
-        Selection extends `${infer _Table}.${infer Column}`
+        Selection extends `${string}.${infer Column}`
         ? {
             [K in Column]: ExtractFieldValue<From, Selection>;
           }
@@ -428,19 +428,3 @@ function negateOperator(op: SimpleOperator): SimpleOperator {
       return 'ILIKE';
   }
 }
-
-// const q: EntityQuery<{
-//   user: {
-//     id: string;
-//     name: string;
-//     foo: boolean;
-//   };
-//   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-// }> = {} as any;
-
-// import * as agg from './agg.js';
-
-// const x = q.select('user.*', agg.min('foo')).prepare().exec();
-
-// const f = q.select('name', 'user.id').where('name', '!=', '').prepare().exec();
-// const g = q.select(agg.avg('name')).prepare().exec();

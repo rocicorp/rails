@@ -62,7 +62,7 @@ export function buildPipeline(
 
 export function applySelect(
   stream: DifferenceStream<Entity>,
-  select: [string, string][],
+  select: [column: string, alias: string][],
   orderBy: Ordering | undefined,
 ) {
   return stream.map(x => {
