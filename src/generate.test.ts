@@ -871,7 +871,7 @@ test('input/output types', async () => {
   } as unknown as NodeJS.Process;
 
   const generated = generate<z.infer<typeof inputOutput>, z.input<typeof inputOutput>>('inputOutput', inputOutput.parse);
-  const {get, list, listIDs} = generated;
+  const {get} = generated;
 
   const r = new Replicache({
     name: nanoid(),
