@@ -60,7 +60,7 @@ async function markAllComplete(tx: WriteTransaction) {
     // Mutators are transactional, so this is safe. The entire function will
     // run atomically and `t.complete` cannot change while it is running.
     if (!t.complete) {
-      await updateTodo(todo.id, {complete: true});
+      await updateTodo(tx, {id: todo.id, complete: true});
     }
   }
 }
