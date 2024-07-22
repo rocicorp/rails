@@ -857,3 +857,34 @@ test('undefined parse', async () => {
   const l2 = await r.query(tx => listIDs(tx));
   expect(l2).deep.eq(['invalid', 'valid']);
 });
+
+
+const inputOutput = z.object({
+  id: z.string(),
+  defaulted: z.string().default("The default")
+})
+test('input/output types', async () => {
+  globalThis.process = {
+    env: {
+      NODE_ENV: '',
+    },
+  } as unknown as NodeJS.Process;
+
+  const generated = generate<z.infer<typeof inputOutput>, z.input<typeof inputOutput>>('inputOutput', inputOutput.parse);
+  const {get} = generated;
+
+  const r = new Replicache({
+    name: nanoid(),
+    mutators: generated,
+    licenseKey: TEST_LICENSE_KEY,
+  });
+  let v = await r.query(tx => get(tx, 'valid'));
+  expect(v).eq(undefined);
+
+  await r.mutate.set({id: 'defaulted'});
+  await r.mutate.set({id: 'set-default', defaulted: 'baz'});
+  v = await r.query(tx => get(tx, 'defaulted'));
+  expect(v).deep.eq({id: 'defaulted', defaulted: 'The default'});
+  v = await r.query(tx => get(tx, 'set-default'));
+  expect(v).deep.eq({id: 'set-default', defaulted: 'baz'});
+})

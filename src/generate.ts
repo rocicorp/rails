@@ -74,46 +74,46 @@ export type WriteTransaction = ReadTransaction & {
   del(key: string): Promise<boolean>;
 };
 
-export type GenerateResult<T extends Entity> = {
+export type GenerateResult<Output extends Entity, Input extends Entity = Output> = {
   /** Write `value`, overwriting any previous version of same value. */
-  set: (tx: WriteTransaction, value: T) => Promise<void>;
+  set: (tx: WriteTransaction, value: Input) => Promise<void>;
   /**
    * Write `value`, overwriting any previous version of same value.
    * @deprecated Use `set` instead.
    */
-  put: (tx: WriteTransaction, value: T) => Promise<void>;
+  put: (tx: WriteTransaction, value: Input) => Promise<void>;
   /** Write `value` only if no previous version of this value exists. */
-  init: (tx: WriteTransaction, value: T) => Promise<boolean>;
+  init: (tx: WriteTransaction, value: Input) => Promise<boolean>;
   /** Update existing value with new fields. */
-  update: (tx: WriteTransaction, value: Update<T>) => Promise<void>;
+  update: (tx: WriteTransaction, value: Update<Input>) => Promise<void>;
   /** Delete any existing value or do nothing if none exist. */
   delete: (tx: WriteTransaction, id: string) => Promise<void>;
   /** Return true if specified value exists, false otherwise. */
   has: (tx: ReadTransaction, id: string) => Promise<boolean>;
   /** Get value by ID, or return undefined if none exists. */
-  get: (tx: ReadTransaction, id: string) => Promise<T | undefined>;
+  get: (tx: ReadTransaction, id: string) => Promise<Output | undefined>;
   /** Get value by ID, or throw if none exists. */
-  mustGet: (tx: ReadTransaction, id: string) => Promise<T>;
+  mustGet: (tx: ReadTransaction, id: string) => Promise<Output>;
   /** List values matching criteria. */
-  list: (tx: ReadTransaction, options?: ListOptions) => Promise<T[]>;
+  list: (tx: ReadTransaction, options?: ListOptions) => Promise<Output[]>;
   /** List ids matching criteria. */
   listIDs: (tx: ReadTransaction, options?: ListOptions) => Promise<string[]>;
   /** List [id, value] entries matching criteria. */
   listEntries: (
     tx: ReadTransaction,
     options?: ListOptions,
-  ) => Promise<[string, T][]>;
+  ) => Promise<[string, Output][]>;
 };
 
 /**
  * Generates strongly-typed CRUD-style functions for interacting with Reflect
  * from an Entity.
  */
-export function generate<T extends Entity>(
+export function generate<Output extends Entity, Input extends Entity = Output>(
   prefix: string,
-  parse: Parse<T> | undefined = undefined,
+  parse: Parse<Output> | undefined = undefined,
   logger: OptionalLogger = console,
-): GenerateResult<T> {
+): GenerateResult<Output, Input> {
   const keyFromEntity: KeyFromEntityFunc<Entity> = (_tx, entity) =>
     key(prefix, entity.id);
   const keyFromID: KeyFromLookupIDFunc<string> = id => key(prefix, id);
@@ -121,8 +121,8 @@ export function generate<T extends Entity>(
   const idFromEntity: IDFromEntityFunc<Entity, string> = (_tx, entity) =>
     entity.id;
   const firstKey = () => key(prefix, '');
-  const parseInternal: ParseInternal<T> = (_, val) => maybeParse(parse, val);
-  const set: GenerateResult<T>['set'] = (tx, value) =>
+  const parseInternal: ParseInternal<Output> = (_, val) => maybeParse(parse, val);
+  const set: GenerateResult<Output, Input>['set'] = (tx, value) =>
     setImpl(keyFromEntity, parseInternal, tx, value);
 
   return {
